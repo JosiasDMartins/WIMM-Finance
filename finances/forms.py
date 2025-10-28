@@ -1,6 +1,9 @@
 from django import forms
 from django.forms import modelformset_factory
+from django.contrib.auth import get_user_model # <-- Import necessário!
+
 from .models import FamilyConfiguration, FamilyMember, FlowGroup, Transaction, Investment, CustomUser
+
 
 
 # --- Configuration Form ---
@@ -79,35 +82,48 @@ class InvestmentForm(forms.ModelForm):
         }
 
 class AddMemberForm(forms.Form):
-    # Obtém as opções de ROLE do modelo FamilyMember
+    """
+    Formulário para o administrador criar um novo usuário e membro familiar, 
+    permitindo username, password e um email opcional.
+    """
     ROLES = FamilyMember.ROLES
 
+    # Campos de formulário (os mesmos)
+    username = forms.CharField(
+        label='Username (User ID)',
+        max_length=150,
+        widget=forms.TextInput(attrs={'class': 'w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2', 'placeholder': 'e.g., john.doe', 'required': True})
+    )
     email = forms.EmailField(
-        label='Endereço de E-mail do Novo Membro',
+        label='E-mail (Opcional)',
         max_length=254,
-        # Adicione widgets para estilização se necessário (ex: widgets.EmailInput)
+        required=False,
+        widget=forms.EmailInput(attrs={'class': 'w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2', 'placeholder': 'e.g., example@email.com'})
+    )
+    password = forms.CharField(
+        label='Senha',
+        widget=forms.PasswordInput(attrs={'class': 'w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2', 'required': True})
     )
     role = forms.ChoiceField(
         label='Função',
         choices=ROLES,
-        initial='PARENT'
+        initial='PARENT',
+        widget=forms.Select(attrs={'class': 'w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2', 'required': True})
     )
     
-    # Opcional: Adiciona a família para validações futuras
-    def __init__(self, *args, **kwargs):
-        self.family = kwargs.pop('family', None)
-        super().__init__(*args, **kwargs)
-        
-    # Exemplo de validação customizada:
+    def clean_username(self):
+        username = self.cleaned_data['username']
+        # CORREÇÃO: Chama get_user_model() diretamente dentro do método
+        UserModel = get_user_model() 
+        if UserModel.objects.filter(username__iexact=username).exists(): 
+             raise forms.ValidationError("Este nome de usuário já está sendo usado por outra conta.")
+        return username
+
     def clean_email(self):
-        email = self.cleaned_data['email']
-        # Verifica se o usuário já é membro da família
-        try:
-            user = CustomUser.objects.get(email__iexact=email)
-            if FamilyMember.objects.filter(user=user, family=self.family).exists():
-                 raise forms.ValidationError("Este usuário já é membro da sua família.")
-        except CustomUser.DoesNotExist:
-            # Não existe usuário, pode passar para a próxima etapa (a view tenta criar/enviar convite)
-            pass
-        
-        return email        
+        email = self.cleaned_data.get('email')
+        if email:
+            # CORREÇÃO: Chama get_user_model() diretamente dentro do método
+            UserModel = get_user_model() 
+            if UserModel.objects.filter(email__iexact=email).exists():
+                raise forms.ValidationError("Este e-mail já está em uso por outra conta.")
+        return email

@@ -6,11 +6,13 @@ from django.db.models import Sum, Max # FIX: Ensure Max is imported
 from django.db import transaction as db_transaction
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponse
 from django.views.decorators.http import require_POST 
+from django.contrib.auth import get_user_model 
 
 from .models import Investment # Certifique-se de que Investment está importado
 
 from .models import FamilyMember, CustomUser # <-- Garanta que CustomUser está importado
 from .forms import AddMemberForm # <-- Garanta que AddMemberForm está importado
+
 
 from .models import (
     Family, FamilyMember, FamilyConfiguration, 
@@ -266,18 +268,15 @@ def members_view(request):
     family, current_member, all_family_members = get_family_context(request.user)
 
     if not family:
-        return redirect('dashboard') # Redireciona se o usuário não tiver família
+        return redirect('dashboard')
 
-    # O 'all_family_members' já vem do get_family_context
+    # Cria um formulário limpo para a renderização inicial
+    add_member_form = AddMemberForm() 
     
-    # Prepara o formulário de adição, que será usado no modal
-    add_member_form = AddMemberForm(family=family)
-
     context = {
         'current_member': current_member,
         'family_members': all_family_members,
-        'add_member_form': add_member_form,
-        # Você pode querer adicionar um sinalizador para quem é administrador:
+        'add_member_form': add_member_form, # Passa o formulário
         'is_admin': current_member.role == 'ADMIN', 
     }
     
@@ -285,76 +284,105 @@ def members_view(request):
 
 
 @login_required
+@db_transaction.atomic 
 def add_member_view(request):
     """
-    Adiciona um novo membro à família (simplesmente busca por e-mail e associa).
+    Cria um novo CustomUser e o associa à família como FamilyMember.
     """
-    family, current_member, _ = get_family_context(request.user)
+    # 1. Correção do NameError: get_user_model precisa ser importado ou definido.
+    # Assumimos que foi importado no topo do arquivo.
+    family, current_member, all_family_members = get_family_context(request.user)
+    UserModel = get_user_model() # Agora deve funcionar
 
-    # Verifica se o usuário logado é um ADMIN (Regra de segurança)
-    if not current_member or current_member.role not in ['ADMIN', 'PARENT']: # Assumindo que PARENT também pode gerenciar
-        return HttpResponseForbidden("Acesso negado. Apenas administradores podem adicionar membros.")
+    if not current_member or current_member.role not in ['ADMIN', 'PARENT']:
+        return HttpResponseForbidden("Acesso negado. Apenas administradores/pais podem adicionar membros.")
 
     if request.method == 'POST':
-        # Instancia o formulário com a requisição e a família atual
-        form = AddMemberForm(request.POST, family=family) 
+        form = AddMemberForm(request.POST) 
+        
         if form.is_valid():
-            email = form.cleaned_data['email']
+            username = form.cleaned_data['username']
+            email = form.cleaned_data['email'] # Campo adicionado
+            password = form.cleaned_data['password']
             role = form.cleaned_data['role']
             
-            # 1. Tenta encontrar o usuário pelo e-mail
-            try:
-                new_user = CustomUser.objects.get(email__iexact=email)
-            except CustomUser.DoesNotExist:
-                # TODO: No futuro, envie um convite por e-mail se o usuário não existir
-                # Por agora, vamos apenas mostrar um erro
-                form.add_error('email', 'Nenhum usuário encontrado com este e-mail. Verifique se o membro se registrou.')
-                
-                # Se der erro, precisamos renderizar a página de membros novamente
-                all_family_members = FamilyMember.objects.filter(family=family).select_related('user')
-                context = {
-                    'current_member': current_member,
-                    'family_members': all_family_members,
-                    'add_member_form': form, # Passa o form com erro de volta
-                }
-                return render(request, 'finances/Members.html', context)
-
-            # 2. Cria o FamilyMember
-            FamilyMember.objects.get_or_create(
+            # 2. Cria o novo CustomUser (passando email, que pode ser vazio)
+            new_user = UserModel.objects.create_user(
+                username=username,
+                email=email, # Passa o e-mail, se existir
+                password=password,
+            )
+            
+            # 3. Associa o novo usuário à família
+            FamilyMember.objects.create(
                 user=new_user, 
                 family=family, 
-                defaults={'role': role}
+                role=role
             )
+            
             return redirect('members')
+        
+        # 4. Se o formulário for inválido:
+        context = {
+            'current_member': current_member,
+            'family_members': all_family_members,
+            'add_member_form': form, # Passa o formulário com erros de volta
+            'is_admin': current_member.role == 'ADMIN', 
+        }
+        # Renderiza a página de membros para exibir os erros.
+        return render(request, 'finances/Members.html', context)
     
-    # Se o método for GET ou o formulário for inválido
-    return redirect('members') # Redireciona de volta para a lista (o erro será exibido na view principal se o POST falhar)
+    return redirect('members')
 
 
 @login_required
-@require_POST
+@db_transaction.atomic
 def remove_member_view(request, member_id):
     """
-    Remove um FamilyMember.
+    Remove um FamilyMember e o CustomUser associado.
+    Requer que o usuário logado seja ADMIN/PARENT e não esteja tentando se excluir.
     """
+    # 1. Obter o FamilyMember a ser excluído
+    try:
+        member_to_remove = FamilyMember.objects.select_related('user', 'family').get(id=member_id)
+        user_to_remove = member_to_remove.user
+        
+    except FamilyMember.DoesNotExist:
+        # Se o membro não existe, apenas redireciona (ou mostra um erro)
+        return redirect('members')
+
+    # 2. Obter o contexto do usuário logado
     family, current_member, _ = get_family_context(request.user)
 
-    # 1. Verifica se o usuário logado é um ADMIN
-    if not current_member or current_member.role != 'ADMIN':
-        return HttpResponseForbidden("Acesso negado. Apenas administradores podem remover membros.")
+    # 3. Verificações de Segurança
     
-    # 2. Encontra o membro a ser removido
-    member_to_remove = get_object_or_404(FamilyMember, id=member_id)
-
-    # 3. Verifica se o membro pertence à família
-    if member_to_remove.family != family:
-        return HttpResponseForbidden("Acesso negado. O membro não pertence à sua família.")
-
-    # 4. Impede que o próprio admin se remova (deve haver uma forma de 'sair da família' separada)
+    # A) Permissão: Apenas ADMIN ou PARENT podem excluir
+    if not current_member or current_member.role not in ['ADMIN', 'PARENT']:
+        return HttpResponseForbidden("Acesso negado. Apenas administradores/pais podem remover membros.")
+    
+    # B) Não permitir auto-exclusão
     if member_to_remove.user == request.user:
-        return HttpResponseForbidden("Você não pode se remover desta forma. Use a função 'Sair da Família' na Configuração.")
+        messages.error(request, "Você não pode remover a si mesmo da família.")
+        return redirect('members')
+        
+    # C) Pertencimento à Família: O membro a ser removido deve pertencer à família do usuário logado
+    if member_to_remove.family != family:
+        return HttpResponseForbidden("Acesso negado. Membro não pertence à sua família.")
 
+    
+    # 4. Executar a Exclusão
+    
+    # Primeiro, excluímos o FamilyMember
     member_to_remove.delete()
+    
+    # Em seguida, excluímos o CustomUser.
+    # Isso é crucial para que a conta não possa mais fazer login.
+    user_to_remove.delete()
+    
+    # 5. Mensagem e Redirecionamento de Sucesso
+    # Se você tiver mensagens no Django (django.contrib.messages)
+    # messages.success(request, f"O membro '{user_to_remove.username}' foi removido com sucesso.")
+    
     return redirect('members')
 
 # --- AJAX Views ---
