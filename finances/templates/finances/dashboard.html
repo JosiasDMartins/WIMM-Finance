@@ -1,0 +1,121 @@
+{% extends "finances/base.html" %}
+{% load static %}
+{% load humanize %} 
+
+{% block content %}
+<div class="p-6 md:p-10 lg:p-12">
+    <div class="flex justify-between items-start mb-8">
+        <div>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Period: {{ start_date|date:"F d" }} - {{ end_date|date:"F d, Y" }}</p>
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-8">
+        <div class="h-32 flex items-center justify-center text-gray-400 border border-dashed rounded-lg">
+            [ Chart.js or similar chart code will be integrated here ]
+        </div>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <div class="lg:col-span-2 space-y-6">
+
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+                <div class="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
+                    <h2 class="text-xl font-bold text-[#0d171b] dark:text-white">Expense Flow Groups</h2>
+                    <a href="{% url 'add_flow_group' %}" class="flex items-center rounded-lg bg-red-500 text-white text-sm font-medium leading-normal p-2 hover:bg-red-600 transition-colors shadow-sm">
+                        <span class="material-symbols-outlined text-lg mr-1">add_circle</span>
+                        Add Group
+                    </a>
+                </div>
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead>
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Group</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Budgeted</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Spent Total</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                        {% for group in expense_groups %}
+                        <tr>
+                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white">{{ group.name }}</td>
+                            <td class="py-4 px-4 text-sm text-gray-500 dark:text-gray-400 text-right">R$ {{ group.budgeted_amount|intcomma }}</td>
+                            <td class="py-4 px-4 text-sm text-red-600 dark:text-red-500 text-right">R$ {{ group.total_spent|default:"0.00"|intcomma }}</td>
+                            <td class="py-4 px-4 text-right">
+                                <a href="{% url 'edit_flow_group' group.id %}" class="text-primary hover:text-primary/80 text-sm">View Details</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="py-4 px-4 text-center text-gray-500">No expense groups defined. Click "Add Group" to start.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+        </div> 
+        
+        <div class="lg:col-span-1 space-y-6">
+
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+                <div class="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
+                    <h2 class="text-xl font-bold text-[#0d171b] dark:text-white">Recent Income</h2>
+                    <a href="{% url 'add_receipt' %}" class="flex items-center rounded-lg bg-green-500 text-white text-sm font-medium leading-normal p-2 hover:bg-green-600 transition-colors shadow-sm">
+                        <span class="material-symbols-outlined text-lg mr-1">add_circle</span>
+                        Add Income
+                    </a>
+                </div>
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                        {% for transaction in recent_income_transactions %}
+                        <tr>
+                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white">{{ transaction.description }}</td>
+                            <td class="py-4 px-4 text-sm text-gray-500 dark:text-gray-400">{{ transaction.date|date:"d/m" }}</td>
+                            <td class="py-4 px-4 text-sm text-green-600 dark:text-green-500 text-right">R$ {{ transaction.amount|intcomma }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="py-4 px-4 text-center text-gray-500">No income transactions recorded yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+                <div class="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
+                    <h2 class="text-xl font-bold text-[#0d171b] dark:text-white">Balance Sheet</h2>
+                </div> 
+                
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                        <tr>
+                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white"></td>
+                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white font-semibold">Estimated</td>
+                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white font-semibold">Realized</td>
+                        </tr>
+                        <tr>
+                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white">Income</td>
+                            <td class="py-4 px-4 text-sm text-green-600 dark:text-green-500">R$ {{ summary_totals.total_budgeted_income|default:"0.00"|intcomma }}</td>
+                            <td class="py-4 px-4 text-sm text-green-600 dark:text-green-500">R$ {{ summary_totals.total_realized_income|default:"0.00"|intcomma }}</td>
+                        </tr>
+                        <tr>
+                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white">Expenses</td>
+                            <td class="py-4 px-4 text-sm text-red-600 dark:text-red-500">R$ {{ summary_totals.total_budgeted_expense|default:"0.00"|intcomma }}</td>
+                            <td class="py-4 px-4 text-sm text-red-600 dark:text-red-500">R$ {{ summary_totals.total_realized_expense|default:"0.00"|intcomma }}</td>
+                        </tr>
+                        <tr>
+                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white font-bold">Result</td>
+                            <td class="py-4 px-4 text-sm {% if summary_totals.estimated_result >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %} font-bold">R$ {{ summary_totals.estimated_result|default:"0.00"|intcomma }}</td>
+                            <td class="py-4 px-4 text-sm {% if summary_totals.realized_result >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %} font-bold">R$ {{ summary_totals.realized_result|default:"0.00"|intcomma }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div> 
+    </div>
+</div>
+{% endblock content %}

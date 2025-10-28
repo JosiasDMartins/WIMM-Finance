@@ -1,0 +1,78 @@
+{% extends "finances/base.html" %}
+{% load static %}
+
+{% block title %}Manage Family Members{% endblock title %}
+
+{% block content %}
+<div class="p-6 md:p-10 lg:p-12">
+    <h1 class="text-3xl font-bold text-[#0d171b] dark:text-white mb-8">Family Member Management</h1>
+
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-10">
+        <h2 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">Add New Member</h2>
+        <form method="POST" action="{% url 'member_add' %}">
+            {% csrf_token %}
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="username">Username (User ID)</label>
+                    <input class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2" id="username" name="username" type="text" placeholder="e.g., john.doe" required>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="email">Email Address</label>
+                    <input class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2" id="email" name="email" type="email" placeholder="john.doe@family.com">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="role">Role</label>
+                    <select class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2" id="role" name="role" required>
+                        <option value="PARENT">Parent</option>
+                        <option value="ADMIN">Administrator</option>
+                        <option value="CHILD">Child</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+                 <button type="submit" class="rounded-lg bg-primary text-white text-base font-medium p-3 hover:bg-primary/90 transition-colors shadow-lg">
+                    <span class="material-symbols-outlined text-lg mr-2">person_add</span>
+                    Invite/Add Member
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+             <h2 class="text-xl font-bold text-[#0d171b] dark:text-white">Current Members</h2>
+        </div>
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead>
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Role</th>
+                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                {% for member in family_members %}
+                <tr class="hover:bg-slate-50 dark:hover:bg-gray-700/50">
+                    <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white">{{ member.user.get_full_name|default:member.user.username }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500">{{ member.user.email }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500">{{ member.get_role_display }}</td>
+                    <td class="px-6 py-4 text-center whitespace-nowrap">
+                        <button type="button" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
+                        <button type="button" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="px-6 py-4 text-center text-gray-500">No family members found.</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+        </table>
+    </div>
+</div>
+{% endblock content %}
