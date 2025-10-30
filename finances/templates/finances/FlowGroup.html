@@ -14,7 +14,7 @@
         </a>
 
         <div class="flex space-x-4">
-            <button type="button" onclick="discardChanges()" class="rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-base font-medium p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <button type="button" onclick="history.back()" class="rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-base font-medium p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                 Discard
             </button>
             <button type="submit" form="flow-group-form" class="rounded-lg bg-primary text-white text-base font-medium p-3 hover:bg-primary/90 transition-colors shadow-lg">
@@ -34,29 +34,22 @@
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
                 
                 <div class="md:col-span-1">
-                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="id_name">Group Name</label>
-                    <input class="w-full border rounded-lg bg-background-light dark:bg-slate-700 border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2 h-10" 
-                           id="id_name" name="name" type="text" placeholder="e.g., Fixed Bills, Leisure" value="{{ flow_group.name|default:'' }}" required>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="{{ form.name.id_for_label }}">Group Name</label>
+                    {{ form.name }}
                 </div>
 
                 <div class="md:col-span-1">
-                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="id_budget">Budgeted Amount (R$)</label>
-                    <input class="w-full border rounded-lg bg-background-light dark:bg-slate-700 border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2 h-10" 
-                           id="id_budget" name="budgeted_amount" type="number" step="0.01" value="{{ flow_group.budgeted_amount|default:'0.00' }}" required>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="{{ form.budgeted_amount.id_for_label }}">Budgeted Amount ($)</label>
+                    {{ form.budgeted_amount }}
                 </div>
                 
                 <div class="md:col-span-1">
-                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="id_group_type">Group Type</label>
-                    <select class="w-full border rounded-lg bg-background-light dark:bg-slate-700 border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2 h-10" 
-                            id="id_group_type" name="group_type" required>
-                        {% for code, name in group_types %}
-                            <option value="{{ code }}" {% if flow_group.group_type == code %}selected{% endif %}>{{ name }}</option>
-                        {% endfor %}
-                    </select>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="{{ form.group_type.id_for_label }}">Group Type</label>
+                    {{ form.group_type }}
                 </div>
 
                 <div class="md:col-span-1 flex justify-end">
-                    {% if not current_member.role == 'CHILD' %}
+                    {% if current_member.role != 'CHILD' %}
                     <div class="flex items-center p-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-slate-50 dark:bg-slate-700/50">
                         <input class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" 
                                id="id_shared" name="is_shared" type="checkbox" {% if flow_group.is_shared %}checked{% endif %}>
@@ -67,6 +60,21 @@
                     {% endif %}
                 </div>
             </div>
+            
+            {% if form.errors %}
+                <div class="mt-4 p-3 bg-red-100 dark:bg-red-900/50 border border-red-400 dark:border-red-700 rounded-lg text-red-700 dark:text-red-300">
+                    <p class="font-bold">Please correct the errors below:</p>
+                    {{ form.non_field_errors }}
+                    <ul class="list-disc list-inside">
+                        {% for field in form %}
+                            {% for error in field.errors %}
+                                <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+
         </div>
     </form>
 
@@ -78,7 +86,7 @@
                 <tr>
                     <th class="px-6 py-3 text-center w-8 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Move</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
-                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Budgeted Value</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
                     <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Member</th>
                     <th class="px-6 py-3 text-center w-24 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
@@ -87,7 +95,7 @@
             <tbody id="expense-items-body" class="divide-y divide-gray-200 dark:divide-gray-700">
                 {% for transaction in transactions %}
                 <tr id="item-{{ transaction.id }}" data-item-id="{{ transaction.id }}" data-mode="display" class="hover:bg-slate-50 dark:hover:bg-gray-700/50">
-                    <td class="px-6 py-4 text-center whitespace-nowrap actions-display">
+                    <td class="px-6 py-4 text-center whitespace-nowrap">
                         <button type="button" onclick="moveRow('item-{{ transaction.id }}', 'up')" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">arrow_upward</span></button>
                         <button type="button" onclick="moveRow('item-{{ transaction.id }}', 'down')" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">arrow_downward</span></button>
                     </td>
@@ -95,11 +103,11 @@
                     <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white cell-description-edit hidden">
                         <input type="text" value="{{ transaction.description }}" data-field="description" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm p-1">
                     </td>
-                    <td class="px-6 py-4 text-right text-primary cell-budget-display">R$ {{ transaction.amount|intcomma }}</td>
+                    <td class="px-6 py-4 text-right text-primary cell-budget-display">$ {{ transaction.amount|intcomma }}</td>
                     <td class="px-6 py-4 text-right text-primary cell-budget-edit hidden">
                          <input type="number" step="0.01" value="{{ transaction.amount|default:'0.00' }}" data-field="amount" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm text-right p-1">
                     </td>
-                    <td class="px-6 py-4 text-sm text-gray-500 cell-date-display">{{ transaction.date|date:"d/m/Y" }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500 cell-date-display">{{ transaction.date|date:"Y-m-d" }}</td>
                     <td class="px-6 py-4 text-sm text-gray-500 cell-date-edit hidden">
                         <input type="date" value="{{ transaction.date|date:'Y-m-d' }}" data-field="date" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm p-1">
                     </td>
@@ -126,13 +134,13 @@
                 {% empty %}
                 <tr>
                     <td colspan="6" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
-                        Nenhuma transação encontrada para este Flow Group.
+                        No transactions found for this Flow Group.
                     </td>
                 </tr>
                 {% endfor %}
                 
                 <tr id="new-item-template" data-item-id="NEW" data-mode="edit" class="hover:bg-slate-50 dark:hover:bg-gray-700/50 hidden">
-                    <td class="px-6 py-4 text-center whitespace-nowrap actions-display hidden"></td>
+                    <td class="px-6 py-4 text-center whitespace-nowrap actions-display"></td>
                     <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white cell-description-display hidden"></td>
                     <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white cell-description-edit">
                         <input type="text" data-field="description" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm p-1" placeholder="New Item Description">
@@ -193,28 +201,13 @@
     }
     const csrftoken = getCookie('csrftoken');
 
-    // Add today's date to the hidden input for new items
-    document.addEventListener('DOMContentLoaded', () => {
-        const today = new Date();
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const dd = String(today.getDate()).padStart(2, '0');
-        // Check if the template exists before trying to access it
-        const newRowTemplate = document.getElementById('new-item-template');
-        if(newRowTemplate) {
-            newRowTemplate.querySelector('input[data-field="date"]').value = `${yyyy}-${mm}-${dd}`;
-        }
-    });
-
     // Function to add a new row using the template
     function addNewRow() {
         const templateRow = document.getElementById('new-item-template');
-        // Only allow one "NEW" row at a time
         if (templateRow && templateRow.classList.contains('hidden')) {
              templateRow.classList.remove('hidden');
              templateRow.querySelector('input[data-field="description"]').focus();
         } else if (templateRow) {
-             // If the template is already visible, simply focus on it
              templateRow.querySelector('input[data-field="description"]').focus();
         }
     }
@@ -251,10 +244,8 @@
         .then(data => {
             if (data.status === 'success') {
                 if (isNew) {
-                    // For new items, it's easier to reload to ensure correct order/state
                     window.location.reload(); 
                 } else {
-                    // Update the display mode for existing item
                     updateRowDisplay(rowId, data);
                     toggleEditMode(rowId, false);
                 }
@@ -275,12 +266,12 @@
 
         // Update display cells
         row.querySelector('.cell-description-display').textContent = data.description;
-        // Simple currency formatting (assumes pt-BR local format for currency symbol)
-        row.querySelector('.cell-budget-display').textContent = `R$ ${parseFloat(data.amount).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-        row.querySelector('.cell-date-display').textContent = new Date(data.date).toLocaleDateString('pt-BR');
+        // Format as $ currency
+        row.querySelector('.cell-budget-display').textContent = `$ ${parseFloat(data.amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        row.querySelector('.cell-date-display').textContent = data.date; // Use YYYY-MM-DD format
         row.querySelector('.cell-member-display').textContent = data.member_name;
         
-        // Update edit inputs in case of further editing
+        // Update edit inputs
         row.querySelector('input[data-field="description"]').value = data.description;
         row.querySelector('input[data-field="amount"]').value = data.amount;
         row.querySelector('input[data-field="date"]').value = data.date;
@@ -341,14 +332,13 @@
     
     // Function to remove the new row template
     function cancelNewRow(rowId) {
-        document.getElementById(rowId).classList.add('hidden');
-        // Clear inputs when hiding
-        document.getElementById(rowId).querySelector('input[data-field="description"]').value = '';
-        document.getElementById(rowId).querySelector('input[data-field="amount"]').value = '0.00';
+        const row = document.getElementById(rowId);
+        row.classList.add('hidden');
+        row.querySelector('input[data-field="description"]').value = '';
+        row.querySelector('input[data-field="amount"]').value = '0.00';
     }
 
     function moveRow(rowId, direction) {
-        // Logic for reordering the rows (needs separate AJAX endpoint to save order)
         console.log(`Moving ${rowId} ${direction}`);
         const row = document.getElementById(rowId);
         if (!row) return;
@@ -360,7 +350,6 @@
                 row.parentNode.insertBefore(row.nextElementSibling, row);
             }
         }
-        // NOTE: A final 'Save Changes' on the Flow Group level is needed to persist the order.
     }
 
 </script>

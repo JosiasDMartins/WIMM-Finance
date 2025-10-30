@@ -41,8 +41,8 @@
                         {% for group in expense_groups %}
                         <tr>
                             <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white">{{ group.name }}</td>
-                            <td class="py-4 px-4 text-sm text-gray-500 dark:text-gray-400 text-right">R$ {{ group.budgeted_amount|intcomma }}</td>
-                            <td class="py-4 px-4 text-sm text-red-600 dark:text-red-500 text-right">R$ {{ group.total_spent|default:"0.00"|intcomma }}</td>
+                            <td class="py-4 px-4 text-sm text-gray-500 dark:text-gray-400 text-right">$ {{ group.budgeted_amount|intcomma }}</td>
+                            <td class="py-4 px-4 text-sm text-red-600 dark:text-red-500 text-right">$ {{ group.total_spent|default:"0.00"|intcomma }}</td>
                             <td class="py-4 px-4 text-right">
                                 <a href="{% url 'edit_flow_group' group.id %}" class="text-primary hover:text-primary/80 text-sm">View Details</a>
                             </td>
@@ -74,7 +74,7 @@
                         <tr>
                             <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white">{{ transaction.description }}</td>
                             <td class="py-4 px-4 text-sm text-gray-500 dark:text-gray-400">{{ transaction.date|date:"d/m" }}</td>
-                            <td class="py-4 px-4 text-sm text-green-600 dark:text-green-500 text-right">R$ {{ transaction.amount|intcomma }}</td>
+                            <td class="py-4 px-4 text-sm text-green-600 dark:text-green-500 text-right">$ {{ transaction.amount|intcomma }}</td>
                         </tr>
                         {% empty %}
                         <tr>
@@ -99,18 +99,18 @@
                         </tr>
                         <tr>
                             <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white">Income</td>
-                            <td class="py-4 px-4 text-sm text-green-600 dark:text-green-500">R$ {{ summary_totals.total_budgeted_income|default:"0.00"|intcomma }}</td>
-                            <td class="py-4 px-4 text-sm text-green-600 dark:text-green-500">R$ {{ summary_totals.total_realized_income|default:"0.00"|intcomma }}</td>
+                            <td class="py-4 px-4 text-sm text-green-600 dark:text-green-500">$ {{ summary_totals.total_budgeted_income|default:"0.00"|intcomma }}</td>
+                            <td class="py-4 px-4 text-sm text-green-600 dark:text-green-500">$ {{ summary_totals.total_realized_income|default:"0.00"|intcomma }}</td>
                         </tr>
                         <tr>
                             <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white">Expenses</td>
-                            <td class="py-4 px-4 text-sm text-red-600 dark:text-red-500">R$ {{ summary_totals.total_budgeted_expense|default:"0.00"|intcomma }}</td>
-                            <td class="py-4 px-4 text-sm text-red-600 dark:text-red-500">R$ {{ summary_totals.total_realized_expense|default:"0.00"|intcomma }}</td>
+                            <td class="py-4 px-4 text-sm text-red-600 dark:text-red-500">$ {{ summary_totals.total_budgeted_expense|default:"0.00"|intcomma }}</td>
+                            <td class="py-4 px-4 text-sm text-red-600 dark:text-red-500">$ {{ summary_totals.total_realized_expense|default:"0.00"|intcomma }}</td>
                         </tr>
                         <tr>
                             <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white font-bold">Result</td>
-                            <td class="py-4 px-4 text-sm {% if summary_totals.estimated_result >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %} font-bold">R$ {{ summary_totals.estimated_result|default:"0.00"|intcomma }}</td>
-                            <td class="py-4 px-4 text-sm {% if summary_totals.realized_result >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %} font-bold">R$ {{ summary_totals.realized_result|default:"0.00"|intcomma }}</td>
+                            <td class="py-4 px-4 text-sm {% if summary_totals.estimated_result >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %} font-bold">$ {{ summary_totals.estimated_result|default:"0.00"|intcomma }}</td>
+                            <td class="py-4 px-4 text-sm {% if summary_totals.realized_result >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %} font-bold">$ {{ summary_totals.realized_result|default:"0.00"|intcomma }}</td>
                         </tr>
                     </tbody>
                 </table>

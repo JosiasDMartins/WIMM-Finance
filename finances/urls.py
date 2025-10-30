@@ -1,31 +1,33 @@
-# finances/urls.py (finances/urls.py)
+# finances/urls.py
 
-from django.urls import path, include
+from django.urls import path
 from . import views
 
 urlpatterns = [
-    # Rotas existentes
+    # General
     path('', views.dashboard_view, name='dashboard'),
     path('settings/', views.configuration_view, name='configuration'),
     
+    # Members (Placeholders)
     path('members/', views.members_view, name='members'),
     path('members/add/', views.add_member_view, name='member_add'),
     path('members/remove/<int:member_id>/', views.remove_member_view, name='member_remove'), 
     
-    # Rota para Investimentos (NOVA)
-    path('investments/', views.investments_view, name='investments'), # <-- NOVA ROTA AQUI
-    path('investments/add/', views.add_investment_view, name='investment_add'), # <-- CORRIGE O NoReverseMatch    
+    # Investments (Fixing AttributeError: add_investment_view)
+    path('investments/', views.investments_view, name='investments'), 
+    # This route is typically used for POSTing the form
+    path('investments/add/', views.investment_add_view, name='investment_add'),    
 
-    # Rotas de Flow Group (Criação/Edição)
+    # Flow Group
     path('flow-group/new/', views.create_flow_group_view, name='add_flow_group'), 
     path('flow-group/<int:group_id>/edit/', views.edit_flow_group_view, name='edit_flow_group'),
     
-    # Rota para Adicionar Receita/Entrada
+    # Income/Receipts
     path('receipt/new/', views.add_receipt_view, name='add_receipt'),
 
-    # Rotas para AJAX (Flow Group Items)
+    # ==== Ajax routes ====
+    # Used for both Expense Group items and Income items
     path('api/flow-group/item/save/', views.save_flow_item_ajax, name='save_flow_item_ajax'),
-    path('api/flow-group/item/delete/', views.delete_flow_item_ajax, name='delete_flow_item_ajax'),    
-
-    # ... Adicione outras rotas aqui (members, etc.)
+    path('api/flow-group/item/delete/', views.delete_flow_item_ajax, name='delete_flow_item_ajax'),
+    # NOTE: Reordering AJAX endpoint is pending implementation (e.g., path('api/flow-group/item/reorder/', ...))
 ]
