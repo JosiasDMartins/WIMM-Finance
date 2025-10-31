@@ -79,6 +79,21 @@
     </form>
 
     {% if flow_group %}
+    {% if budget_warning %}
+    <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-500 p-4 mb-6 rounded">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <span class="material-symbols-outlined text-yellow-400">warning</span>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-yellow-700 dark:text-yellow-300">
+                    <strong>Budget Warning:</strong> Estimated expenses ($ {{ total_estimated|intcomma }}) exceed the budgeted amount ($ {{ flow_group.budgeted_amount|intcomma }}).
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
         
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -89,6 +104,7 @@
                     <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
                     <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Member</th>
+                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Realized</th>
                     <th class="px-6 py-3 text-center w-24 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                 </tr>
             </thead>
@@ -120,6 +136,15 @@
                             {% endfor %}
                         </select>
                     </td>
+                    
+                    <td class="px-6 py-4 text-center">
+                        <div class="flex items-center justify-center">
+                            <button type="button" onclick="toggleRealized('item-{{ transaction.id }}', {{ transaction.realized|yesno:'true,false' }})" class="realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-pointer {% if transaction.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}">
+                                <span class="absolute left-0 inline-block w-4 h-4 mt-1 ml-1 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if transaction.realized %}translate-x-4{% endif %}"></span>
+                            </button>
+                        </div>
+                    </td>
+                    
                     <td class="px-6 py-4 text-center whitespace-nowrap">
                         <div class="actions-display">
                             <button type="button" onclick="toggleEditMode('item-{{ transaction.id }}', true)" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
@@ -133,7 +158,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <td colspan="7" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                         No transactions found for this Flow Group.
                     </td>
                 </tr>
@@ -162,6 +187,15 @@
                             {% endfor %}
                         </select>
                     </td>
+                    
+                    <td class="px-6 py-4 text-center">
+                        <div class="flex items-center justify-center">
+                            <div class="realized-toggle-new relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full bg-gray-300 dark:bg-gray-600">
+                                <span class="absolute left-0 inline-block w-4 h-4 mt-1 ml-1 transition-transform duration-200 ease-in-out transform bg-white rounded-full"></span>
+                            </div>
+                        </div>
+                    </td>
+                    
                     <td class="px-6 py-4 text-center whitespace-nowrap">
                         <div class="actions-display hidden"></div>
                         <div class="actions-edit space-x-2">
@@ -201,6 +235,68 @@
     }
     const csrftoken = getCookie('csrftoken');
 
+    // Function to toggle realized status directly (without entering edit mode)
+    function toggleRealized(rowId, currentStatus) {
+        const row = document.getElementById(rowId);
+        const transactionId = row.getAttribute('data-item-id');
+        
+        if (transactionId === 'NEW') return;
+        
+        const newStatus = !currentStatus;
+        
+        // Get other field values from display mode
+        const description = row.querySelector('.cell-description-display').textContent;
+        const amountText = row.querySelector('.cell-budget-display').textContent.replace('$', '').replace(/,/g, '').trim();
+        const dateText = row.querySelector('.cell-date-display').textContent;
+        const memberId = row.querySelector('.cell-member-display').getAttribute('data-member-id');
+        
+        const data = {
+            'flow_group_id': document.getElementById('flow-group-form').getAttribute('data-flow-group-id'),
+            'transaction_id': transactionId,
+            'description': description,
+            'amount': amountText,
+            'date': dateText,
+            'member_id': memberId,
+            'realized': newStatus,
+        };
+
+        fetch("{% url 'save_flow_item_ajax' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Update toggle visual state
+                const toggleBtn = row.querySelector('.realized-toggle');
+                const toggleCircle = toggleBtn.querySelector('span');
+                
+                if (data.realized) {
+                    toggleBtn.classList.remove('bg-gray-300', 'dark:bg-gray-600');
+                    toggleBtn.classList.add('bg-green-500');
+                    toggleCircle.classList.add('translate-x-4');
+                    toggleBtn.setAttribute('onclick', `toggleRealized('${rowId}', true)`);
+                } else {
+                    toggleBtn.classList.remove('bg-green-500');
+                    toggleBtn.classList.add('bg-gray-300', 'dark:bg-gray-600');
+                    toggleCircle.classList.remove('translate-x-4');
+                    toggleBtn.setAttribute('onclick', `toggleRealized('${rowId}', false)`);
+                }
+            } else {
+                alert('Error updating realized status: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Fetch Error:', error);
+            alert('A network error occurred.');
+        });
+    }
+
     // Function to add a new row using the template
     function addNewRow() {
         const templateRow = document.getElementById('new-item-template');
@@ -217,6 +313,16 @@
         const row = document.getElementById(rowId);
         const isNew = row.getAttribute('data-item-id') === 'NEW';
         
+        // For new items, check the toggle state
+        let realizedValue = false;
+        if (isNew) {
+            const toggleNew = row.querySelector('.realized-toggle-new');
+            realizedValue = toggleNew.classList.contains('bg-green-500');
+        } else {
+            const toggleBtn = row.querySelector('.realized-toggle');
+            realizedValue = toggleBtn.classList.contains('bg-green-500');
+        }
+        
         const data = {
             'flow_group_id': document.getElementById('flow-group-form').getAttribute('data-flow-group-id'),
             'transaction_id': isNew ? null : row.getAttribute('data-item-id'),
@@ -224,6 +330,7 @@
             'amount': row.querySelector('input[data-field="amount"]').value,
             'date': row.querySelector('input[data-field="date"]').value,
             'member_id': row.querySelector('select[data-field="member_id"]').value,
+            'realized': realizedValue,
         };
         
         if (!data.description || !data.amount || !data.date) {
@@ -266,10 +373,26 @@
 
         // Update display cells
         row.querySelector('.cell-description-display').textContent = data.description;
-        // Format as $ currency
         row.querySelector('.cell-budget-display').textContent = `$ ${parseFloat(data.amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-        row.querySelector('.cell-date-display').textContent = data.date; // Use YYYY-MM-DD format
+        row.querySelector('.cell-date-display').textContent = data.date;
         row.querySelector('.cell-member-display').textContent = data.member_name;
+        row.querySelector('.cell-member-display').setAttribute('data-member-id', data.member_id);
+        
+        // Update realized toggle
+        const toggleBtn = row.querySelector('.realized-toggle');
+        const toggleCircle = toggleBtn.querySelector('span');
+        
+        if (data.realized) {
+            toggleBtn.classList.remove('bg-gray-300', 'dark:bg-gray-600');
+            toggleBtn.classList.add('bg-green-500');
+            toggleCircle.classList.add('translate-x-4');
+            toggleBtn.setAttribute('onclick', `toggleRealized('${rowId}', true)`);
+        } else {
+            toggleBtn.classList.remove('bg-green-500');
+            toggleBtn.classList.add('bg-gray-300', 'dark:bg-gray-600');
+            toggleCircle.classList.remove('translate-x-4');
+            toggleBtn.setAttribute('onclick', `toggleRealized('${rowId}', false)`);
+        }
         
         // Update edit inputs
         row.querySelector('input[data-field="description"]').value = data.description;
@@ -336,6 +459,13 @@
         row.classList.add('hidden');
         row.querySelector('input[data-field="description"]').value = '';
         row.querySelector('input[data-field="amount"]').value = '0.00';
+        
+        // Reset toggle for new item
+        const toggleNew = row.querySelector('.realized-toggle-new');
+        const toggleCircle = toggleNew.querySelector('span');
+        toggleNew.classList.remove('bg-green-500');
+        toggleNew.classList.add('bg-gray-300', 'dark:bg-gray-600');
+        toggleCircle.classList.remove('translate-x-4');
     }
 
     function moveRow(rowId, direction) {
@@ -351,6 +481,25 @@
             }
         }
     }
+    
+    // Add click handler for new item toggle
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggleNew = document.querySelector('.realized-toggle-new');
+        if (toggleNew) {
+            toggleNew.addEventListener('click', function() {
+                const toggleCircle = this.querySelector('span');
+                if (this.classList.contains('bg-green-500')) {
+                    this.classList.remove('bg-green-500');
+                    this.classList.add('bg-gray-300', 'dark:bg-gray-600');
+                    toggleCircle.classList.remove('translate-x-4');
+                } else {
+                    this.classList.remove('bg-gray-300', 'dark:bg-gray-600');
+                    this.classList.add('bg-green-500');
+                    toggleCircle.classList.add('translate-x-4');
+                }
+            });
+        }
+    });
 
 </script>
 {% endblock content %}

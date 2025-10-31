@@ -102,6 +102,9 @@ class Transaction(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     date = models.DateField(default=timezone.localdate)
     
+    # New field: realized status (consolidated/completed)
+    realized = models.BooleanField(default=False, help_text="Whether this transaction has been consolidated/completed")
+    
     member = models.ForeignKey(FamilyMember, on_delete=models.SET_NULL, null=True, related_name='transactions')
     flow_group = models.ForeignKey(FlowGroup, on_delete=models.CASCADE, related_name='transactions')
     

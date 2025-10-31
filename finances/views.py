@@ -2,14 +2,12 @@
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum, Max
+from django.db.models import Sum, Max, Q
 from django.db import transaction as db_transaction
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponse
 from django.views.decorators.http import require_POST 
 from django.contrib.auth import get_user_model 
 from django.contrib import messages 
-from django.db.models import Q 
-
 from django.utils import timezone
 import json
 from datetime import datetime as dt_datetime 
@@ -83,34 +81,64 @@ def dashboard_view(request):
     
     expense_group_q = Q(group_type=EXPENSE_MAIN) | Q(group_type=EXPENSE_SECONDARY)
     
+    # Calculate estimated (all transactions) and spent (realized only) for expense groups
     expense_groups = FlowGroup.objects.filter(
         expense_group_q,
         family=family,
     ).annotate(
-        total_spent=Sum(
+        # Estimated: sum all transactions (realized or not) within period
+        total_estimated=Sum(
             'transactions__amount',
             filter=Q(transactions__date__range=(start_date, end_date))
+        ),
+        # Spent: sum only realized transactions
+        total_spent=Sum(
+            'transactions__amount',
+            filter=Q(transactions__date__range=(start_date, end_date), transactions__realized=True)
         )
     ).order_by('order', 'name')
     
     for group in expense_groups:
+        group.total_estimated = group.total_estimated if group.total_estimated is not None else Decimal('0.00')
         group.total_spent = group.total_spent if group.total_spent is not None else Decimal('0.00')
+        # Check if estimated exceeds budget
+        group.budget_warning = group.total_estimated > group.budgeted_amount
 
     income_group = get_default_income_flow_group(family, request.user)
     
-    # FIX: Renamed to match the restored dashboard.html template
+    # Get income transactions ordered by date (most recent first)
     recent_income_transactions = Transaction.objects.filter(
         flow_group=income_group,
         date__range=(start_date, end_date)
-    ).select_related('member__user').order_by('-date', 'order') # Order by most recent
+    ).select_related('member__user').order_by('-date', 'order')
+    
+    # Pass income group ID to template for AJAX calls
+    income_flow_group_id = income_group.id
     
     expense_filter_budget = Q(group_type__in=FLOW_TYPE_EXPENSE)
     
+    # Calculate summary totals
     summary_totals = FlowGroup.objects.filter(family=family).aggregate(
-        total_budgeted_income=Sum('transactions__amount', filter=Q(group_type=FLOW_TYPE_INCOME, transactions__date__range=(start_date, end_date))),  #Should be the same as realized, because there is no budget for income for
-        total_budgeted_expense=Sum('budgeted_amount', filter=expense_filter_budget),
-        total_realized_income=Sum('transactions__amount', filter=Q(group_type=FLOW_TYPE_INCOME, transactions__date__range=(start_date, end_date))),
-        total_realized_expense=Sum('transactions__amount', filter=Q(group_type__in=FLOW_TYPE_EXPENSE, transactions__date__range=(start_date, end_date))),
+        # Budgeted income: sum all income transactions (realized or not)
+        total_budgeted_income=Sum(
+            'transactions__amount', 
+            filter=Q(group_type=FLOW_TYPE_INCOME, transactions__date__range=(start_date, end_date))
+        ),
+        # Budgeted expense: use the estimated calculation (all transactions)
+        total_budgeted_expense=Sum(
+            'transactions__amount',
+            filter=Q(group_type__in=FLOW_TYPE_EXPENSE, transactions__date__range=(start_date, end_date))
+        ),
+        # Realized income: sum only realized income transactions
+        total_realized_income=Sum(
+            'transactions__amount', 
+            filter=Q(group_type=FLOW_TYPE_INCOME, transactions__date__range=(start_date, end_date), transactions__realized=True)
+        ),
+        # Realized expense: sum only realized expense transactions
+        total_realized_expense=Sum(
+            'transactions__amount', 
+            filter=Q(group_type__in=FLOW_TYPE_EXPENSE, transactions__date__range=(start_date, end_date), transactions__realized=True)
+        ),
     )
     
     budgeted_income = summary_totals.get('total_budgeted_income') or Decimal('0.00')
@@ -126,7 +154,7 @@ def dashboard_view(request):
         'end_date': end_date,
         'current_period_label': current_period_label,
         'expense_groups': expense_groups,
-        'recent_income_transactions': recent_income_transactions, # FIX: Renamed variable
+        'recent_income_transactions': recent_income_transactions,
         'family_members': family_members,
         'summary_totals': summary_totals,
     }
@@ -162,7 +190,8 @@ def save_flow_item_ajax(request):
         description = data.get('description')
         amount_str = data.get('amount')
         date_str = data.get('date')
-        member_id = data.get('member_id') # From FlowGroup.html JS
+        member_id = data.get('member_id')
+        realized = data.get('realized', False)  # Get realized status
         
         if not all([flow_group_id, description, amount_str, date_str, member_id]):
             return JsonResponse({'error': 'Missing required fields.'}, status=400)
@@ -186,7 +215,8 @@ def save_flow_item_ajax(request):
         transaction.description = description
         transaction.amount = abs(amount) 
         transaction.date = date
-        transaction.member = member # Assign member from form
+        transaction.member = member
+        transaction.realized = realized  # Save realized status
         transaction.save()
 
         return JsonResponse({
@@ -194,9 +224,10 @@ def save_flow_item_ajax(request):
             'transaction_id': transaction.id,
             'description': transaction.description,
             'amount': str(transaction.amount),
-            'date': transaction.date.strftime('%Y-%m-%d'), # JS expects YYYY-MM-DD
+            'date': transaction.date.strftime('%Y-%m-%d'),
             'member_id': transaction.member.id,
             'member_name': transaction.member.user.username,
+            'realized': transaction.realized,  # Return realized status
         })
 
     except Exception as e:
@@ -307,25 +338,33 @@ def edit_flow_group_view(request, group_id):
         if form.is_valid():
             form.save()
             messages.success(request, f"Flow Group '{group.name}' updated.")
-            return redirect('edit_flow_group', group_id=group.id) # Redirect back to same page
+            return redirect('edit_flow_group', group_id=group.id)
     else:
         form = FlowGroupForm(instance=group)
 
     # Get transactions for this group
     transactions = Transaction.objects.filter(flow_group=group).select_related('member__user').order_by('order', '-date')
-
-    # Context for base.html
+    
+    # Calculate total estimated for budget warning
     query_period = request.GET.get('period')
-    start_date, _, _ = get_current_period_dates(family, query_period)
+    start_date, end_date, _ = get_current_period_dates(family, query_period)
+    
+    total_estimated = transactions.filter(date__range=(start_date, end_date)).aggregate(
+        total=Sum('amount')
+    )['total'] or Decimal('0.00')
+    
+    budget_warning = total_estimated > group.budgeted_amount if group.budgeted_amount else False
 
     context = {
         'form': form,
         'is_new': False,
-        'flow_group': group, # FIX: Match template variable
+        'flow_group': group,
         'transactions': transactions,
         'family_members': family_members,
         'current_member': current_member,
         'today_date': timezone.localdate().strftime('%Y-%m-%d'),
+        'total_estimated': total_estimated,
+        'budget_warning': budget_warning,
     }
     context.update(get_base_template_context(family, query_period, start_date))
     return render(request, 'finances/FlowGroup.html', context)
@@ -344,7 +383,7 @@ def members_view(request):
 
     context = {
         'family_members': family_members,
-        'add_member_form': NewUserAndMemberForm(), # FIX: Use the correct form
+        'add_member_form': NewUserAndMemberForm(),
         'is_admin': current_member.role == 'ADMIN' 
     }
     context.update(get_base_template_context(family, query_period, start_date))
