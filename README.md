@@ -9,3 +9,9 @@ You will have 3 different user categories:
 - Children: Can only take care of their own expense group.
 
 More details soon...
+
+
+## Dependences
+- date-utils (pip install python-dateutil)
+- django (pip install django)
+  
