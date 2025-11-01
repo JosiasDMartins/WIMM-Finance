@@ -1,0 +1,549 @@
+{% extends "finances/base.html" %}
+{% load static %}
+{% load humanize %} 
+
+{% block content %}
+<div class="p-6 md:p-10 lg:p-12">
+    <div class="flex justify-between items-start mb-8">
+        <div>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Period: {{ start_date|date:"F d" }} - {{ end_date|date:"F d, Y" }}</p>
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-8">
+        <div class="h-32 flex items-center justify-center text-gray-400 border border-dashed rounded-lg">
+            [ Chart.js or similar chart code will be integrated here ]
+        </div>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <div class="lg:col-span-2 space-y-6">
+
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+                <div class="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
+                    <h2 class="text-xl font-bold text-[#0d171b] dark:text-white">Expense Flow Groups</h2>
+                    <a href="{% url 'add_flow_group' %}" class="flex items-center rounded-lg bg-red-500 text-white text-sm font-medium leading-normal p-2 hover:bg-red-600 transition-colors shadow-sm">
+                        <span class="material-symbols-outlined text-lg mr-1">add_circle</span>
+                        Add Group
+                    </a>
+                </div>
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead>
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Group</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Estimated</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Spent Total</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                        {% for group in expense_groups %}
+                        <tr>
+                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white">
+                                {{ group.name }}
+                                {% if group.budget_warning %}
+                                <span class="ml-2 text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 px-2 py-1 rounded-full">⚠ Over budget</span>
+                                {% endif %}
+                            </td>
+                            <td class="py-4 px-4 text-sm {% if group.budget_warning %}text-yellow-600 dark:text-yellow-500 font-semibold{% else %}text-gray-500 dark:text-gray-400{% endif %} text-right">$ {{ group.total_estimated|intcomma }}</td>
+                            <td class="py-4 px-4 text-sm text-red-600 dark:text-red-500 text-right">$ {{ group.total_spent|default:"0.00"|intcomma }}</td>
+                            <td class="py-4 px-4 text-right">
+                                <a href="{% url 'edit_flow_group' group.id %}" class="text-primary hover:text-primary/80 text-sm">View Details</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="py-4 px-4 text-center text-gray-500">No expense groups defined. Click "Add Group" to start.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+        </div> 
+        
+        <div class="lg:col-span-1 space-y-6">
+
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+                <div class="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
+                    <h2 class="text-xl font-bold text-[#0d171b] dark:text-white">Recent Income</h2>
+                    <button type="button" onclick="addNewIncomeRow()" class="flex items-center rounded-lg bg-green-500 text-white text-sm font-medium leading-normal p-2 hover:bg-green-600 transition-colors shadow-sm">
+                        <span class="material-symbols-outlined text-lg mr-1">add_circle</span>
+                        Add Income
+                    </button>
+                </div>
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead>
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">✓</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="income-items-body" class="divide-y divide-gray-200 dark:divide-gray-700">
+                        {% for transaction in recent_income_transactions %}
+                            <tr id="income-item-{{ transaction.id }}" data-item-id="{{ transaction.id }}" data-realized="{{ transaction.realized|yesno:'true,false' }}" data-date="{{ transaction.date|date:'Y-m-d' }}" data-amount="{{ transaction.amount }}" class="hover:bg-slate-50 dark:hover:bg-gray-700/50">
+                                
+                                <td class="py-3 px-4 text-sm text-[#0d171b] dark:text-white">
+                                    <div class="cell-description-display">{{ transaction.description }}</div>
+                                    <div class="cell-description-edit hidden">
+                                        <input type="text" data-field="description" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs p-1" value="{{ transaction.description }}">
+                                    </div>
+                                </td>
+                                
+                                <td class="py-3 px-4 text-xs text-gray-500 dark:text-gray-400 text-center">
+                                    <div class="cell-date-display">{{ transaction.date|date:"d/m" }}</div>
+                                    <div class="cell-date-edit hidden">
+                                        <input type="date" data-field="date" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs p-1" value="{{ transaction.date|date:'Y-m-d' }}">
+                                    </div>
+                                </td>
+                                
+                                <td class="py-3 px-4 text-center">
+                                    <button type="button" onclick="toggleIncomeRealized('income-item-{{ transaction.id }}')" class="income-realized-toggle relative inline-block w-8 h-5 transition duration-200 ease-in-out rounded-full cursor-pointer {% if transaction.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}">
+                                        <span class="absolute left-0 inline-block w-3 h-3 mt-1 ml-1 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if transaction.realized %}translate-x-3{% endif %}"></span>
+                                    </button>
+                                </td>
+                                
+                                <td class="py-3 px-4 text-sm text-right {% if transaction.realized %}text-green-600 dark:text-green-500{% else %}text-gray-400 dark:text-gray-500{% endif %}">
+                                    <div class="cell-amount-display">$ {{ transaction.amount|intcomma }}</div>
+                                    <div class="cell-amount-edit hidden">
+                                        <input type="number" step="0.01" data-field="amount" class="w-20 border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs text-right p-1" value="{{ transaction.amount }}">
+                                    </div>
+                                </td>
+                                
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                        <div class="actions-display">
+                                            <button type="button" onclick="toggleEditMode('income-item-{{ transaction.id }}', true)" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
+                                            <button type="button" onclick="deleteItem('income-item-{{ transaction.id }}')" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
+                                        </div>
+                                        <div class="actions-edit hidden space-x-2">
+                                            <button type="button" onclick="saveItem('income-item-{{ transaction.id }}')" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
+                                            <button type="button" onclick="toggleEditMode('income-item-{{ transaction.id }}', false)" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
+                                        </div>
+                                </td>                            
+                            </tr>
+                        {% empty %}
+                        <tr id="income-empty-row">
+                            <td colspan="5" class="py-4 px-4 text-center text-gray-500">No income transactions recorded yet.</td>
+                        </tr>
+                        {% endfor %}
+                        
+                        <tr id="new-income-template" data-item-id="NEW" data-mode="edit" class="hover:bg-slate-50 dark:hover:bg-gray-700/50 hidden">
+                            <td class="py-3 px-4 text-sm text-[#0d171b] dark:text-white">
+                                <input type="text" data-field="description" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs p-1" placeholder="Description">
+                            </td>
+                            
+                            <td class="py-3 px-4 text-xs text-gray-500">
+                                <input type="date" data-field="date" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs p-1" value="{{ today_date }}">
+                            </td>
+                            
+                            <td class="py-3 px-4 text-center">
+                                <div class="income-realized-toggle-new relative inline-block w-8 h-5 transition duration-200 ease-in-out rounded-full bg-gray-300 dark:bg-gray-600 cursor-pointer">
+                                    <span class="absolute left-0 inline-block w-3 h-3 mt-1 ml-1 transition-transform duration-200 ease-in-out transform bg-white rounded-full"></span>
+                                </div>
+                            </td>
+                            
+                            <td class="py-3 px-4 text-right" colspan="2">
+                                <div class="flex items-center justify-end gap-2">
+                                    <input type="number" step="0.01" data-field="amount" class="w-20 border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs text-right p-1" value="0.00">
+                                    <button type="button" onclick="saveIncomeItem('new-income-template')" class="p-1 text-green-500 hover:text-green-600"><span class="material-symbols-outlined text-base">check</span></button>
+                                    <button type="button" onclick="cancelNewIncomeRow('new-income-template')" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-base">close</span></button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+                <div class="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
+                    <h2 class="text-xl font-bold text-[#0d171b] dark:text-white">Balance Sheet</h2>
+                </div> 
+                
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                        <tr>
+                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white"></td>
+                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white font-semibold">Estimated</td>
+                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white font-semibold">Realized</td>
+                        </tr>
+                        <tr>
+                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white">Income</td>
+                            <td id="balance-estimated-income" class="py-4 px-4 text-sm text-green-600 dark:text-green-500">$ {{ summary_totals.total_budgeted_income|default:"0.00"|intcomma }}</td>
+                            <td id="balance-realized-income" class="py-4 px-4 text-sm text-green-600 dark:text-green-500">$ {{ summary_totals.total_realized_income|default:"0.00"|intcomma }}</td>
+                        </tr>
+                        <tr>
+                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white">Expenses</td>
+                            <td id="balance-estimated-expense" class="py-4 px-4 text-sm text-red-600 dark:text-red-500">$ {{ summary_totals.total_budgeted_expense|default:"0.00"|intcomma }}</td>
+                            <td id="balance-realized-expense" class="py-4 px-4 text-sm text-red-600 dark:text-red-500">$ {{ summary_totals.total_realized_expense|default:"0.00"|intcomma }}</td>
+                        </tr>
+                        <tr>
+                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white font-bold">Result</td>
+                            <td id="balance-estimated-result" class="py-4 px-4 text-sm {% if summary_totals.estimated_result >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %} font-bold">$ {{ summary_totals.estimated_result|default:"0.00"|intcomma }}</td>
+                            <td id="balance-realized-result" class="py-4 px-4 text-sm {% if summary_totals.realized_result >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %} font-bold">$ {{ summary_totals.realized_result|default:"0.00"|intcomma }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div> 
+    </div>
+</div>
+
+<script>
+    // Utility for getting CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+    
+    // Income flow group ID (passed from backend)
+    const incomeFlowGroupId = "{{ income_flow_group_id }}";
+
+    // Function to format number as currency
+    function formatCurrency(amount) {
+        return parseFloat(amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+
+    // Function to update balance sheet
+    function updateBalanceSheet() {
+        // Calculate totals from all income rows
+        let estimatedIncome = 0;
+        let realizedIncome = 0;
+        
+        document.querySelectorAll('#income-items-body tr[data-item-id]').forEach(row => {
+            if (row.id === 'new-income-template' || row.id === 'income-empty-row') return;
+            
+            const amount = parseFloat(row.getAttribute('data-amount')) || 0;
+            const isRealized = row.getAttribute('data-realized') === 'true';
+            
+            estimatedIncome += amount;
+            if (isRealized) {
+                realizedIncome += amount;
+            }
+        });
+        
+        // Update balance display
+        document.getElementById('balance-estimated-income').textContent = '$ ' + formatCurrency(estimatedIncome);
+        document.getElementById('balance-realized-income').textContent = '$ ' + formatCurrency(realizedIncome);
+        
+        // Get expense values (already set from backend)
+        const estimatedExpenseText = document.getElementById('balance-estimated-expense').textContent.replace('$', '').replace(/,/g, '').trim();
+        const realizedExpenseText = document.getElementById('balance-realized-expense').textContent.replace('$', '').replace(/,/g, '').trim();
+        const estimatedExpense = parseFloat(estimatedExpenseText) || 0;
+        const realizedExpense = parseFloat(realizedExpenseText) || 0;
+        
+        // Calculate results
+        const estimatedResult = estimatedIncome - estimatedExpense;
+        const realizedResult = realizedIncome - realizedExpense;
+        
+        // Update result cells
+        const estResultCell = document.getElementById('balance-estimated-result');
+        const realResultCell = document.getElementById('balance-realized-result');
+        
+        estResultCell.textContent = '$ ' + formatCurrency(estimatedResult);
+        realResultCell.textContent = '$ ' + formatCurrency(realizedResult);
+        
+        // Update colors
+        if (estimatedResult >= 0) {
+            estResultCell.className = 'py-4 px-4 text-sm text-green-600 dark:text-green-500 font-bold';
+        } else {
+            estResultCell.className = 'py-4 px-4 text-sm text-red-600 dark:text-red-500 font-bold';
+        }
+        
+        if (realizedResult >= 0) {
+            realResultCell.className = 'py-4 px-4 text-sm text-green-600 dark:text-green-500 font-bold';
+        } else {
+            realResultCell.className = 'py-4 px-4 text-sm text-red-600 dark:text-red-500 font-bold';
+        }
+    }
+
+    // Function to add a new income row
+    function addNewIncomeRow() {
+        const emptyRow = document.getElementById('income-empty-row');
+        if (emptyRow) {
+            emptyRow.remove();
+        }
+        
+        const templateRow = document.getElementById('new-income-template');
+        if (templateRow && templateRow.classList.contains('hidden')) {
+            templateRow.classList.remove('hidden');
+            templateRow.querySelector('input[data-field="description"]').focus();
+        } else if (templateRow) {
+            templateRow.querySelector('input[data-field="description"]').focus();
+        }
+    }
+    
+    // Function to toggle income realized status
+    function toggleIncomeRealized(rowId) {
+        const row = document.getElementById(rowId);
+        const transactionId = row.getAttribute('data-item-id');
+        
+        if (transactionId === 'NEW') return;
+        
+        // Get current status from data attribute
+        const currentStatus = row.getAttribute('data-realized') === 'true';
+        const newStatus = !currentStatus;
+        
+        // Get other field values
+        const description = row.querySelector('.cell-description-display').textContent.trim();
+        const fullDate = row.getAttribute('data-date');
+        const amount = row.getAttribute('data-amount');
+        
+        const data = {
+            'flow_group_id': incomeFlowGroupId,
+            'transaction_id': transactionId,
+            'description': description,
+            'amount': amount,
+            'date': fullDate,
+            'realized': newStatus,
+        };
+
+        fetch("{% url 'save_flow_item_ajax' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Update toggle visual state
+                const toggleBtn = row.querySelector('.income-realized-toggle');
+                const toggleCircle = toggleBtn.querySelector('span');
+                const amountCell = row.querySelector('.cell-amount-display').parentElement;
+                
+                // Update data attribute
+                row.setAttribute('data-realized', data.realized ? 'true' : 'false');
+                
+                if (data.realized) {
+                    toggleBtn.classList.remove('bg-gray-300', 'dark:bg-gray-600');
+                    toggleBtn.classList.add('bg-green-500');
+                    toggleCircle.classList.add('translate-x-3');
+                    amountCell.classList.remove('text-gray-400', 'dark:text-gray-500');
+                    amountCell.classList.add('text-green-600', 'dark:text-green-500');
+                } else {
+                    toggleBtn.classList.remove('bg-green-500');
+                    toggleBtn.classList.add('bg-gray-300', 'dark:bg-gray-600');
+                    toggleCircle.classList.remove('translate-x-3');
+                    amountCell.classList.remove('text-green-600', 'dark:text-green-500');
+                    amountCell.classList.add('text-gray-400', 'dark:text-gray-500');
+                }
+                
+                // Update balance sheet
+                updateBalanceSheet();
+            } else {
+                alert('Error updating income status: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Fetch Error:', error);
+            alert('A network error occurred.');
+        });
+    }
+    
+    // Function to save new income item
+    function saveIncomeItem(rowId) {
+        const row = document.getElementById(rowId);
+        
+        // Check toggle state
+        const toggleNew = row.querySelector('.income-realized-toggle-new');
+        const realizedValue = toggleNew.classList.contains('bg-green-500');
+        
+        const data = {
+            'flow_group_id': incomeFlowGroupId,
+            'transaction_id': null,
+            'description': row.querySelector('input[data-field="description"]').value,
+            'amount': row.querySelector('input[data-field="amount"]').value,
+            'date': row.querySelector('input[data-field="date"]').value,
+            'realized': realizedValue,
+        };
+        
+        if (!data.description || !data.amount || !data.date) {
+            alert("Description, Amount, and Date are required.");
+            return;
+        }
+
+        fetch("{% url 'save_flow_item_ajax' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                window.location.reload();
+            } else {
+                alert('Error saving income: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Fetch Error:', error);
+            alert('A network error occurred.');
+        });
+    }
+    
+    // Function to cancel new income row
+    function cancelNewIncomeRow(rowId) {
+        const row = document.getElementById(rowId);
+        row.classList.add('hidden');
+        row.querySelector('input[data-field="description"]').value = '';
+        row.querySelector('input[data-field="amount"]').value = '0.00';
+        
+        // Reset toggle
+        const toggleNew = row.querySelector('.income-realized-toggle-new');
+        const toggleCircle = toggleNew.querySelector('span');
+        toggleNew.classList.remove('bg-green-500');
+        toggleNew.classList.add('bg-gray-300', 'dark:bg-gray-600');
+        toggleCircle.classList.remove('translate-x-3');
+    }
+    
+    // Add click handler for new income toggle
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggleNew = document.querySelector('.income-realized-toggle-new');
+        if (toggleNew) {
+            toggleNew.addEventListener('click', function() {
+                const toggleCircle = this.querySelector('span');
+                if (this.classList.contains('bg-green-500')) {
+                    this.classList.remove('bg-green-500');
+                    this.classList.add('bg-gray-300', 'dark:bg-gray-600');
+                    toggleCircle.classList.remove('translate-x-3');
+                } else {
+                    this.classList.remove('bg-gray-300', 'dark:bg-gray-600');
+                    this.classList.add('bg-green-500');
+                    toggleCircle.classList.add('translate-x-3');
+                }
+            });
+        }
+    });
+
+    // Function to delete an item
+    function deleteItem(rowId) {
+        if (!confirm('Are you sure you want to delete this item?')) return;
+        
+        const row = document.getElementById(rowId);
+        const transactionId = row.getAttribute('data-item-id');
+        
+        if (transactionId === 'NEW') {
+            cancelNewRow(rowId);
+            return;
+        }
+
+        fetch("{% url 'delete_flow_item_ajax' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({'transaction_id': transactionId})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                row.remove();
+                updateBalanceSheet();
+            } else {
+                alert('Error deleting item: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Fetch Error:', error);
+            alert('A network error occurred.');
+        });
+    }
+
+    // Function to toggle between display and edit mode
+    function toggleEditMode(rowId, startEdit) {
+        const row = document.getElementById(rowId);
+        if (!row) return;
+
+        const displayElements = row.querySelectorAll('.actions-display, .cell-description-display, .cell-date-display, .cell-amount-display');
+        const editElements = row.querySelectorAll('.actions-edit, .cell-description-edit, .cell-date-edit, .cell-amount-edit');
+        
+        displayElements.forEach(el => el.classList.toggle('hidden', startEdit));
+        editElements.forEach(el => el.classList.toggle('hidden', !startEdit));
+        
+        row.setAttribute('data-mode', startEdit ? 'edit' : 'display');
+        if(startEdit) {
+             row.querySelector('.cell-description-edit input').focus();
+        }
+    }
+
+    // Function to save edited item
+    function saveItem(rowId) {
+        const row = document.getElementById(rowId);
+        const transactionId = row.getAttribute('data-item-id');
+        const realizedStatus = row.getAttribute('data-realized') === 'true';
+        
+        const data = {
+            'flow_group_id': incomeFlowGroupId,
+            'transaction_id': transactionId,
+            'description': row.querySelector('input[data-field="description"]').value,
+            'amount': row.querySelector('input[data-field="amount"]').value,
+            'date': row.querySelector('input[data-field="date"]').value,
+            'realized': realizedStatus,
+        };
+        
+        if (!data.description || !data.amount || !data.date) {
+            alert("Description, Amount, and Date are required.");
+            return;
+        }
+
+        fetch("{% url 'save_flow_item_ajax' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Update row data
+                row.setAttribute('data-amount', data.amount);
+                row.querySelector('.cell-description-display').textContent = data.description;
+                row.querySelector('.cell-amount-display').textContent = '$ ' + formatCurrency(data.amount);
+                row.querySelector('.cell-date-display').textContent = new Date(data.date).toLocaleDateString('en-GB', {day: '2-digit', month: '2-digit'});
+                
+                // Update inputs
+                row.querySelector('input[data-field="description"]').value = data.description;
+                row.querySelector('input[data-field="amount"]').value = data.amount;
+                row.querySelector('input[data-field="date"]').value = data.date;
+                row.setAttribute('data-date', data.date);
+                
+                toggleEditMode(rowId, false);
+                updateBalanceSheet();
+            } else {
+                alert('Error saving item: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Fetch Error:', error);
+            alert('A network error occurred.');
+        });
+    }
+</script>
+{% endblock content %}

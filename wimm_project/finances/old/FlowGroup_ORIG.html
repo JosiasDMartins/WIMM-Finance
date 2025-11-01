@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Editar FlowGroup</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13a4ec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101c22",
+                    },
+                    fontFamily: {
+                        "display": ["Manrope", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-[#0d171b] dark:text-slate-50">
+<div class="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
+<header class="flex items-center bg-background-light dark:bg-background-dark p-4 pb-2 justify-between border-b border-slate-200 dark:border-slate-800">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-2xl text-[#0d171b] dark:text-slate-50">arrow_back</span>
+<h1 class="text-xl font-bold leading-tight tracking-[-0.015em] text-[#0d171b] dark:text-slate-50">Editar FlowGroup</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-primary text-base font-bold leading-normal tracking-[0.015em] shrink-0">Descartar Alterações</button>
+<button class="flex items-center justify-center rounded-lg h-10 bg-primary text-white gap-2 text-sm font-bold px-4">
+<span class="material-symbols-outlined text-lg">save</span>
+<span>Salvar Alterações</span>
+</button>
+</div>
+</header>
+<main class="flex-1 p-6">
+<div class="flex max-w-[480px] flex-wrap items-end gap-4 mb-6">
+<label class="flex flex-col min-w-40 flex-1">
+<p class="text-base font-medium leading-normal pb-2 text-[#0d171b] dark:text-slate-300">Nome do FlowGroup</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#0d171b] dark:text-white focus:outline-0 focus:ring-0 border border-[#cfdfe7] dark:border-slate-700 bg-background-light dark:bg-background-dark focus:border-primary h-14 placeholder:text-[#4c809a] p-[15px] text-base font-normal leading-normal" value="Moradia (Aluguel, Contas)"/>
+</label>
+<label class="flex flex-col min-w-40 flex-1">
+<p class="text-base font-medium leading-normal pb-2 text-[#0d171b] dark:text-slate-300">Valor Previsto</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#0d171b] dark:text-white focus:outline-0 focus:ring-0 border border-[#cfdfe7] dark:border-slate-700 bg-background-light dark:bg-background-dark focus:border-primary h-14 placeholder:text-[#4c809a] p-[15px] text-base font-normal leading-normal" value="R$ 10.000,00"/>
+</label>
+</div>
+<div class="bg-white dark:bg-slate-900/70 rounded-xl shadow-sm">
+<div class="flex justify-between gap-2 px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+<div class="flex gap-2 items-center">
+<div class="relative flex-1 max-w-xs">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+<input class="form-input w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-background-light dark:bg-background-dark py-2 pl-10 pr-4 text-sm focus:border-primary focus:ring-0" placeholder="Buscar por descrição..." type="text"/>
+</div>
+<button class="p-2 text-[#0d171b] dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+</div>
+<div class="flex items-center gap-2">
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white gap-2 text-sm font-bold">
+<span class="material-symbols-outlined text-lg">add</span>
+<span class="truncate">Nova Linha</span>
+</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-sm text-left">
+<thead class="text-xs text-[#4c809a] dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-800">
+<tr>
+<th class="px-6 py-3" scope="col">Descrição</th>
+<th class="px-6 py-3" scope="col">Valor</th>
+<th class="px-6 py-3" scope="col">Data</th>
+<th class="px-6 py-3" scope="col">Status</th>
+<th class="px-6 py-3 text-right" scope="col">Ações</th>
+</tr>
+</thead>
+<tbody>
+<tr class="border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+<td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white">Aluguel</td>
+<td class="px-6 py-4 text-red-600">-R$ 1.500,00</td>
+<td class="px-6 py-4">05/07/2024</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Pago</span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
+<button class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
+</td>
+</tr>
+<tr class="border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+<td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white">Energia</td>
+<td class="px-6 py-4 text-red-600">-R$ 800,00</td>
+<td class="px-6 py-4">10/07/2024</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Não Pago</span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
+<button class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
+</td>
+</tr>
+<tr class="border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+<td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white">Internet</td>
+<td class="px-6 py-4 text-red-600">-R$ 120,00</td>
+<td class="px-6 py-4">15/07/2024</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Não Pago</span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
+<button class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="flex justify-between items-center px-6 py-4 bg-slate-50 dark:bg-slate-800 rounded-b-xl">
+<p class="text-sm text-[#4c809a] dark:text-slate-400">Exibindo 3 de 3 entradas</p>
+<div class="flex items-center gap-4">
+
+<div class="text-right">
+<p class="text-xs text-[#4c809a] dark:text-slate-400">Total</p>
+<p class="font-semibold text-red-600">-R$ 2.420,00</p>
+</div>
+
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

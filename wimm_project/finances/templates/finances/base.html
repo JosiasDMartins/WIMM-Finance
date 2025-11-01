@@ -1,0 +1,177 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="h-full" x-data="{ darkMode: localStorage.getItem('darkMode') === 'true' }" :class="{ 'dark': darkMode }">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}WIMM Dashboard{% endblock %}</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Manrope', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* Custom scrollbar for webkit browsers */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #94a3b8; /* slate-400 */
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background-color: transparent;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #475569; /* slate-600 */
+        }
+        /* Style for Material Symbols */
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+            font-size: 1.25rem; /* 20px */
+            line-height: 1;
+        }
+    </style>
+
+    <script>
+        // Set Tailwind config for dark mode and primary color
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#0D9488', // Teal-600
+                        'primary-light': '#CCFBF1', // Teal-100
+                        'background-light': '#F8FAFC', // Slate-50
+                        'background-dark': '#0F172A'   // Slate-900
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="h-full bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200" x-data="{ sidebarOpen: false, periodDropdown: false }">
+
+    <div class="flex h-full">
+        <aside :class="{'translate-x-0': sidebarOpen, '-translate-x-full': !sidebarOpen}" 
+               class="fixed inset-y-0 left-0 z-30 flex flex-col w-64 px-4 py-8 bg-white dark:bg-gray-800 border-r dark:border-gray-700 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:inset-0">
+            
+            <div class="flex items-center justify-between">
+                <a href="{% url 'dashboard' %}" class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-3xl text-primary">savings</span>
+                    <span class="text-2xl font-bold text-gray-800 dark:text-white">WIMM</span>
+                </a>
+                <button @click="sidebarOpen = false" class="md:hidden text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <nav class="flex flex-col justify-between flex-1 mt-6">
+                <div class="space-y-2">
+                    <a class="flex items-center px-4 py-2 text-gray-700 bg-gray-100 rounded-md dark:bg-gray-700 dark:text-gray-200" href="{% url 'dashboard' %}">
+                        <span class="material-symbols-outlined">dashboard</span>
+                        <span class="mx-4 font-medium">Dashboard</span>
+                    </a>
+                    
+                    <a class="flex items-center px-4 py-2 text-gray-600 rounded-md dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700" href="{% url 'investments' %}">
+                        <span class="material-symbols-outlined">trending_up</span>
+                        <span class="mx-4 font-medium">Investments</span>
+                        <span class="text-xs font-normal text-teal-600 dark:text-teal-500 ml-auto">Soon</span>
+                    </a>
+                    
+                    <a class="flex items-center px-4 py-2 text-gray-600 rounded-md dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700" href="{% url 'members' %}">
+                        <span class="material-symbols-outlined">group</span>
+                        <span class="mx-4 font-medium">Members</span>
+                    </a>
+
+                    <a class="flex items-center px-4 py-2 text-gray-600 rounded-md dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700" href="{% url 'configuration' %}">
+                        <span class="material-symbols-outlined">settings</span>
+                        <span class="mx-4 font-medium">Settings</span>
+                    </a>
+                </div>
+
+                <div class="flex items-center px-4 -mx-2 py-2 border-t dark:border-gray-700 mt-4 pt-4">
+                    <div class="flex flex-col mx-2">
+                        <span class="font-semibold text-gray-800 dark:text-gray-200">{{ request.user.username }}</span>
+                        <span class="text-sm text-gray-600 dark:text-gray-400">View profile</span>
+                    </div>
+                </div>
+            </nav>
+        </aside>
+
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <header class="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border-b dark:border-gray-700 md:justify-end">
+                <button @click="sidebarOpen = true" class="md:hidden text-gray-600 dark:text-gray-400">
+                    <span class="material-symbols-outlined">menu</span>
+                </button>
+                
+                <div class="flex items-center space-x-4">
+                    <!-- Period Selector Dropdown -->
+                    <div class="relative" x-data="{ open: false }" @click.away="open = false">
+                        <button @click="open = !open" class="flex items-center text-gray-600 dark:text-gray-400 hover:text-primary px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <span class="material-symbols-outlined mr-2">calendar_month</span>
+                            <span class="text-sm font-medium">{{ current_period_label|default:"Select Period" }}</span>
+                            <span class="material-symbols-outlined ml-1 text-sm">expand_more</span>
+                        </button>
+                        
+                        <div x-show="open" 
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="transform opacity-0 scale-95"
+                             x-transition:enter-end="transform opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-start="transform opacity-100 scale-100"
+                             x-transition:leave-end="transform opacity-0 scale-95"
+                             class="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+                             style="display: none;">
+                            <div class="py-1" id="period-list">
+                                {% for period in available_periods %}
+                                <a href="?period={{ period.value }}" 
+                                   class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 {% if period.is_current %}bg-primary/10 font-semibold{% endif %}">
+                                    {{ period.label }}
+                                    {% if period.is_current %}
+                                    <span class="text-primary ml-2">●</span>
+                                    {% endif %}
+                                </a>
+                                {% empty %}
+                                <div class="px-4 py-2 text-sm text-gray-500">Loading periods...</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button @click="darkMode = !darkMode; localStorage.setItem('darkMode', darkMode)" 
+                            class="text-gray-600 dark:text-gray-400 hover:text-primary">
+                        <span x-show="!darkMode" class="material-symbols-outlined">light_mode</span>
+                        <span x-show="darkMode" class="material-symbols-outlined">dark_mode</span>
+                    </button>
+                    <a href="#" class="text-gray-600 dark:text-gray-400 hover:text-primary">
+                        <span class="material-symbols-outlined">notifications</span>
+                    </a>
+                    <a href="{% url 'logout' %}" class="text-gray-600 dark:text-gray-400 hover:text-red-500" title="Logout">
+                        <span class="material-symbols-outlined">logout</span>
+                    </a>
+                </div>
+            </header>
+            
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-background-light dark:bg-background-dark custom-scrollbar">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
