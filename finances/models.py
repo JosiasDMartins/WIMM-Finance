@@ -72,6 +72,9 @@ class FlowGroup(models.Model):
     """
     Groups transactions (Income or Expense) and holds budget information.
     E.g., "Salary", "Groceries", "Rent".
+    
+    NEW: FlowGroups are now period-specific using period_start_date.
+    Each period can have its own set of FlowGroups.
     """
     FLOW_TYPES = [
         (FLOW_TYPE_INCOME, 'Income'),
@@ -86,15 +89,22 @@ class FlowGroup(models.Model):
     group_type = models.CharField(max_length=20, choices=FLOW_TYPES, default=EXPENSE_MAIN)
     budgeted_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     
+    # NEW: Period tracking - stores the start date of the period this group belongs to
+    period_start_date = models.DateField(
+        default=timezone.localdate,
+        help_text="Start date of the period this FlowGroup belongs to"
+    )
+    
     # For reordering FlowGroups in a list/dashboard
     order = models.PositiveIntegerField(default=0, db_index=True) 
 
     class Meta:
         ordering = ['group_type', 'order', 'name']
-        unique_together = ('family', 'name')
+        # FlowGroups are unique per family, name, and period
+        unique_together = ('family', 'name', 'period_start_date')
         
     def __str__(self):
-        return f"{self.name} ({self.family.name})"
+        return f"{self.name} ({self.family.name}) - {self.period_start_date}"
     
 class Transaction(models.Model):
     """Individual financial entry."""
@@ -102,7 +112,7 @@ class Transaction(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     date = models.DateField(default=timezone.localdate)
     
-    # New field: realized status (consolidated/completed)
+    # Realized status (consolidated/completed)
     realized = models.BooleanField(default=False, help_text="Whether this transaction has been consolidated/completed")
     
     member = models.ForeignKey(FamilyMember, on_delete=models.SET_NULL, null=True, related_name='transactions')

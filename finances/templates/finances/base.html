@@ -63,7 +63,7 @@
         }
     </script>
 </head>
-<body class="h-full bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200" x-data="{ sidebarOpen: false, periodDropdown: false }">
+<body class="h-full bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200" x-data="{ sidebarOpen: false }">
 
     <div class="flex h-full">
         <aside :class="{'translate-x-0': sidebarOpen, '-translate-x-full': !sidebarOpen}" 
@@ -113,41 +113,53 @@
         </aside>
 
         <div class="flex-1 flex flex-col overflow-hidden">
-            <header class="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border-b dark:border-gray-700 md:justify-end">
+            <header class="flex items-center justify-end p-4 bg-white dark:bg-gray-800 border-b dark:border-gray-700 w-full">
+                
                 <button @click="sidebarOpen = true" class="md:hidden text-gray-600 dark:text-gray-400">
                     <span class="material-symbols-outlined">menu</span>
                 </button>
                 
                 <div class="flex items-center space-x-4">
-                    <!-- Period Selector Dropdown -->
-                    <div class="relative" x-data="{ open: false }" @click.away="open = false">
-                        <button @click="open = !open" class="flex items-center text-gray-600 dark:text-gray-400 hover:text-primary px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-                            <span class="material-symbols-outlined mr-2">calendar_month</span>
-                            <span class="text-sm font-medium">{{ current_period_label|default:"Select Period" }}</span>
-                            <span class="material-symbols-outlined ml-1 text-sm">expand_more</span>
-                        </button>
+                    <div class="flex items-center space-x-3">
+                        <span class="text-sm text-gray-600 dark:text-gray-400 hidden md:block">
+                            {% if start_date and end_date %}
+                            {{ start_date|date:"F d" }} - {{ end_date|date:"F d, Y" }}
+                            {% endif %}
+                        </span>
                         
-                        <div x-show="open" 
-                             x-transition:enter="transition ease-out duration-100"
-                             x-transition:enter-start="transform opacity-0 scale-95"
-                             x-transition:enter-end="transform opacity-100 scale-100"
-                             x-transition:leave="transition ease-in duration-75"
-                             x-transition:leave-start="transform opacity-100 scale-100"
-                             x-transition:leave-end="transform opacity-0 scale-95"
-                             class="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
-                             style="display: none;">
-                            <div class="py-1" id="period-list">
-                                {% for period in available_periods %}
-                                <a href="?period={{ period.value }}" 
-                                   class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 {% if period.is_current %}bg-primary/10 font-semibold{% endif %}">
-                                    {{ period.label }}
-                                    {% if period.is_current %}
-                                    <span class="text-primary ml-2">●</span>
-                                    {% endif %}
-                                </a>
-                                {% empty %}
-                                <div class="px-4 py-2 text-sm text-gray-500">Loading periods...</div>
-                                {% endfor %}
+                        <div class="relative" x-data="{ open: false }" @click.away="open = false">
+                            <button @click="open = !open" class="flex items-center text-gray-600 dark:text-gray-400 hover:text-primary px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600">
+                                <span class="material-symbols-outlined mr-2">calendar_month</span>
+                                <span class="text-sm font-medium">{{ current_period_label|default:"Select Period" }}</span>
+                                <span class="material-symbols-outlined ml-1 text-sm">expand_more</span>
+                            </button>
+                            
+                            <div x-show="open" 
+                                 x-transition:enter="transition ease-out duration-100"
+                                 x-transition:enter-start="transform opacity-0 scale-95"
+                                 x-transition:enter-end="transform opacity-100 scale-100"
+                                 x-transition:leave="transition ease-in duration-75"
+                                 x-transition:leave-start="transform opacity-100 scale-100"
+                                 x-transition:leave-end="transform opacity-0 scale-95"
+                                 class="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+                                 style="display: none;">
+                                 <div class="py-1">
+                                    {% for period in available_periods %}
+                                    <a href="?period={{ period.value }}" 
+                                       class="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 {% if period.is_current %}bg-primary/10 text-primary font-semibold{% else %}text-gray-700 dark:text-gray-300{% endif %}">
+                                        <div class="flex items-center justify-between">
+                                            <span>{{ period.label }}</span>
+                                            {% if period.is_current %}
+                                            <span class="text-primary">●</span>
+                                            {% elif period.has_data %}
+                                            <span class="text-xs text-gray-400">•</span>
+                                            {% endif %}
+                                        </div>
+                                    </a>
+                                    {% empty %}
+                                    <div class="px-4 py-2 text-sm text-gray-500">No periods available</div>
+                                    {% endfor %}
+                                 </div>
                             </div>
                         </div>
                     </div>
@@ -160,7 +172,7 @@
                     <a href="#" class="text-gray-600 dark:text-gray-400 hover:text-primary">
                         <span class="material-symbols-outlined">notifications</span>
                     </a>
-                    <a href="{% url 'logout' %}" class="text-gray-600 dark:text-gray-400 hover:text-red-500" title="Logout">
+                    <a href="{% url 'auth_logout' %}" class="text-gray-600 dark:text-gray-400 hover:text-red-500" title="Logout">
                         <span class="material-symbols-outlined">logout</span>
                     </a>
                 </div>

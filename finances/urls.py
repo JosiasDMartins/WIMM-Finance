@@ -7,10 +7,12 @@ urlpatterns = [
     # General
     path('', views.dashboard_view, name='dashboard'),
     path('settings/', views.configuration_view, name='configuration'),
+    path('logout/', views.logout_view, name='auth_logout'),
     
     # Members
     path('members/', views.members_view, name='members'),
     path('members/add/', views.add_member_view, name='member_add'),
+    path('members/edit/<int:member_id>/', views.edit_member_view, name='member_edit'),
     path('members/remove/<int:member_id>/', views.remove_member_view, name='member_remove'), 
     
     # Investments

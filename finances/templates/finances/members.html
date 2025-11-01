@@ -5,7 +5,7 @@
 {% block title %}Member Management{% endblock title %}
 
 {% block content %}
-<div class="p-6 md:p-10 lg:p-12">
+<div class="p-6 md:p-10 lg:p-12" x-data="{ editMemberId: null, editUsername: '', editEmail: '', editRole: '', showPasswordModal: false, passwordMemberId: null }">
     <h1 class="text-3xl font-bold text-[#0d171b] dark:text-white mb-8">Family Member Management</h1>
 
     <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-10 border border-primary/20">
@@ -61,7 +61,7 @@
                     {% endfor %}
                 </div>
 
-                <div class_name="w-full">
+                <div class="w-full">
                     <button type="submit" class="w-full rounded-lg bg-primary text-white text-base font-bold p-3 h-12 flex items-center justify-center hover:bg-primary/90 transition-colors shadow-lg">
                         <span class="material-symbols-outlined mr-1">add</span>
                         Add
@@ -70,48 +70,163 @@
             </div>
         </form>
     </div>
+    
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead class="bg-gray-50 dark:bg-gray-700">
                 <tr>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Member</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email/Username</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Role</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date Added</th>
                     <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                 {% for member in family_members %}
                 <tr class="hover:bg-slate-50 dark:hover:bg-gray-700/50">
-                    <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white">{{ member.user.get_full_name|default:member.user.username }}</td>
-                    <td class="px-6 py-4 text-sm text-gray-500">{{ member.user.email|default:member.user.username }}</td>
+                    <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white">{{ member.user.username }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500">{{ member.user.email|default:"-" }}</td>
                     <td class="px-6 py-4 text-sm text-gray-500">
                         <span class="px-2 py-1 text-sm font-medium rounded-full bg-primary/20 text-primary">{{ member.get_role_display }}</span>
                     </td>
-                    <td class="px-6 py-4 text-sm text-gray-500">N/A</td> 
                     <td class="px-6 py-4 text-center whitespace-nowrap">
                         <div class="flex justify-center gap-2">
-                            <button type="button" class="p-1 text-slate-500 hover:text-primary" title="Edit"><span class="material-symbols-outlined text-lg">edit</span></button>
+                            {% if is_admin %}
+                            <button type="button" 
+                                    @click="editMemberId = {{ member.id }}; editUsername = '{{ member.user.username }}'; editEmail = '{{ member.user.email }}'; editRole = '{{ member.role }}'"
+                                    class="p-1 text-slate-500 hover:text-primary" 
+                                    title="Edit">
+                                <span class="material-symbols-outlined text-lg">edit</span>
+                            </button>
                             
-                            {% if is_admin and member.user != request.user %}
-                            <a href="{% url 'member_remove' member_id=member.id %}" 
-                                class="p-1 text-slate-500 hover:text-red-500" 
-                                onclick="return confirm('Are you sure you want to remove {{ member.user.username }} from the family?')"
-                                title="Remove">
-                                <span class="material-symbols-outlined text-lg">delete</span>
-                            </a>
+                            <button type="button"
+                                    @click="passwordMemberId = {{ member.id }}; showPasswordModal = true"
+                                    class="p-1 text-slate-500 hover:text-blue-500"
+                                    title="Change Password">
+                                <span class="material-symbols-outlined text-lg">key</span>
+                            </button>
+                            
+                            {% if member.user != request.user %}
+                            <form method="POST" action="{% url 'member_remove' member_id=member.id %}" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit"
+                                        onclick="return confirm('Are you sure you want to remove {{ member.user.username }} from the family?')"
+                                        class="p-1 text-slate-500 hover:text-red-500" 
+                                        title="Remove">
+                                    <span class="material-symbols-outlined text-lg">delete</span>
+                                </button>
+                            </form>
+                            {% endif %}
                             {% endif %}
                         </div>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="px-6 py-4 text-sm text-gray-500 text-center">No members found in the family.</td>
+                    <td colspan="4" class="px-6 py-4 text-sm text-gray-500 text-center">No members found in the family.</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+
+    <!-- Edit Member Modal -->
+    <div x-show="editMemberId !== null" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto"
+         style="display: none;">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-black opacity-50" @click="editMemberId = null"></div>
+            
+            <div class="relative bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 z-10">
+                <h3 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">Edit Member</h3>
+                
+                <form method="POST" :action="`/members/edit/${editMemberId}/`">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update_info">
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Username</label>
+                            <input type="text" name="username" x-model="editUsername" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2" required>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
+                            <input type="email" name="email" x-model="editEmail" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Role</label>
+                            <select name="role" x-model="editRole" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2">
+                                <option value="ADMIN">Admin</option>
+                                <option value="PARENT">Parent</option>
+                                <option value="CHILD">Child</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 flex justify-end space-x-3">
+                        <button type="button" @click="editMemberId = null" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div x-show="showPasswordModal" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto"
+         style="display: none;">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-black opacity-50" @click="showPasswordModal = false"></div>
+            
+            <div class="relative bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 z-10">
+                <h3 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">Change Password</h3>
+                
+                <form method="POST" :action="`/members/edit/${passwordMemberId}/`">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="change_password">
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">New Password</label>
+                            <input type="password" name="new_password" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2" required>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Confirm Password</label>
+                            <input type="password" name="confirm_password" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 flex justify-end space-x-3">
+                        <button type="button" @click="showPasswordModal = false; passwordMemberId = null" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">
+                            Change Password
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
 </div>
