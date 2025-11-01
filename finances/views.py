@@ -13,6 +13,9 @@ import json
 from datetime import datetime as dt_datetime 
 from decimal import Decimal
 
+from .models import EXPENSE_MAIN
+from .utils import get_available_periods
+
 # Import Models
 from .models import (
     Family, FamilyMember, FlowGroup, Transaction, Investment, FamilyConfiguration,
@@ -45,27 +48,28 @@ def get_default_income_flow_group(family, user):
     income_group, created = FlowGroup.objects.get_or_create(
         family=family,
         group_type=FLOW_TYPE_INCOME,
-        defaults={'name': 'Income (Default)', 'budgeted_amount': Decimal('0.00'), 'owner': user}
+        defaults={'name': 'Income (Default)', 'budgeted_amount': Decimal('0.00'), 'owner': user} #-- removed - Any need from any owver
     )
     return income_group
 
 # === Utility Wrapper for Period Context ===
 def get_base_template_context(family, query_period, start_date):
     """
-    Gets the context required by base.html (period selector).
+    Gets the context required by base.html (period selector with current period label).
     """
-    # Fix for base.html: It expects 'is_current' boolean
-    current_period_value = query_period if query_period else start_date.strftime("%Y-%m")
-    period_options = []
-    for period in get_period_options(family, start_date):
-        period_options.append({
-            'label': period['label'],
-            'value': period['value'],
-            'is_current': period['value'] == current_period_value
-        })
+    # Get available periods
+    available_periods = get_available_periods(family)
+    
+    # Determine current period label
+    current_period_label = None
+    for period in available_periods:
+        if period['is_current']:
+            current_period_label = period['label']
+            break
     
     return {
-        'period_options': period_options
+        'available_periods': available_periods,
+        'current_period_label': current_period_label
     }
 
 # === Core Views ===
@@ -76,9 +80,10 @@ def dashboard_view(request):
     if not family:
         return render(request, 'finances/setup.html') 
 
+
     query_period = request.GET.get('period')
-    start_date, end_date, current_period_label = get_current_period_dates(family, query_period)
     
+    start_date, end_date, current_period_label = get_current_period_dates(family, query_period)
     expense_group_q = Q(group_type=EXPENSE_MAIN) | Q(group_type=EXPENSE_SECONDARY)
     
     # Calculate estimated (all transactions) and spent (realized only) for expense groups
@@ -98,11 +103,14 @@ def dashboard_view(request):
         )
     ).order_by('order', 'name')
     
+    budgeted_expense = Decimal(0.00)
     for group in expense_groups:
         group.total_estimated = group.total_estimated if group.total_estimated is not None else Decimal('0.00')
         group.total_spent = group.total_spent if group.total_spent is not None else Decimal('0.00')
         # Check if estimated exceeds budget
         group.budget_warning = group.total_estimated > group.budgeted_amount
+        group.total_estimated = group.total_estimated if group.total_estimated > group.budgeted_amount else group.budgeted_amount
+        budgeted_expense = group.total_estimated + budgeted_expense
 
     income_group = get_default_income_flow_group(family, request.user)
     
@@ -110,7 +118,7 @@ def dashboard_view(request):
     recent_income_transactions = Transaction.objects.filter(
         flow_group=income_group,
         date__range=(start_date, end_date)
-    ).select_related('member__user').order_by('-date', 'order')
+    ).select_related('member__user').order_by('-date', 'order')    
     
     # Pass income group ID to template for AJAX calls
     income_flow_group_id = income_group.id
@@ -141,13 +149,16 @@ def dashboard_view(request):
         ),
     )
     
-    budgeted_income = summary_totals.get('total_budgeted_income') or Decimal('0.00')
-    budgeted_expense = summary_totals.get('total_budgeted_expense') or Decimal('0.00')
-    realized_income = summary_totals.get('total_realized_income') or Decimal('0.00')
-    realized_expense = summary_totals.get('total_realized_expense') or Decimal('0.00')
     
+    budgeted_income = summary_totals.get('total_budgeted_income') or Decimal('0.00')
+    budgeted_expense = budgeted_expense #See group.estimated calc section above
+    realized_income = summary_totals.get('total_realized_income') or Decimal('0.00')
+    realized_expense = summary_totals.get('total_realized_expense') or Decimal('0.00')    
+    
+    summary_totals['total_budgeted_expense'] = budgeted_expense
     summary_totals['estimated_result'] = budgeted_income - budgeted_expense
     summary_totals['realized_result'] = realized_income - realized_expense
+
 
     context = {
         'start_date': start_date,
@@ -155,7 +166,10 @@ def dashboard_view(request):
         'current_period_label': current_period_label,
         'expense_groups': expense_groups,
         'recent_income_transactions': recent_income_transactions,
+        'income_flow_group_id': income_flow_group_id,
         'family_members': family_members,
+        'current_member': current_member,
+        'today_date': timezone.localdate().strftime('%Y-%m-%d'),
         'summary_totals': summary_totals,
     }
     
@@ -167,13 +181,16 @@ def dashboard_view(request):
 
 # === AJAX Endpoints ===
 
+# finances/views.py
+
 @login_required
 @require_POST
 @db_transaction.atomic
 def save_flow_item_ajax(request):
     """
     Handles AJAX request to save or update a Transaction.
-    This view matches the JS in FlowGroup.html.
+    This view matches the JS in FlowGroup.html and is adapted 
+    for the Income items in dashboard.html.
     """
     if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return HttpResponseBadRequest("Not an AJAX request.")
@@ -190,35 +207,54 @@ def save_flow_item_ajax(request):
         description = data.get('description')
         amount_str = data.get('amount')
         date_str = data.get('date')
-        member_id = data.get('member_id')
-        realized = data.get('realized', False)  # Get realized status
+        member_id = data.get('member_id') # This might be None from dashboard
+        realized = data.get('realized', False)
         
-        if not all([flow_group_id, description, amount_str, date_str, member_id]):
-            return JsonResponse({'error': 'Missing required fields.'}, status=400)
+        # Basic validation for fields that must always be present
+        if not all([flow_group_id, description, amount_str, date_str]):
+            return JsonResponse({'error': 'Missing required fields: flow_group, description, amount, or date.'}, status=400)
             
         amount = Decimal(amount_str)
         date = dt_datetime.strptime(date_str, '%Y-%m-%d').date()
 
         flow_group = get_object_or_404(FlowGroup, id=flow_group_id, family=family)
-        member = get_object_or_404(FamilyMember, id=member_id, family=family)
 
-        if transaction_id and transaction_id != '0':
+        if transaction_id and transaction_id != '0' and transaction_id is not None:
+            # --- This is an UPDATE ---
             transaction = get_object_or_404(Transaction, id=transaction_id, flow_group=flow_group)
+            
+            # Only update member if member_id was EXPLICITLY provided
+            # This prevents updates from dashboard (which send no member_id) from failing
+            if member_id:
+                member = get_object_or_404(FamilyMember, id=member_id, family=family)
+                transaction.member = member
+        
         else:
+            # --- This is a CREATE ---
             max_order = Transaction.objects.filter(flow_group=flow_group).aggregate(max_order=Max('order'))['max_order']
             new_order = (max_order or 0) + 1
             transaction = Transaction(
                 flow_group=flow_group,
                 order=new_order
             )
+            
+            # For CREATE, member_id is required. 
+            # Default to current_member if not provided (e.g., from dashboard)
+            if member_id:
+                member = get_object_or_404(FamilyMember, id=member_id, family=family)
+            else:
+                member = current_member # Default to the logged-in user
+            
+            transaction.member = member
 
+        # Apply updates for both Create and Update
         transaction.description = description
         transaction.amount = abs(amount) 
         transaction.date = date
-        transaction.member = member
         transaction.realized = realized  # Save realized status
         transaction.save()
 
+        # Return the saved state, ensuring member data is from the transaction
         return JsonResponse({
             'status': 'success',
             'transaction_id': transaction.id,
@@ -227,12 +263,11 @@ def save_flow_item_ajax(request):
             'date': transaction.date.strftime('%Y-%m-%d'),
             'member_id': transaction.member.id,
             'member_name': transaction.member.user.username,
-            'realized': transaction.realized,  # Return realized status
+            'realized': transaction.realized,
         })
 
     except Exception as e:
         return JsonResponse({'error': f'A server error occurred: {str(e)}'}, status=500)
-
 
 @login_required
 @require_POST
@@ -304,14 +339,13 @@ def create_flow_group_view(request):
             flow_group = form.save(commit=False)
             flow_group.family = family
             flow_group.owner = request.user
+            flow_group.group_type = EXPENSE_MAIN  # Always set to EXPENSE_MAIN
             flow_group.save()
             messages.success(request, f"Flow Group '{flow_group.name}' created.")
-            # Redirect to the edit page of the new group
             return redirect('edit_flow_group', group_id=flow_group.id)
     else:
         form = FlowGroupForm()
 
-    # Context for base.html
     query_period = request.GET.get('period')
     start_date, _, _ = get_current_period_dates(family, query_period)
 
@@ -419,6 +453,53 @@ def investments_view(request):
     context.update(get_base_template_context(family, query_period, start_date))
     return render(request, 'finances/invest.html', context)
 
+# === Delete Flow Group View ===
+@login_required
+@require_POST
+@db_transaction.atomic
+def delete_flow_group_view(request, group_id):
+    """
+    Deletes a FlowGroup and all its transactions for the current period only.
+    """
+    family, current_member, _ = get_family_context(request.user)
+    if not family:
+        return JsonResponse({'error': 'User is not associated with a family.'}, status=403)
+    
+    try:
+        # Get the flow group
+        flow_group = get_object_or_404(FlowGroup, id=group_id, family=family)
+        
+        # Get current period dates
+        query_period = request.GET.get('period')
+        start_date, end_date, _ = get_current_period_dates(family, query_period)
+        
+        # Delete only transactions within the current period
+        transactions_deleted = Transaction.objects.filter(
+            flow_group=flow_group,
+            date__range=(start_date, end_date)
+        ).delete()
+        
+        # Check if there are any transactions left in other periods
+        remaining_transactions = Transaction.objects.filter(flow_group=flow_group).exists()
+        
+        if not remaining_transactions:
+            # No transactions in any period - safe to delete the group
+            flow_group.delete()
+            message = f"Flow Group '{flow_group.name}' and all its data have been deleted."
+        else:
+            # Transactions exist in other periods - keep the group
+            message = f"All transactions for the current period have been deleted. Group '{flow_group.name}' still contains data from other periods."
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': message,
+            'transactions_deleted': transactions_deleted[0] if transactions_deleted else 0
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
 # --- Other Placeholder Views ---
 
 @login_required
@@ -429,9 +510,75 @@ def add_receipt_view(request):
     return redirect('edit_flow_group', group_id=income_group.id)
 
 @login_required
+@require_POST
+@db_transaction.atomic
 def add_member_view(request):
-    # This logic should be (and is) handled in members_view
-    return redirect('members')
+    """
+    Handles adding a new family member.
+    """
+    family, current_member, _ = get_family_context(request.user)
+    if not family:
+        messages.error(request, 'User is not associated with a family.')
+        return redirect('members')
+    
+    # Check if user is admin
+    if current_member.role != 'ADMIN':
+        messages.error(request, 'Only admins can add new members.')
+        return redirect('members')
+    
+    form = NewUserAndMemberForm(request.POST)
+    
+    if form.is_valid():
+        try:
+            # Create new user
+            UserModel = get_user_model()
+            new_user = UserModel.objects.create_user(
+                username=form.cleaned_data['username'],
+                email=form.cleaned_data.get('email', ''),
+                password=form.cleaned_data['password']
+            )
+            
+            # Create family member
+            FamilyMember.objects.create(
+                user=new_user,
+                family=family,
+                role=form.cleaned_data['role']
+            )
+            
+            messages.success(request, f"Member '{new_user.username}' added successfully!")
+            return redirect('members')
+            
+        except Exception as e:
+            messages.error(request, f"Error creating member: {str(e)}")
+            return redirect('members')
+    else:
+        # Form has errors
+        for field, errors in form.errors.items():
+            for error in errors:
+                messages.error(request, f"{field}: {error}")
+        return redirect('members')
+
+# === AJAX endpoint for periods (optional, for dynamic loading) ===
+@login_required
+def get_periods_ajax(request):
+    """
+    Returns available periods as JSON for AJAX requests.
+    """
+    family, _, _ = get_family_context(request.user)
+    if not family:
+        return JsonResponse({'error': 'User is not associated with a family.'}, status=403)
+    
+    periods = get_available_periods(family)
+    
+    # Convert to JSON-serializable format
+    periods_data = [{
+        'label': p['label'],
+        'value': p['value'],
+        'is_current': p['is_current'],
+        'has_data': p['has_data']
+    } for p in periods]
+    
+    return JsonResponse({'periods': periods_data})
 
 @login_required
 def remove_member_view(request, member_id):

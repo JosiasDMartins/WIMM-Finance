@@ -9,9 +9,9 @@ from .models import FamilyConfiguration, FamilyMember, FlowGroup, Transaction, I
 class FamilyConfigurationForm(forms.ModelForm):
     class Meta:
         model = FamilyConfiguration
-        fields = ['closing_day', 'period_type', 'base_date']
+        fields = ['starting_day', 'period_type', 'base_date']
         widgets = {
-            'closing_day': forms.NumberInput(attrs={'class': 'form-input'}),
+            'starting_day': forms.NumberInput(attrs={'class': 'form-input'}),
             'period_type': forms.RadioSelect(choices=FamilyConfiguration.PERIOD_TYPES),
             'base_date': forms.DateInput(attrs={'class': 'form-input', 'type': 'date'}),
         }
@@ -20,11 +20,10 @@ class FamilyConfigurationForm(forms.ModelForm):
 class FlowGroupForm(forms.ModelForm):
     class Meta:
         model = FlowGroup
-        fields = ['name', 'budgeted_amount', 'group_type']
+        fields = ['name', 'budgeted_amount']  # Removed group_type - always EXPENSE_MAIN
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-input'}),
             'budgeted_amount': forms.NumberInput(attrs={'class': 'form-input'}),
-            'group_type': forms.Select(attrs={'class': 'form-select'}),
         }
 
 # --- Transaction Form (for spreadsheet-like editing) ---

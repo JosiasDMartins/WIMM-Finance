@@ -4,13 +4,14 @@ import datetime
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
 from calendar import monthrange
+from .models import Transaction
 
 def get_current_period_dates(family, query_period=None):
     """
     Determines the start and end dates of the current financial period 
     based on the FamilyConfiguration and an optional period query.
 
-    NOTE: Currently only implements 'Monthly' cycle based on closing_day.
+    NOTE: Currently only implements 'Monthly' cycle based on starting_day.
     """
     today = timezone.localdate()
     
@@ -20,28 +21,23 @@ def get_current_period_dates(family, query_period=None):
     # Determine start and end date for the current period
 
     if config and config.period_type == 'M':
-        # Monthly cycle based on closing_day
-        closing_day = config.closing_day
+        # Monthly cycle based on starting_day
+        starting_day = config.starting_day
         
-        # Determine the target month for the end date.
-        # If today's day is before or equal to the closing day, the cycle ends this month.
-        if today.day <= closing_day:
-            # Cycle ends this month (on closing_day)
-            end_date = today.replace(day=closing_day)
-            # Cycle starts on the day after the closing day of the previous month.
-            start_date = end_date - relativedelta(months=1) + relativedelta(days=1)
+        # Determine if we're in the current period or a previous one
+        if today.day >= starting_day:
+            # We're in a period that started this month
+            start_date = today.replace(day=starting_day)
+            # Period ends on the day before starting_day of next month
+            next_month = start_date + relativedelta(months=1)
+            last_day_next_month = monthrange(next_month.year, next_month.month)[1]
+            day_to_use = min(starting_day, last_day_next_month)
+            end_date = next_month.replace(day=day_to_use) - relativedelta(days=1)
         else:
-            # Cycle starts this month (on day after closing_day)
-            start_date = today.replace(day=closing_day) + relativedelta(days=1)
-            # Cycle ends on the closing day of the next month.
-            
-            # Find the date one month from the start_date
-            next_month_ref = start_date + relativedelta(months=1)
-            
-            # Ensure the closing day is valid for the target month
-            last_day_next_month = monthrange(next_month_ref.year, next_month_ref.month)[1]
-            day_to_use = min(closing_day, last_day_next_month)
-            end_date = next_month_ref.replace(day=day_to_use)
+            # We're in a period that started last month
+            start_date = (today.replace(day=1) - relativedelta(days=1)).replace(day=starting_day)
+            # Period ends on the day before starting_day of this month
+            end_date = today.replace(day=starting_day) - relativedelta(days=1)
             
     else:
         # Default to standard calendar month (day 1 to last day of month)
@@ -65,30 +61,136 @@ def get_current_period_dates(family, query_period=None):
 
     return start_date, end_date, current_period_label
 
-def get_period_options_context(family, current_start_date):
+
+def get_available_periods(family):
     """
-    Generates a list of periods for the dashboard dropdown.
-    Currently generates the last 7 periods (current + 6 previous).
-    """
-    periods = []
-    date_cursor = current_start_date
+    Returns list of available periods for selection.
+    Shows current period + previous periods with data + one empty period before the first data.
     
-    # Simplification: generate options based on calendar months for now
-    for i in range(7):
-        # Value for query can be Year-Month (used by dashboard view to fetch the period)
-        label = date_cursor.strftime("%B %Y")
-        value = date_cursor.strftime("%Y-%m")
-        
+    Logic:
+    - Always show current period
+    - Show all previous periods that have transactions
+    - Show one additional empty period before the oldest period with data
+    """
+    config = getattr(family, 'configuration', None)
+    if not config:
+        return []
+    
+    today = timezone.localdate()
+    periods = []
+    
+    # Get the oldest transaction date for this family
+    oldest_transaction = Transaction.objects.filter(
+        flow_group__family=family
+    ).order_by('date').first()
+    
+    if not oldest_transaction:
+        # No transactions yet - show only current period and one previous
+        current_start, current_end, current_label = get_period_dates_for_month(today, config)
         periods.append({
-            'label': label,
-            'value': value,
+            'label': current_label,
+            'value': current_start.strftime('%Y-%m'),
+            'start_date': current_start,
+            'end_date': current_end,
+            'is_current': True,
+            'has_data': False
         })
         
-        # Move back one calendar month
-        date_cursor = date_cursor - relativedelta(months=1)
+        # Add one empty previous period
+        prev_date = current_start - relativedelta(months=1)
+        prev_start, prev_end, prev_label = get_period_dates_for_month(prev_date, config)
+        periods.append({
+            'label': prev_label,
+            'value': prev_start.strftime('%Y-%m'),
+            'start_date': prev_start,
+            'end_date': prev_end,
+            'is_current': False,
+            'has_data': False
+        })
+        
+        return periods
+    
+    # Start from current period and work backwards
+    current_start, current_end, current_label = get_period_dates_for_month(today, config)
+    cursor_date = today
+    
+    # Track if we've found the last period with data
+    found_last_data_period = False
+    periods_after_last_data = 0
+    
+    # Go back up to 24 months or until we've added one empty period after last data
+    for i in range(24):
+        period_start, period_end, period_label = get_period_dates_for_month(cursor_date, config)
+        
+        # Check if this period has transactions
+        has_transactions = Transaction.objects.filter(
+            flow_group__family=family,
+            date__range=(period_start, period_end)
+        ).exists()
+        
+        is_current = (period_start == current_start)
+        
+        periods.append({
+            'label': period_label,
+            'value': period_start.strftime('%Y-%m'),
+            'start_date': period_start,
+            'end_date': period_end,
+            'is_current': is_current,
+            'has_data': has_transactions
+        })
+        
+        # Track empty periods after last data
+        if not has_transactions and not is_current:
+            if found_last_data_period:
+                periods_after_last_data += 1
+                # Stop after adding one empty period after last data
+                if periods_after_last_data >= 1:
+                    break
+        else:
+            if has_transactions:
+                found_last_data_period = True
+                periods_after_last_data = 0
+        
+        # Move to previous month
+        cursor_date = cursor_date - relativedelta(months=1)
+    
+    return periods
 
-    # Reverse to show most recent first (current period is the latest)
-    return periods[::-1]
+
+def get_period_dates_for_month(reference_date, config):
+    """
+    Calculate period start and end dates for a given reference date.
+    """
+    starting_day = config.starting_day
+    
+    if reference_date.day >= starting_day:
+        # Period starts this month
+        start_date = reference_date.replace(day=starting_day)
+        next_month = start_date + relativedelta(months=1)
+        last_day_next_month = monthrange(next_month.year, next_month.month)[1]
+        day_to_use = min(starting_day, last_day_next_month)
+        end_date = next_month.replace(day=day_to_use) - relativedelta(days=1)
+    else:
+        # Period started last month
+        prev_month = reference_date.replace(day=1) - relativedelta(days=1)
+        start_date = prev_month.replace(day=starting_day)
+        end_date = reference_date.replace(day=starting_day) - relativedelta(days=1)
+    
+    # Generate label
+    if start_date.year == end_date.year and start_date.month == end_date.month:
+        period_label = start_date.strftime("%B %Y")
+    else:
+        period_label = f"{start_date.strftime('%b %d')} - {end_date.strftime('%b %d, %Y')}"
+    
+    return start_date, end_date, period_label
+
+
+def get_period_options_context(family, current_start_date):
+    """
+    DEPRECATED: Use get_available_periods instead.
+    Kept for backward compatibility.
+    """
+    return get_available_periods(family)
 
 
 def user_can_access_flow_group(user, flow_group):

@@ -55,11 +55,11 @@ class FamilyConfiguration(models.Model):
     ]
     
     family = models.OneToOneField(Family, on_delete=models.CASCADE, related_name='configuration')
-    # Day of the month for the closing of the cycle (1-31)
-    closing_day = models.PositiveSmallIntegerField(
+    # Day of the month for the start of the cycle (1-31)
+    starting_day = models.PositiveSmallIntegerField(
         default=5, 
         validators=[MinValueValidator(1)],
-        help_text="Day of the month (1-31) that defines the cycle closure."
+        help_text="Day of the month (1-31) that defines the cycle start."
     )
     period_type = models.CharField(max_length=1, choices=PERIOD_TYPES, default='M')
     # Base date used for calculating bi-weekly or weekly cycles
