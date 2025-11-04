@@ -58,8 +58,8 @@ def get_current_period_dates(family, query_period=None):
 
 def get_available_periods(family):
     """
-    Returns list of available periods for selection based on FlowGroups.
-    Shows periods where FlowGroups exist + one empty period before.
+    Returns list of available periods for selection based on actual data.
+    Shows periods where transactions exist + one empty period before the earliest data.
     """
     config = getattr(family, 'configuration', None)
     if not config:
@@ -68,41 +68,84 @@ def get_available_periods(family):
     today = timezone.localdate()
     periods = []
     
-    # Get all unique period_start_dates from FlowGroups
-    flow_group_periods = FlowGroup.objects.filter(
-        family=family
-    ).values_list('period_start_date', flat=True).distinct().order_by('-period_start_date')
+    # Get all unique transaction dates (not FlowGroup period_start_dates)
+    transaction_dates = Transaction.objects.filter(
+        flow_group__family=family
+    ).values_list('date', flat=True).distinct().order_by('-date')
+    
+    if not transaction_dates:
+        # No data exists - show current period and one previous period
+        current_start, current_end, current_label = get_current_period_dates(family, None)
+        
+        periods.append({
+            'label': current_label,
+            'value': current_start.strftime('%Y-%m-%d'),
+            'start_date': current_start,
+            'end_date': current_end,
+            'is_current': True,
+            'has_data': False
+        })
+        
+        # Add one previous empty period
+        prev_month_ref = today - relativedelta(months=1)
+        prev_start, prev_end, prev_label = get_current_period_dates(family, prev_month_ref.strftime('%Y-%m-%d'))
+        periods.append({
+            'label': prev_label,
+            'value': prev_start.strftime('%Y-%m-%d'),
+            'start_date': prev_start,
+            'end_date': prev_end,
+            'is_current': False,
+            'has_data': False
+        })
+        
+        return periods
     
     # Get current period
     current_start, current_end, current_label = get_current_period_dates(family, None)
     
-    # Add current period (always show)
-    periods.append({
-        'label': current_label,
-        'value': current_start.strftime('%Y-%m-%d'),
-        'start_date': current_start,
-        'end_date': current_end,
-        'is_current': True,
-        'has_data': FlowGroup.objects.filter(family=family, period_start_date=current_start).exists()
-    })
+    # Find all periods that contain transaction dates
+    periods_with_data = set()
+    for trans_date in transaction_dates:
+        period_start, period_end, _ = get_current_period_dates(family, trans_date.strftime('%Y-%m-%d'))
+        periods_with_data.add(period_start)
     
-    # Add periods with FlowGroups
-    for period_start in flow_group_periods:
-        if period_start != current_start:
-            _, period_end, period_label = get_current_period_dates(family, period_start.strftime('%Y-%m-%d'))
-            periods.append({
-                'label': period_label,
-                'value': period_start.strftime('%Y-%m-%d'),
-                'start_date': period_start,
-                'end_date': period_end,
-                'is_current': False,
-                'has_data': True
-            })
+    # Convert to sorted list (most recent first)
+    periods_with_data = sorted(periods_with_data, reverse=True)
     
-    # Add one empty period before the oldest period with data
-    if flow_group_periods:
-        oldest_period = min(flow_group_periods)
-        prev_month_ref = oldest_period - relativedelta(months=1)
+    # Build periods list
+    for period_start in periods_with_data:
+        _, period_end, period_label = get_current_period_dates(family, period_start.strftime('%Y-%m-%d'))
+        
+        # Check if this period has actual data
+        has_data = Transaction.objects.filter(
+            flow_group__family=family,
+            date__range=(period_start, period_end)
+        ).exists()
+        
+        periods.append({
+            'label': period_label,
+            'value': period_start.strftime('%Y-%m-%d'),
+            'start_date': period_start,
+            'end_date': period_end,
+            'is_current': (period_start == current_start),
+            'has_data': has_data
+        })
+    
+    # Ensure current period is always included (even if no data)
+    if not any(p['value'] == current_start.strftime('%Y-%m-%d') for p in periods):
+        periods.insert(0, {
+            'label': current_label,
+            'value': current_start.strftime('%Y-%m-%d'),
+            'start_date': current_start,
+            'end_date': current_end,
+            'is_current': True,
+            'has_data': False
+        })
+    
+    # Add one empty period before the earliest data
+    if periods_with_data:
+        earliest_period = min(periods_with_data)
+        prev_month_ref = earliest_period - relativedelta(months=1)
         prev_start, prev_end, prev_label = get_current_period_dates(family, prev_month_ref.strftime('%Y-%m-%d'))
         
         # Check if this period already exists
@@ -115,18 +158,6 @@ def get_available_periods(family):
                 'is_current': False,
                 'has_data': False
             })
-    else:
-        # No FlowGroups exist yet - add one previous empty period
-        prev_month_ref = today - relativedelta(months=1)
-        prev_start, prev_end, prev_label = get_current_period_dates(family, prev_month_ref.strftime('%Y-%m-%d'))
-        periods.append({
-            'label': prev_label,
-            'value': prev_start.strftime('%Y-%m-%d'),
-            'start_date': prev_start,
-            'end_date': prev_end,
-            'is_current': False,
-            'has_data': False
-        })
     
     # Sort by start_date descending (most recent first)
     periods.sort(key=lambda x: x['start_date'], reverse=True)

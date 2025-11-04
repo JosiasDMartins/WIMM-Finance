@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Max, Q
 from django.db import transaction as db_transaction
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponse
-from django.views.decorators.http import require_POST 
+from django.views.decorators.http import require_POST, require_http_methods
 from django.contrib.auth import get_user_model, logout as auth_logout
 from django.contrib import messages 
 from django.utils import timezone
@@ -76,8 +76,26 @@ def get_base_template_context(family, query_period, start_date):
     
     return {
         'available_periods': available_periods,
-        'current_period_label': current_period_label
+        'current_period_label': current_period_label,
+        'selected_period': current_period_value
     }
+
+# === Utility Function for Default Date ===
+def get_default_date_for_period(start_date, end_date):
+    """
+    Returns the appropriate default date for data entry.
+    If the period includes today, return today.
+    If it's a past period, return the start date.
+    If it's a future period, return the start date.
+    """
+    today = timezone.localdate()
+    
+    if start_date <= today <= end_date:
+        # Current period - use today
+        return today
+    else:
+        # Past or future period - use start date
+        return start_date
 
 # === Core Views ===
 
@@ -160,6 +178,9 @@ def dashboard_view(request):
     summary_totals['estimated_result'] = budgeted_income - budgeted_expense
     summary_totals['realized_result'] = realized_income - realized_expense
 
+    # Get default date for this period
+    default_date = get_default_date_for_period(start_date, end_date)
+
     context = {
         'start_date': start_date,
         'end_date': end_date,
@@ -169,7 +190,7 @@ def dashboard_view(request):
         'income_flow_group_id': income_flow_group_id,
         'family_members': family_members,
         'current_member': current_member,
-        'today_date': timezone.localdate().strftime('%Y-%m-%d'),
+        'today_date': default_date.strftime('%Y-%m-%d'),
         'summary_totals': summary_totals,
     }
     
@@ -313,14 +334,87 @@ def delete_flow_group_view(request, group_id):
 
 
 # === Logout View ===
-@login_required
+@require_POST
 def logout_view(request):
     """
-    Logs out the user and redirects to login page.
+    Logs out the user and redirects to logout success page.
+    Only accepts POST requests for security.
     """
     auth_logout(request)
-    messages.success(request, 'You have been logged out successfully.')
-    return redirect('login')
+    return redirect('logout_success')
+
+
+# === Logout Success View ===
+def logout_success_view(request):
+    """
+    Shows logout success page (no authentication required).
+    """
+    return render(request, 'finances/logged_out.html')
+
+
+# === User Profile View ===
+@login_required
+def user_profile_view(request):
+    """
+    View and edit user profile (username, email, password).
+    """
+    family, current_member, _ = get_family_context(request.user)
+    if not family:
+        return redirect('dashboard')
+    
+    query_period = request.GET.get('period')
+    start_date, end_date, _ = get_current_period_dates(family, query_period)
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'update_profile':
+            username = request.POST.get('username', '').strip()
+            email = request.POST.get('email', '').strip()
+            
+            if username:
+                UserModel = get_user_model()
+                # Check if username is taken by another user
+                if UserModel.objects.filter(username=username).exclude(id=request.user.id).exists():
+                    messages.error(request, 'This username is already taken.')
+                else:
+                    request.user.username = username
+                    request.user.email = email
+                    request.user.save()
+                    messages.success(request, 'Profile updated successfully.')
+            else:
+                messages.error(request, 'Username cannot be empty.')
+        
+        elif action == 'change_password':
+            current_password = request.POST.get('current_password')
+            new_password = request.POST.get('new_password')
+            confirm_password = request.POST.get('confirm_password')
+            
+            if not request.user.check_password(current_password):
+                messages.error(request, 'Current password is incorrect.')
+            elif len(new_password) < 6:
+                messages.error(request, 'New password must be at least 6 characters long.')
+            elif new_password != confirm_password:
+                messages.error(request, 'New passwords do not match.')
+            else:
+                request.user.set_password(new_password)
+                request.user.save()
+                # Re-login user to maintain session
+                from django.contrib.auth import update_session_auth_hash
+                update_session_auth_hash(request, request.user)
+                messages.success(request, 'Password changed successfully.')
+        
+        # Preserve period in redirect
+        redirect_url = f"?period={query_period}" if query_period else ""
+        return redirect(f"/profile/{redirect_url}")
+    
+    context = {
+        'start_date': start_date,
+        'end_date': end_date,
+        'current_member': current_member,
+    }
+    context.update(get_base_template_context(family, query_period, start_date))
+    return render(request, 'finances/profile.html', context)
 
 
 # === Configuration View ===
@@ -332,16 +426,20 @@ def configuration_view(request):
 
     config, created = FamilyConfiguration.objects.get_or_create(family=family)
     
+    query_period = request.GET.get('period')
+    
     if request.method == 'POST':
         form = FamilyConfigurationForm(request.POST, instance=config)
         if form.is_valid():
             form.save()
             messages.success(request, 'Settings saved successfully.')
+            # Preserve period in redirect
+            if query_period:
+                return redirect(f"{request.path}?period={query_period}")
             return redirect('configuration')
     else:
         form = FamilyConfigurationForm(instance=config)
 
-    query_period = request.GET.get('period')
     start_date, end_date, _ = get_current_period_dates(family, query_period)
     
     context = {
@@ -359,8 +457,8 @@ def create_flow_group_view(request):
     if not family:
         return redirect('dashboard')
 
-    # Get current period
-    query_period = request.GET.get('period')
+    # Get period from query parameter (critical for maintaining selected period)
+    query_period = request.GET.get('period') or request.POST.get('period')
     start_date, end_date, _ = get_current_period_dates(family, query_period)
 
     if request.method == 'POST':
@@ -370,19 +468,25 @@ def create_flow_group_view(request):
             flow_group.family = family
             flow_group.owner = request.user
             flow_group.group_type = EXPENSE_MAIN
-            flow_group.period_start_date = start_date  # Set period
+            # CRITICAL: Use the period from query/POST parameter, not current date
+            flow_group.period_start_date = start_date
             flow_group.save()
-            messages.success(request, f"Flow Group '{flow_group.name}' created.")
-            return redirect('edit_flow_group', group_id=flow_group.id)
+            messages.success(request, f"Flow Group '{flow_group.name}' created for period starting {start_date.strftime('%B %d, %Y')}.")
+            # Preserve period in redirect
+            redirect_url = f"?period={start_date.strftime('%Y-%m-%d')}"
+            return redirect(f"/flow-group/{flow_group.id}/edit/{redirect_url}")
     else:
         form = FlowGroupForm()
+
+    # Get default date for this period
+    default_date = get_default_date_for_period(start_date, end_date)
 
     context = {
         'form': form,
         'is_new': True,
         'family_members': family_members,
         'current_member': current_member,
-        'today_date': timezone.localdate().strftime('%Y-%m-%d'),
+        'today_date': default_date.strftime('%Y-%m-%d'),
         'start_date': start_date,
         'end_date': end_date,
     }
@@ -398,25 +502,35 @@ def edit_flow_group_view(request, group_id):
         
     group = get_object_or_404(FlowGroup, id=group_id, family=family)
     
+    # Get period from query parameter, or use the group's period
+    query_period = request.GET.get('period')
+    if not query_period:
+        # Use the FlowGroup's period_start_date as the default
+        query_period = group.period_start_date.strftime('%Y-%m-%d')
+    
+    start_date, end_date, _ = get_current_period_dates(family, query_period)
+    
     if request.method == 'POST':
         form = FlowGroupForm(request.POST, instance=group)
         if form.is_valid():
             form.save()
             messages.success(request, f"Flow Group '{group.name}' updated.")
-            return redirect('edit_flow_group', group_id=group.id)
+            # Preserve period in redirect
+            redirect_url = f"?period={query_period}" if query_period else ""
+            return redirect(f"/flow-group/{group_id}/edit/{redirect_url}")
     else:
         form = FlowGroupForm(instance=group)
 
     transactions = Transaction.objects.filter(flow_group=group).select_related('member__user').order_by('order', '-date')
-    
-    query_period = request.GET.get('period')
-    start_date, end_date, _ = get_current_period_dates(family, query_period)
     
     total_estimated = transactions.filter(date__range=(start_date, end_date)).aggregate(
         total=Sum('amount')
     )['total'] or Decimal('0.00')
     
     budget_warning = total_estimated > group.budgeted_amount if group.budgeted_amount else False
+
+    # Get default date for this period
+    default_date = get_default_date_for_period(start_date, end_date)
 
     context = {
         'form': form,
@@ -425,7 +539,7 @@ def edit_flow_group_view(request, group_id):
         'transactions': transactions,
         'family_members': family_members,
         'current_member': current_member,
-        'today_date': timezone.localdate().strftime('%Y-%m-%d'),
+        'today_date': default_date.strftime('%Y-%m-%d'),
         'total_estimated': total_estimated,
         'budget_warning': budget_warning,
         'start_date': start_date,
@@ -471,6 +585,10 @@ def add_member_view(request):
     
     form = NewUserAndMemberForm(request.POST)
     
+    # Preserve period in redirect
+    query_period = request.GET.get('period')
+    redirect_url = f"?period={query_period}" if query_period else ""
+    
     if form.is_valid():
         try:
             UserModel = get_user_model()
@@ -487,16 +605,16 @@ def add_member_view(request):
             )
             
             messages.success(request, f"Member '{new_user.username}' added successfully!")
-            return redirect('members')
+            return redirect(f"/members/{redirect_url}")
             
         except Exception as e:
             messages.error(request, f"Error creating member: {str(e)}")
-            return redirect('members')
+            return redirect(f"/members/{redirect_url}")
     else:
         for field, errors in form.errors.items():
             for error in errors:
                 messages.error(request, f"{field}: {error}")
-        return redirect('members')
+        return redirect(f"/members/{redirect_url}")
 
 
 @login_required
@@ -511,6 +629,10 @@ def edit_member_view(request, member_id):
         return redirect('members')
     
     member = get_object_or_404(FamilyMember, id=member_id, family=family)
+    
+    # Preserve period in redirect
+    query_period = request.GET.get('period')
+    redirect_url = f"?period={query_period}" if query_period else ""
     
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -543,9 +665,9 @@ def edit_member_view(request, member_id):
             else:
                 messages.error(request, 'Passwords do not match.')
         
-        return redirect('members')
+        return redirect(f"/members/{redirect_url}")
     
-    return redirect('members')
+    return redirect(f"/members/{redirect_url}")
 
 
 @login_required
@@ -571,7 +693,11 @@ def remove_member_view(request, member_id):
     member_to_remove.delete()
     
     messages.success(request, f'Member {username} has been removed from the family.')
-    return redirect('members')
+    
+    # Preserve period in redirect
+    query_period = request.GET.get('period')
+    redirect_url = f"?period={query_period}" if query_period else ""
+    return redirect(f"/members/{redirect_url}")
 
 
 @login_required
@@ -579,7 +705,9 @@ def investments_view(request):
     family, _, _ = get_family_context(request.user)
     if not family:
         return redirect('dashboard')
-        
+    
+    query_period = request.GET.get('period')
+    
     if request.method == 'POST':
         form = InvestmentForm(request.POST)
         if form.is_valid():
@@ -587,13 +715,14 @@ def investments_view(request):
             investment.family = family
             investment.save()
             messages.success(request, 'Investment added.')
-            return redirect('investments')
+            # Preserve period in redirect
+            redirect_url = f"?period={query_period}" if query_period else ""
+            return redirect(f"/investments/{redirect_url}")
     else:
         form = InvestmentForm()
 
     investments = Investment.objects.filter(family=family).order_by('name')
     
-    query_period = request.GET.get('period')
     start_date, end_date, _ = get_current_period_dates(family, query_period)
     
     context = {
@@ -612,7 +741,9 @@ def add_receipt_view(request):
     query_period = request.GET.get('period')
     start_date, _, _ = get_current_period_dates(family, query_period)
     income_group = get_default_income_flow_group(family, request.user, start_date)
-    return redirect('edit_flow_group', group_id=income_group.id)
+    # Preserve period in redirect
+    redirect_url = f"?period={query_period}" if query_period else ""
+    return redirect(f"/flow-group/{income_group.id}/edit/{redirect_url}")
 
 # === AJAX endpoint for periods (optional, for dynamic loading) ===
 @login_required
@@ -640,4 +771,6 @@ def get_periods_ajax(request):
 @login_required
 @require_POST 
 def investment_add_view(request):
-    return redirect('investments')
+    query_period = request.GET.get('period')
+    redirect_url = f"?period={query_period}" if query_period else ""
+    return redirect(f"/investments/{redirect_url}")

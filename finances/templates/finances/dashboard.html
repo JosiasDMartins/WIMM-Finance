@@ -17,7 +17,7 @@
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
                 <div class="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
                     <h2 class="text-xl font-bold text-[#0d171b] dark:text-white">Expense Flow Groups</h2>
-                    <a href="{% url 'add_flow_group' %}" class="flex items-center rounded-lg bg-red-500 text-white text-sm font-medium leading-normal p-2 hover:bg-red-600 transition-colors shadow-sm">
+                    <a href="{% url 'add_flow_group' %}{% if selected_period %}?period={{ selected_period }}{% endif %}" class="flex items-center rounded-lg bg-red-500 text-white text-sm font-medium leading-normal p-2 hover:bg-red-600 transition-colors shadow-sm">
                         <span class="material-symbols-outlined text-lg mr-1">add_circle</span>
                         Add Group
                     </a>
@@ -43,7 +43,7 @@
                             <td class="py-4 px-4 text-sm {% if group.budget_warning %}text-yellow-600 dark:text-yellow-500 font-semibold{% else %}text-gray-500 dark:text-gray-400{% endif %} text-right">$ {{ group.total_estimated|intcomma }}</td>
                             <td class="py-4 px-4 text-sm text-red-600 dark:text-red-500 text-right">$ {{ group.total_spent|default:"0.00"|intcomma }}</td>
                             <td class="py-4 px-4 text-right">
-                                <a href="{% url 'edit_flow_group' group.id %}" class="text-primary hover:text-primary/80 text-sm">View Details</a>
+                                <a href="{% url 'edit_flow_group' group.id %}{% if selected_period %}?period={{ selected_period }}{% endif %}" class="text-primary hover:text-primary/80 text-sm">View Details</a>
                             </td>
                         </tr>
                         {% empty %}

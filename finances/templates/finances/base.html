@@ -70,7 +70,7 @@
                class="fixed inset-y-0 left-0 z-30 flex flex-col w-64 px-4 py-8 bg-white dark:bg-gray-800 border-r dark:border-gray-700 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:inset-0">
             
             <div class="flex items-center justify-between">
-                <a href="{% url 'dashboard' %}" class="flex items-center gap-2">
+                <a href="{% url 'dashboard' %}{% if selected_period %}?period={{ selected_period }}{% endif %}" class="flex items-center gap-2">
                     <span class="material-symbols-outlined text-3xl text-primary">savings</span>
                     <span class="text-2xl font-bold text-gray-800 dark:text-white">WIMM</span>
                 </a>
@@ -81,33 +81,33 @@
 
             <nav class="flex flex-col justify-between flex-1 mt-6">
                 <div class="space-y-2">
-                    <a class="flex items-center px-4 py-2 text-gray-700 bg-gray-100 rounded-md dark:bg-gray-700 dark:text-gray-200" href="{% url 'dashboard' %}">
+                    <a class="flex items-center px-4 py-2 text-gray-700 bg-gray-100 rounded-md dark:bg-gray-700 dark:text-gray-200" href="{% url 'dashboard' %}{% if selected_period %}?period={{ selected_period }}{% endif %}">
                         <span class="material-symbols-outlined">dashboard</span>
                         <span class="mx-4 font-medium">Dashboard</span>
                     </a>
                     
-                    <a class="flex items-center px-4 py-2 text-gray-600 rounded-md dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700" href="{% url 'investments' %}">
+                    <a class="flex items-center px-4 py-2 text-gray-600 rounded-md dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700" href="{% url 'investments' %}{% if selected_period %}?period={{ selected_period }}{% endif %}">
                         <span class="material-symbols-outlined">trending_up</span>
                         <span class="mx-4 font-medium">Investments</span>
                         <span class="text-xs font-normal text-teal-600 dark:text-teal-500 ml-auto">Soon</span>
                     </a>
-                    
-                    <a class="flex items-center px-4 py-2 text-gray-600 rounded-md dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700" href="{% url 'members' %}">
-                        <span class="material-symbols-outlined">group</span>
-                        <span class="mx-4 font-medium">Members</span>
-                    </a>
 
-                    <a class="flex items-center px-4 py-2 text-gray-600 rounded-md dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700" href="{% url 'configuration' %}">
+                    <a class="flex items-center px-4 py-2 text-gray-600 rounded-md dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700" href="{% url 'configuration' %}{% if selected_period %}?period={{ selected_period }}{% endif %}">
                         <span class="material-symbols-outlined">settings</span>
                         <span class="mx-4 font-medium">Settings</span>
                     </a>
                 </div>
 
-                <div class="flex items-center px-4 -mx-2 py-2 border-t dark:border-gray-700 mt-4 pt-4">
-                    <div class="flex flex-col mx-2">
-                        <span class="font-semibold text-gray-800 dark:text-gray-200">{{ request.user.username }}</span>
-                        <span class="text-sm text-gray-600 dark:text-gray-400">View profile</span>
-                    </div>
+                <div class="mt-4 pt-4 border-t dark:border-gray-700">
+                    <a href="{% url 'user_profile' %}{% if selected_period %}?period={{ selected_period }}{% endif %}" class="flex items-center px-4 py-2 text-gray-600 rounded-md dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <div class="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-bold mr-3">
+                            {{ request.user.username|first|upper }}
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="font-semibold text-gray-800 dark:text-gray-200 text-sm">{{ request.user.username }}</span>
+                            <span class="text-xs text-gray-600 dark:text-gray-400">View profile</span>
+                        </div>
+                    </a>
                 </div>
             </nav>
         </aside>
@@ -172,9 +172,12 @@
                     <a href="#" class="text-gray-600 dark:text-gray-400 hover:text-primary">
                         <span class="material-symbols-outlined">notifications</span>
                     </a>
-                    <a href="{% url 'auth_logout' %}" class="text-gray-600 dark:text-gray-400 hover:text-red-500" title="Logout">
-                        <span class="material-symbols-outlined">logout</span>
-                    </a>
+                    <form method="POST" action="{% url 'auth_logout' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="text-gray-600 dark:text-gray-400 hover:text-red-500" title="Logout">
+                            <span class="material-symbols-outlined">logout</span>
+                        </button>
+                    </form>
                 </div>
             </header>
             

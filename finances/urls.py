@@ -7,7 +7,11 @@ urlpatterns = [
     # General
     path('', views.dashboard_view, name='dashboard'),
     path('settings/', views.configuration_view, name='configuration'),
-    path('logout/', views.logout_view, name='auth_logout'),
+    path('auth/logout/', views.logout_view, name='auth_logout'),
+    path('auth/logged-out/', views.logout_success_view, name='logout_success'),
+    
+    # User Profile
+    path('profile/', views.user_profile_view, name='user_profile'),
     
     # Members
     path('members/', views.members_view, name='members'),

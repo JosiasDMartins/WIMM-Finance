@@ -8,6 +8,20 @@
 <div class="p-6 md:p-10 lg:p-12" x-data="{ editMemberId: null, editUsername: '', editEmail: '', editRole: '', showPasswordModal: false, passwordMemberId: null }">
     <h1 class="text-3xl font-bold text-[#0d171b] dark:text-white mb-8">Family Member Management</h1>
 
+    <!-- Navigation Tabs -->
+    <div class="mb-6 border-b border-gray-200 dark:border-gray-700">
+        <nav class="-mb-px flex space-x-8">
+            <a href="{% url 'configuration' %}{% if selected_period %}?period={{ selected_period }}{% endif %}" 
+               class="border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 py-4 px-1 text-sm font-medium">
+                Configuration
+            </a>
+            <a href="{% url 'members' %}{% if selected_period %}?period={{ selected_period }}{% endif %}" 
+               class="border-b-2 border-primary text-primary py-4 px-1 text-sm font-medium">
+                Members
+            </a>
+        </nav>
+    </div>
+
     <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-10 border border-primary/20">
         <h2 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">Add New Member</h2>
         
@@ -17,7 +31,7 @@
             </div>
         {% endif %}
 
-        <form method="POST" action="{% url 'member_add' %}">
+        <form method="POST" action="{% url 'member_add' %}{% if selected_period %}?period={{ selected_period }}{% endif %}">
             {% csrf_token %}
             <div class="grid grid-cols-1 gap-4 md:gap-6 md:grid-cols-5 items-end">
                 
@@ -107,7 +121,7 @@
                             </button>
                             
                             {% if member.user != request.user %}
-                            <form method="POST" action="{% url 'member_remove' member_id=member.id %}" style="display: inline;">
+                            <form method="POST" action="{% url 'member_remove' member_id=member.id %}{% if selected_period %}?period={{ selected_period }}{% endif %}" style="display: inline;">
                                 {% csrf_token %}
                                 <button type="submit"
                                         onclick="return confirm('Are you sure you want to remove {{ member.user.username }} from the family?')"
@@ -146,7 +160,7 @@
             <div class="relative bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 z-10">
                 <h3 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">Edit Member</h3>
                 
-                <form method="POST" :action="`/members/edit/${editMemberId}/`">
+                <form method="POST" :action="`/members/edit/${editMemberId}/{% if selected_period %}?period={{ selected_period }}{% endif %}`">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="update_info">
                     
@@ -200,7 +214,7 @@
             <div class="relative bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 z-10">
                 <h3 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">Change Password</h3>
                 
-                <form method="POST" :action="`/members/edit/${passwordMemberId}/`">
+                <form method="POST" :action="`/members/edit/${passwordMemberId}/{% if selected_period %}?period={{ selected_period }}{% endif %}`">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="change_password">
                     
