@@ -95,6 +95,42 @@ class FlowGroup(models.Model):
         help_text="Start date of the period this FlowGroup belongs to"
     )
     
+    # NEW: Sharing functionality
+    is_shared = models.BooleanField(
+        default=False,
+        help_text="If True, this group is visible and editable by all Parents and Admins"
+    )
+    
+    # NEW: Assigned members for Shared groups (Admins/Parents who can view/edit)
+    assigned_members = models.ManyToManyField(
+        FamilyMember,
+        blank=True,
+        related_name='shared_flow_groups',
+        limit_choices_to={'role__in': ['ADMIN', 'PARENT']},
+        help_text="Parents and Admins who have access to this Shared group"
+    )
+    
+    # NEW: Kids group functionality
+    is_kids_group = models.BooleanField(
+        default=False,
+        help_text="If True, this is a Kids group and budget becomes income for assigned children"
+    )
+    
+    # NEW: Realized status for Kids groups (parents marking budget as given to child)
+    realized = models.BooleanField(
+        default=False,
+        help_text="For Kids groups: marks if the budget has been given to the child (parents only)"
+    )
+    
+    # NEW: Assigned children for Kids groups
+    assigned_children = models.ManyToManyField(
+        FamilyMember,
+        blank=True,
+        related_name='kids_flow_groups',
+        limit_choices_to={'role': 'CHILD'},
+        help_text="Children who have access to this Kids group"
+    )
+    
     # For reordering FlowGroups in a list/dashboard
     order = models.PositiveIntegerField(default=0, db_index=True) 
 
@@ -115,6 +151,17 @@ class Transaction(models.Model):
     # Realized status (consolidated/completed)
     realized = models.BooleanField(default=False, help_text="Whether this transaction has been consolidated/completed")
     
+    # NEW: Flag for manual income added by children (not from budget)
+    is_child_manual_income = models.BooleanField(
+        default=False,
+        help_text="True if this is a manual income entry by a CHILD user (not from Kids group budget)"
+    )
+
+    is_child_expense = models.BooleanField(
+        default=False,
+        help_text="True if this is aan expenses added tpo a FlowGroup by a CHILD user)"            
+    )
+    
     member = models.ForeignKey(FamilyMember, on_delete=models.SET_NULL, null=True, related_name='transactions')
     flow_group = models.ForeignKey(FlowGroup, on_delete=models.CASCADE, related_name='transactions')
     
@@ -126,6 +173,26 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"{self.description}: {self.amount}"
+
+class FamilyMemberRoleHistory(models.Model):
+    """
+    Tracks role changes for family members across periods.
+    Ensures dashboard displays correctly based on historical roles.
+    """
+    member = models.ForeignKey(FamilyMember, on_delete=models.CASCADE, related_name='role_history')
+    period_start_date = models.DateField(help_text="Start date of the period this role applies to")
+    role = models.CharField(max_length=10, choices=FamilyMember.ROLES)
+    changed_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-period_start_date']
+        unique_together = ('member', 'period_start_date')
+        indexes = [
+            models.Index(fields=['member', 'period_start_date']),
+        ]
+    
+    def __str__(self):
+        return f"{self.member.user.username} - {self.get_role_display()} ({self.period_start_date})"
 
 class FlowGroupAccess(models.Model):
     """Defines explicit detailed access to a FlowGroup for a specific member."""

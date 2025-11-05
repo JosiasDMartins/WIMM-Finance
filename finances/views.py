@@ -50,6 +50,77 @@ def get_default_income_flow_group(family, user, period_start_date):
     )
     return income_group
 
+# === NEW: Utility function to check FlowGroup access ===
+def can_access_flow_group(flow_group, family_member):
+    """
+    Determines if a family member can access a FlowGroup based on sharing rules.
+    
+    Rules:
+    - Owner can always access
+    - Admins and Parents can access shared groups IF they are in assigned_members
+    - Children can access Kids groups they are assigned to
+    - Children can access Income FlowGroups (to add manual income)
+    """
+    # Owner always has access
+    if flow_group.owner == family_member.user:
+        return True
+    
+    # Admins and Parents can access shared groups if assigned
+    if family_member.role in ['ADMIN', 'PARENT']:
+        if flow_group.is_shared:
+            # Check if member is in assigned_members
+            if flow_group.assigned_members.filter(id=family_member.id).exists():
+                return True
+        # Kids groups are accessible to all Parents/Admins
+        if flow_group.is_kids_group:
+            return True
+    
+    # Children can access Kids groups they're assigned to
+    if family_member.role == 'CHILD':
+        if flow_group.is_kids_group and family_member in flow_group.assigned_children.all():
+            return True
+        # Children can also access Income FlowGroups to add manual income
+        if flow_group.group_type == FLOW_TYPE_INCOME:
+            return True
+    
+    return False
+
+# === NEW: Get visible flow groups for a member ===
+def get_visible_flow_groups(family, family_member, period_start_date, group_type_filter=None):
+    """
+    Returns FlowGroups visible to the given family member for the specified period.
+    
+    Visibility rules:
+    - Own groups (always visible)
+    - Shared groups (visible to assigned Admins/Parents only)
+    - Kids groups (visible to assigned children, and to all Admins/Parents)
+    """
+    base_query = FlowGroup.objects.filter(
+        family=family,
+        period_start_date=period_start_date
+    )
+    
+    if group_type_filter:
+        base_query = base_query.filter(group_type__in=group_type_filter)
+    
+    if family_member.role == 'CHILD':
+        # Children see only Kids groups they're assigned to
+        visible_groups = base_query.filter(
+            Q(is_kids_group=True, assigned_children=family_member)
+        )
+    else:
+        # Admins and Parents see:
+        # 1. Their own groups (non-shared)
+        # 2. Shared groups they're assigned to
+        # 3. All Kids groups
+        visible_groups = base_query.filter(
+            Q(owner=family_member.user) |  # Own groups
+            Q(is_shared=True, assigned_members=family_member) |  # Shared groups (assigned)
+            Q(is_kids_group=True)  # Kids groups (all)
+        )
+    
+    return visible_groups.distinct()
+
 # === Utility Wrapper for Period Context ===
 def get_base_template_context(family, query_period, start_date):
     """
@@ -108,14 +179,21 @@ def dashboard_view(request):
     query_period = request.GET.get('period')
     start_date, end_date, current_period_label = get_current_period_dates(family, query_period)
     
+    # Get historical role for this period
+    from .utils import get_member_role_for_period
+    member_role_for_period = get_member_role_for_period(current_member, start_date)
+    
     expense_group_q = Q(group_type=EXPENSE_MAIN) | Q(group_type=EXPENSE_SECONDARY)
     
-    # IMPORTANT: Filter FlowGroups by period_start_date
-    expense_groups = FlowGroup.objects.filter(
-        expense_group_q,
-        family=family,
-        period_start_date=start_date  # Filter by period
-    ).annotate(
+    # Get visible expense groups based on HISTORICAL role
+    visible_expense_groups = get_visible_flow_groups(
+        family, 
+        current_member, 
+        start_date, 
+        group_type_filter=FLOW_TYPE_EXPENSE
+    )
+    
+    expense_groups = visible_expense_groups.annotate(
         # Estimated: sum all transactions (realized or not) within period
         total_estimated=Sum(
             'transactions__amount',
@@ -132,54 +210,189 @@ def dashboard_view(request):
     for group in expense_groups:
         group.total_estimated = group.total_estimated if group.total_estimated is not None else Decimal('0.00')
         group.total_spent = group.total_spent if group.total_spent is not None else Decimal('0.00')
+        
+        # For Kids groups shown to Parents/Admins, calculate child expenses
+        if group.is_kids_group and member_role_for_period in ['ADMIN', 'PARENT']:
+            # Get sum of child expenses in this group
+            group.child_expenses = Transaction.objects.filter(
+                flow_group=group,
+                date__range=(start_date, end_date)
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            
+            # Mark if this group was created by a child (owner is a child)
+            group.is_child_group = False
+            if group.owner:
+                owner_member = FamilyMember.objects.filter(user=group.owner, family=family).first()
+                if owner_member and owner_member.role == 'CHILD':
+                    group.is_child_group = True
+        
         # Check if estimated exceeds budget
         group.budget_warning = group.total_estimated > group.budgeted_amount
         group.total_estimated = group.total_estimated if group.total_estimated > group.budgeted_amount else group.budgeted_amount
-        budgeted_expense = group.total_estimated + budgeted_expense
+        
+        # Only add to budgeted_expense if it's NOT a child's own group
+        is_child_own_group = False
+        if group.owner:
+            owner_member = FamilyMember.objects.filter(user=group.owner, family=family).first()
+            if owner_member and owner_member.role == 'CHILD':
+                is_child_own_group = True
+        
+        if not is_child_own_group:
+            budgeted_expense = group.total_estimated + budgeted_expense
 
-    income_group = get_default_income_flow_group(family, request.user, start_date)
+    # Income calculation differs based on HISTORICAL role
+    if member_role_for_period == 'CHILD':
+        # === CHILDREN VIEW ===
+        # Get Kids groups assigned to this child
+        kids_groups = FlowGroup.objects.filter(
+            family=family,
+            period_start_date=start_date,
+            is_kids_group=True,
+            assigned_children=current_member
+        )
+        
+        # Create income entries from Kids groups (budget-based)
+        kids_income_entries = []
+        budgeted_income = Decimal('0.00')
+        realized_income = Decimal('0.00')
+        
+        for kids_group in kids_groups:
+            kids_income_entries.append({
+                'id': f'kids_{kids_group.id}',
+                'description': kids_group.name,
+                'amount': kids_group.budgeted_amount,
+                'date': start_date,
+                'realized': kids_group.realized,  # Synchronized with FlowGroup.realized
+                'is_kids_income': True,
+                'kids_group_id': kids_group.id,
+                'member': current_member,
+            })
+            budgeted_income += kids_group.budgeted_amount
+            if kids_group.realized:
+                realized_income += kids_group.budgeted_amount
+        
+        # Get manual income added by this child
+        income_group = get_default_income_flow_group(family, request.user, start_date)
+        manual_income_transactions = Transaction.objects.filter(
+            flow_group=income_group,
+            date__range=(start_date, end_date),
+            member=current_member,
+            is_child_manual_income=True
+        ).select_related('member__user').order_by('-date', 'order')
+        
+        # Add manual income to budget and realized
+        for trans in manual_income_transactions:
+            budgeted_income += trans.amount
+            if trans.realized:
+                realized_income += trans.amount
+        
+        # Combine kids income and manual income for display
+        recent_income_transactions = list(manual_income_transactions)
+        income_flow_group_id = income_group.id
+        
+        # Add kids income entries to context
+        context_kids_income = kids_income_entries
+
+        realized_expense = Transaction.objects.filter(
+            flow_group__in=visible_expense_groups,
+            date__range=(start_date, end_date),
+            realized=True,
+            is_child_expense=True
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')        
+        
+    else:
+        # === PARENTS/ADMINS VIEW ===
+        income_group = get_default_income_flow_group(family, request.user, start_date)
+        
+        # Get normal income transactions (not child manual)
+        recent_income_transactions = Transaction.objects.filter(
+            flow_group=income_group,
+            date__range=(start_date, end_date),
+            is_child_manual_income=False
+        ).select_related('member__user').order_by('-date', 'order')
+        
+        income_flow_group_id = income_group.id
+        
+        # Calculate income totals (excluding child manual income)
+        budgeted_income = Transaction.objects.filter(
+            flow_group=income_group,
+            date__range=(start_date, end_date),
+            is_child_manual_income=False
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        realized_income = Transaction.objects.filter(
+            flow_group=income_group,
+            date__range=(start_date, end_date),
+            realized=True,
+            is_child_manual_income=False
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        # Add Kids groups budget to realized_income when they are marked as realized
+        kids_groups_realized_budget = FlowGroup.objects.filter(
+            family=family,
+            period_start_date=start_date,
+            is_kids_group=True,
+            realized=True
+        ).aggregate(total=Sum('budgeted_amount'))['total'] or Decimal('0.00')
+            
+
+        # Get child manual income (aggregated by child)
+        children_manual_income = {}
+        for child in family_members:
+            if child.role == 'CHILD':
+                child_income = Transaction.objects.filter(
+                    flow_group=income_group,
+                    date__range=(start_date, end_date),
+                    member=child,
+                    is_child_manual_income=True
+                )
+                
+                if child_income.exists():
+                    total = child_income.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+                    realized_total = child_income.filter(realized=True).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+                    
+                    children_manual_income[child.id] = {
+                        'member': child,
+                        'total': total,
+                        'realized_total': realized_total,
+                        'transactions': list(child_income.values('description', 'amount', 'date', 'realized'))
+                    }
+        
+        context_kids_income = []  # Not needed for parents
+        # Calculate expense totals (same for all roles)
+        realized_expense = Transaction.objects.filter(
+            flow_group__in=visible_expense_groups,
+            date__range=(start_date, end_date),
+            realized=True,
+            is_child_expense=False
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        realized_expense += kids_groups_realized_budget
     
-    # Get income transactions ordered by date (most recent first)
-    recent_income_transactions = Transaction.objects.filter(
-        flow_group=income_group,
-        date__range=(start_date, end_date)
-    ).select_related('member__user').order_by('-date', 'order')    
-    
-    # Pass income group ID to template for AJAX calls
-    income_flow_group_id = income_group.id
-    
-    # Calculate summary totals - filter by period
-    summary_totals = FlowGroup.objects.filter(
-        family=family,
-        period_start_date=start_date  # Filter by period
-    ).aggregate(
-        # Budgeted income: sum all income transactions (realized or not)
-        total_budgeted_income=Sum(
-            'transactions__amount', 
-            filter=Q(group_type=FLOW_TYPE_INCOME, transactions__date__range=(start_date, end_date))
-        ),
-        # Realized income: sum only realized income transactions
-        total_realized_income=Sum(
-            'transactions__amount', 
-            filter=Q(group_type=FLOW_TYPE_INCOME, transactions__date__range=(start_date, end_date), transactions__realized=True)
-        ),
-        # Realized expense: sum only realized expense transactions
-        total_realized_expense=Sum(
-            'transactions__amount', 
-            filter=Q(group_type__in=FLOW_TYPE_EXPENSE, transactions__date__range=(start_date, end_date), transactions__realized=True)
-        ),
-    )
-    
-    budgeted_income = summary_totals.get('total_budgeted_income') or Decimal('0.00')
-    realized_income = summary_totals.get('total_realized_income') or Decimal('0.00')
-    realized_expense = summary_totals.get('total_realized_expense') or Decimal('0.00')    
-    
-    summary_totals['total_budgeted_expense'] = budgeted_expense
-    summary_totals['estimated_result'] = budgeted_income - budgeted_expense
-    summary_totals['realized_result'] = realized_income - realized_expense
+
+    summary_totals = {
+        'total_budgeted_income': budgeted_income,
+        'total_realized_income': realized_income,
+        'total_budgeted_expense': budgeted_expense,
+        'total_realized_expense': realized_expense,
+        'estimated_result': budgeted_income - budgeted_expense,
+        'realized_result': realized_income - realized_expense,
+    }
 
     # Get default date for this period
     default_date = get_default_date_for_period(start_date, end_date)
+    
+    # Determine if child can create groups (has manual income)
+    child_can_create_groups = False
+    if member_role_for_period == 'CHILD':
+        child_manual_income_total = Transaction.objects.filter(
+            flow_group__group_type=FLOW_TYPE_INCOME,
+            date__range=(start_date, end_date),
+            member=current_member,
+            is_child_manual_income=True
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        child_can_create_groups = child_manual_income_total > Decimal('0.00')
 
     context = {
         'start_date': start_date,
@@ -190,8 +403,12 @@ def dashboard_view(request):
         'income_flow_group_id': income_flow_group_id,
         'family_members': family_members,
         'current_member': current_member,
+        'member_role_for_period': member_role_for_period,  # Historical role
         'today_date': default_date.strftime('%Y-%m-%d'),
         'summary_totals': summary_totals,
+        'child_can_create_groups': child_can_create_groups,
+        'kids_income_entries': context_kids_income if member_role_for_period == 'CHILD' else [],
+        'children_manual_income': children_manual_income if member_role_for_period in ['ADMIN', 'PARENT'] else {},
     }
     
     # Add base.html context
@@ -226,6 +443,8 @@ def save_flow_item_ajax(request):
         date_str = data.get('date')
         member_id = data.get('member_id')
         realized = data.get('realized', False)
+        is_child_manual = data.get('is_child_manual', False)
+        is_child_expense = data.get('is_child_expense', False)
         
         # Basic validation
         if not all([flow_group_id, description, amount_str, date_str]):
@@ -235,6 +454,10 @@ def save_flow_item_ajax(request):
         date = dt_datetime.strptime(date_str, '%Y-%m-%d').date()
 
         flow_group = get_object_or_404(FlowGroup, id=flow_group_id, family=family)
+        
+        # Check access permissions
+        if not can_access_flow_group(flow_group, current_member):
+            return HttpResponseForbidden("You don't have permission to edit this group.")
 
         if transaction_id and transaction_id != '0' and transaction_id is not None:
             transaction = get_object_or_404(Transaction, id=transaction_id, flow_group=flow_group)
@@ -260,6 +483,14 @@ def save_flow_item_ajax(request):
         transaction.amount = abs(amount) 
         transaction.date = date
         transaction.realized = realized
+        
+        # Set is_child_manual_income flag if this is a manual income by a CHILD
+        if is_child_manual and current_member.role == 'CHILD' and flow_group.group_type == FLOW_TYPE_INCOME:
+            transaction.is_child_manual_income = True
+
+        if is_child_expense and current_member.role == 'CHILD' and flow_group.group_type != FLOW_TYPE_INCOME:
+            transaction.is_child_expense = True
+        
         transaction.save()
 
         return JsonResponse({
@@ -285,7 +516,7 @@ def delete_flow_item_ajax(request):
     if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return HttpResponseBadRequest("Not an AJAX request.")
 
-    family, _, _ = get_family_context(request.user)
+    family, current_member, _ = get_family_context(request.user)
     if not family:
         return HttpResponseForbidden("User is not associated with a family.")
 
@@ -297,10 +528,63 @@ def delete_flow_item_ajax(request):
             return JsonResponse({'error': 'Missing transaction_id.'}, status=400)
 
         transaction = get_object_or_404(Transaction, id=transaction_id, flow_group__family=family)
+        
+        # Check access permissions
+        if not can_access_flow_group(transaction.flow_group, current_member):
+            return HttpResponseForbidden("You don't have permission to delete from this group.")
+        
         transaction.delete()
 
         return JsonResponse({'status': 'success', 'transaction_id': transaction_id})
 
+    except Exception as e:
+        return JsonResponse({'error': f'A server error occurred: {str(e)}'}, status=500)
+
+
+@login_required
+@require_POST
+@db_transaction.atomic
+def toggle_kids_group_realized_ajax(request):
+    """
+    Handles AJAX request to toggle FlowGroup.realized for Kids groups.
+    Only Parents and Admins can toggle this.
+    """
+    if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return HttpResponseBadRequest("Not an AJAX request.")
+    
+    family, current_member, _ = get_family_context(request.user)
+    if not family:
+        return HttpResponseForbidden("User is not associated with a family.")
+    
+    # Only Parents and Admins can toggle
+    if current_member.role not in ['ADMIN', 'PARENT']:
+        return HttpResponseForbidden("Only Parents and Admins can mark Kids groups as realized.")
+    
+    try:
+        data = json.loads(request.body)
+        flow_group_id = data.get('flow_group_id')
+        new_realized_status = data.get('realized', False)
+        
+        if not flow_group_id:
+            return JsonResponse({'error': 'Missing flow_group_id.'}, status=400)
+        
+        flow_group = get_object_or_404(FlowGroup, id=flow_group_id, family=family)
+        
+        # Must be a Kids group
+        if not flow_group.is_kids_group:
+            return JsonResponse({'error': 'Can only toggle realized for Kids groups.'}, status=400)
+        
+        # Update realized status
+        flow_group.realized = new_realized_status
+        flow_group.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'flow_group_id': flow_group.id,
+            'realized': flow_group.realized,
+            'budget': str(flow_group.budgeted_amount)
+        })
+        
     except Exception as e:
         return JsonResponse({'error': f'A server error occurred: {str(e)}'}, status=500)
 
@@ -319,6 +603,11 @@ def delete_flow_group_view(request, group_id):
     
     try:
         flow_group = get_object_or_404(FlowGroup, id=group_id, family=family)
+        
+        # Only owner or admin can delete
+        if flow_group.owner != request.user and current_member.role != 'ADMIN':
+            return JsonResponse({'error': 'Permission denied.'}, status=403)
+        
         group_name = flow_group.name
         
         # Delete the group (CASCADE will delete all transactions)
@@ -462,7 +751,7 @@ def create_flow_group_view(request):
     start_date, end_date, _ = get_current_period_dates(family, query_period)
 
     if request.method == 'POST':
-        form = FlowGroupForm(request.POST)
+        form = FlowGroupForm(request.POST, family=family)
         if form.is_valid():
             flow_group = form.save(commit=False)
             flow_group.family = family
@@ -470,16 +759,59 @@ def create_flow_group_view(request):
             flow_group.group_type = EXPENSE_MAIN
             # CRITICAL: Use the period from query/POST parameter, not current date
             flow_group.period_start_date = start_date
+            
+            # Validation for CHILD users: budget cannot exceed manual income
+            if current_member.role == 'CHILD':
+                # Calculate child's manual income total for this period
+                child_manual_income_total = Transaction.objects.filter(
+                    flow_group__group_type=FLOW_TYPE_INCOME,
+                    flow_group__family=family,
+                    date__range=(start_date, end_date),
+                    member=current_member,
+                    is_child_manual_income=True
+                ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+                
+                if flow_group.budgeted_amount > child_manual_income_total:
+                    messages.error(request, f"Budget cannot exceed your available balance (${child_manual_income_total}). Please enter a budget of ${child_manual_income_total} or less.")
+                    context = {
+                        'form': form,
+                        'start_date': start_date,
+                        'end_date': end_date,
+                        'current_member': current_member,
+                        'child_max_budget': child_manual_income_total,
+                    }
+                    context.update(get_base_template_context(family, query_period, start_date))
+                    return render(request, 'finances/add_flow_group.html', context)
+            
+            # If Kids group is checked, automatically enable shared
+            if flow_group.is_kids_group:
+                flow_group.is_shared = True
+            
             flow_group.save()
+            
+            # Save assigned children (ManyToMany field)
+            form.save_m2m()
+            
             messages.success(request, f"Flow Group '{flow_group.name}' created for period starting {start_date.strftime('%B %d, %Y')}.")
             # Preserve period in redirect
             redirect_url = f"?period={start_date.strftime('%Y-%m-%d')}"
             return redirect(f"/flow-group/{flow_group.id}/edit/{redirect_url}")
     else:
-        form = FlowGroupForm()
+        form = FlowGroupForm(family=family)
 
     # Get default date for this period
     default_date = get_default_date_for_period(start_date, end_date)
+    
+    # Calculate max budget for child users
+    child_max_budget = None
+    if current_member.role == 'CHILD':
+        child_max_budget = Transaction.objects.filter(
+            flow_group__group_type=FLOW_TYPE_INCOME,
+            flow_group__family=family,
+            date__range=(start_date, end_date),
+            member=current_member,
+            is_child_manual_income=True
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
     context = {
         'form': form,
@@ -489,6 +821,7 @@ def create_flow_group_view(request):
         'today_date': default_date.strftime('%Y-%m-%d'),
         'start_date': start_date,
         'end_date': end_date,
+        'child_max_budget': child_max_budget,
     }
     context.update(get_base_template_context(family, query_period, start_date))
     return render(request, 'finances/FlowGroup.html', context)
@@ -502,6 +835,11 @@ def edit_flow_group_view(request, group_id):
         
     group = get_object_or_404(FlowGroup, id=group_id, family=family)
     
+    # Check access permissions
+    if not can_access_flow_group(group, current_member):
+        messages.error(request, "You don't have permission to access this group.")
+        return redirect('dashboard')
+    
     # Get period from query parameter, or use the group's period
     query_period = request.GET.get('period')
     if not query_period:
@@ -510,16 +848,41 @@ def edit_flow_group_view(request, group_id):
     
     start_date, end_date, _ = get_current_period_dates(family, query_period)
     
-    if request.method == 'POST':
-        form = FlowGroupForm(request.POST, instance=group)
+    from .utils import get_member_role_for_period # Verifique se está importado
+    member_role_for_period = get_member_role_for_period(current_member, start_date)
+    
+    
+    # Check if user can edit (owner or admin/parent for shared/kids groups)
+    can_edit_group = (
+        group.owner == request.user or 
+        current_member.role in ['ADMIN', 'PARENT']
+    )
+    
+    # Children can only edit budget if it's a kids group and they're assigned
+    can_edit_budget = can_edit_group
+    if current_member.role == 'CHILD':
+        can_edit_budget = False
+    
+    if request.method == 'POST' and can_edit_group:
+        form = FlowGroupForm(request.POST, instance=group, family=family)
         if form.is_valid():
-            form.save()
+            flow_group = form.save(commit=False)
+            
+            # If Kids group is checked, automatically enable shared
+            if flow_group.is_kids_group:
+                flow_group.is_shared = True
+            
+            flow_group.save()
+            
+            # Save assigned children (ManyToMany field)
+            form.save_m2m()
+            
             messages.success(request, f"Flow Group '{group.name}' updated.")
             # Preserve period in redirect
             redirect_url = f"?period={query_period}" if query_period else ""
             return redirect(f"/flow-group/{group_id}/edit/{redirect_url}")
     else:
-        form = FlowGroupForm(instance=group)
+        form = FlowGroupForm(instance=group, family=family)
 
     transactions = Transaction.objects.filter(flow_group=group).select_related('member__user').order_by('order', '-date')
     
@@ -544,6 +907,9 @@ def edit_flow_group_view(request, group_id):
         'budget_warning': budget_warning,
         'start_date': start_date,
         'end_date': end_date,
+        'can_edit_group': can_edit_group,
+        'can_edit_budget': can_edit_budget,
+        'member_role_for_period' : member_role_for_period,
     }
     context.update(get_base_template_context(family, query_period, start_date))
     return render(request, 'finances/FlowGroup.html', context)

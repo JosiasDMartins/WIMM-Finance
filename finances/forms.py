@@ -18,13 +18,48 @@ class FamilyConfigurationForm(forms.ModelForm):
 
 # --- FlowGroup Form ---
 class FlowGroupForm(forms.ModelForm):
+    # Add field for selecting Parents/Admins for Shared groups
+    assigned_members = forms.ModelMultipleChoiceField(
+        queryset=FamilyMember.objects.none(),  # Will be set in __init__
+        required=False,
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'members-checkbox'}),
+        label='Assign Members (Parents/Admins)'
+    )
+    
+    # Add field for selecting children (will be populated dynamically)
+    assigned_children = forms.ModelMultipleChoiceField(
+        queryset=FamilyMember.objects.none(),  # Will be set in __init__
+        required=False,
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'kids-checkbox'}),
+        label='Assign Children'
+    )
+    
     class Meta:
         model = FlowGroup
-        fields = ['name', 'budgeted_amount']  # Removed group_type - always EXPENSE_MAIN
+        fields = ['name', 'budgeted_amount', 'is_shared', 'is_kids_group', 'assigned_members', 'assigned_children']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-input'}),
             'budgeted_amount': forms.NumberInput(attrs={'class': 'form-input'}),
+            'is_shared': forms.CheckboxInput(attrs={'class': 'shared-checkbox'}),
+            'is_kids_group': forms.CheckboxInput(attrs={'class': 'kids-checkbox'}),
         }
+    
+    def __init__(self, *args, **kwargs):
+        family = kwargs.pop('family', None)
+        super().__init__(*args, **kwargs)
+        
+        # Populate members (Parents/Admins) queryset if family is provided
+        if family:
+            self.fields['assigned_members'].queryset = FamilyMember.objects.filter(
+                family=family,
+                role__in=['ADMIN', 'PARENT']
+            ).select_related('user').order_by('user__username')
+            
+            # Populate children queryset if family is provided
+            self.fields['assigned_children'].queryset = FamilyMember.objects.filter(
+                family=family,
+                role='CHILD'
+            ).select_related('user').order_by('user__username')
 
 # --- Transaction Form (for spreadsheet-like editing) ---
 class TransactionForm(forms.ModelForm):
