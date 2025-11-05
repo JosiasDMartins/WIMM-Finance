@@ -85,7 +85,50 @@ def can_access_flow_group(flow_group, family_member):
     
     return False
 
-# === NEW: Get visible flow groups for a member ===
+# === NEW: Get visible flow groups for dashboard (includes non-accessible for display only) ===
+def get_visible_flow_groups_for_dashboard(family, family_member, period_start_date, group_type_filter=None):
+    """
+    Returns FlowGroups visible in the dashboard for the given family member.
+    
+    For PARENT/ADMIN: Shows ALL expense groups (owned, shared, and non-accessible)
+    For CHILD: Shows only Kids groups assigned to them
+    
+    Returns tuple: (accessible_groups, display_only_groups)
+    """
+    base_query = FlowGroup.objects.filter(
+        family=family,
+        period_start_date=period_start_date
+    )
+    
+    if group_type_filter:
+        base_query = base_query.filter(group_type__in=group_type_filter)
+    
+    if family_member.role == 'CHILD':
+        # Children see only Kids groups they're assigned to (all accessible)
+        accessible_groups = base_query.filter(
+            Q(is_kids_group=True, assigned_children=family_member)
+        ).distinct()
+        display_only_groups = FlowGroup.objects.none()
+    else:
+        # Parents/Admins see ALL expense groups
+        all_groups = base_query.all()
+        
+        # Separate accessible from display-only
+        accessible_ids = []
+        display_only_ids = []
+        
+        for group in all_groups:
+            if can_access_flow_group(group, family_member):
+                accessible_ids.append(group.id)
+            else:
+                display_only_ids.append(group.id)
+        
+        accessible_groups = base_query.filter(id__in=accessible_ids)
+        display_only_groups = base_query.filter(id__in=display_only_ids)
+    
+    return accessible_groups, display_only_groups
+
+# === NEW: Get visible flow groups for editing ===
 def get_visible_flow_groups(family, family_member, period_start_date, group_type_filter=None):
     """
     Returns FlowGroups visible to the given family member for the specified period.
@@ -186,34 +229,47 @@ def dashboard_view(request):
     expense_group_q = Q(group_type=EXPENSE_MAIN) | Q(group_type=EXPENSE_SECONDARY)
     
     # Get visible expense groups based on HISTORICAL role
-    visible_expense_groups = get_visible_flow_groups(
+    # Use new function that returns accessible and display-only groups
+    accessible_expense_groups, display_only_expense_groups = get_visible_flow_groups_for_dashboard(
         family, 
         current_member, 
         start_date, 
         group_type_filter=FLOW_TYPE_EXPENSE
     )
     
-    expense_groups = visible_expense_groups.annotate(
-        # Estimated: sum all transactions (realized or not) within period
+    # Annotate accessible groups
+    accessible_expense_groups = accessible_expense_groups.annotate(
         total_estimated=Sum(
             'transactions__amount',
             filter=Q(transactions__date__range=(start_date, end_date))
         ),
-        # Spent: sum only realized transactions
         total_spent=Sum(
             'transactions__amount',
             filter=Q(transactions__date__range=(start_date, end_date), transactions__realized=True)
         )
     ).order_by('order', 'name')
     
+    # Annotate display-only groups (for Parents/Admins to see in dashboard)
+    display_only_expense_groups = display_only_expense_groups.annotate(
+        total_estimated=Sum(
+            'transactions__amount',
+            filter=Q(transactions__date__range=(start_date, end_date))
+        ),
+        total_spent=Sum(
+            'transactions__amount',
+            filter=Q(transactions__date__range=(start_date, end_date), transactions__realized=True)
+        )
+    ).order_by('order', 'name')
+    
+    # Process accessible groups
     budgeted_expense = Decimal(0.00)
-    for group in expense_groups:
+    for group in accessible_expense_groups:
         group.total_estimated = group.total_estimated if group.total_estimated is not None else Decimal('0.00')
         group.total_spent = group.total_spent if group.total_spent is not None else Decimal('0.00')
+        group.is_accessible = True  # Mark as accessible
         
         # For Kids groups shown to Parents/Admins, calculate child expenses
         if group.is_kids_group and member_role_for_period in ['ADMIN', 'PARENT']:
-            # Get sum of child expenses in this group
             group.child_expenses = Transaction.objects.filter(
                 flow_group=group,
                 date__range=(start_date, end_date)
@@ -239,11 +295,26 @@ def dashboard_view(request):
         
         if not is_child_own_group:
             budgeted_expense = group.total_estimated + budgeted_expense
+    
+    # Process display-only groups (for Parents/Admins)
+    for group in display_only_expense_groups:
+        group.total_estimated = group.total_estimated if group.total_estimated is not None else Decimal('0.00')
+        group.total_spent = group.total_spent if group.total_spent is not None else Decimal('0.00')
+        group.is_accessible = False  # Mark as NOT accessible
+        
+        # Check if estimated exceeds budget
+        group.budget_warning = group.total_estimated > group.budgeted_amount
+        group.total_estimated = group.total_estimated if group.total_estimated > group.budgeted_amount else group.budgeted_amount
+        
+        # Add to budgeted_expense
+        budgeted_expense = group.total_estimated + budgeted_expense
+    
+    # Combine accessible and display-only groups for template
+    expense_groups = list(accessible_expense_groups) + list(display_only_expense_groups)
 
     # Income calculation differs based on HISTORICAL role
     if member_role_for_period == 'CHILD':
         # === CHILDREN VIEW ===
-        # Get Kids groups assigned to this child
         kids_groups = FlowGroup.objects.filter(
             family=family,
             period_start_date=start_date,
@@ -251,7 +322,6 @@ def dashboard_view(request):
             assigned_children=current_member
         )
         
-        # Create income entries from Kids groups (budget-based)
         kids_income_entries = []
         budgeted_income = Decimal('0.00')
         realized_income = Decimal('0.00')
@@ -262,7 +332,7 @@ def dashboard_view(request):
                 'description': kids_group.name,
                 'amount': kids_group.budgeted_amount,
                 'date': start_date,
-                'realized': kids_group.realized,  # Synchronized with FlowGroup.realized
+                'realized': kids_group.realized,
                 'is_kids_income': True,
                 'kids_group_id': kids_group.id,
                 'member': current_member,
@@ -271,7 +341,6 @@ def dashboard_view(request):
             if kids_group.realized:
                 realized_income += kids_group.budgeted_amount
         
-        # Get manual income added by this child
         income_group = get_default_income_flow_group(family, request.user, start_date)
         manual_income_transactions = Transaction.objects.filter(
             flow_group=income_group,
@@ -280,21 +349,17 @@ def dashboard_view(request):
             is_child_manual_income=True
         ).select_related('member__user').order_by('-date', 'order')
         
-        # Add manual income to budget and realized
         for trans in manual_income_transactions:
             budgeted_income += trans.amount
             if trans.realized:
                 realized_income += trans.amount
         
-        # Combine kids income and manual income for display
         recent_income_transactions = list(manual_income_transactions)
         income_flow_group_id = income_group.id
-        
-        # Add kids income entries to context
         context_kids_income = kids_income_entries
 
         realized_expense = Transaction.objects.filter(
-            flow_group__in=visible_expense_groups,
+            flow_group__in=accessible_expense_groups,
             date__range=(start_date, end_date),
             realized=True,
             is_child_expense=True
@@ -304,7 +369,6 @@ def dashboard_view(request):
         # === PARENTS/ADMINS VIEW ===
         income_group = get_default_income_flow_group(family, request.user, start_date)
         
-        # Get normal income transactions (not child manual)
         recent_income_transactions = Transaction.objects.filter(
             flow_group=income_group,
             date__range=(start_date, end_date),
@@ -313,7 +377,6 @@ def dashboard_view(request):
         
         income_flow_group_id = income_group.id
         
-        # Calculate income totals (excluding child manual income)
         budgeted_income = Transaction.objects.filter(
             flow_group=income_group,
             date__range=(start_date, end_date),
@@ -327,7 +390,6 @@ def dashboard_view(request):
             is_child_manual_income=False
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         
-        # Add Kids groups budget to realized_income when they are marked as realized
         kids_groups_realized_budget = FlowGroup.objects.filter(
             family=family,
             period_start_date=start_date,
@@ -335,8 +397,6 @@ def dashboard_view(request):
             realized=True
         ).aggregate(total=Sum('budgeted_amount'))['total'] or Decimal('0.00')
             
-
-        # Get child manual income (aggregated by child)
         children_manual_income = {}
         for child in family_members:
             if child.role == 'CHILD':
@@ -358,10 +418,9 @@ def dashboard_view(request):
                         'transactions': list(child_income.values('description', 'amount', 'date', 'realized'))
                     }
         
-        context_kids_income = []  # Not needed for parents
-        # Calculate expense totals (same for all roles)
+        context_kids_income = []
         realized_expense = Transaction.objects.filter(
-            flow_group__in=visible_expense_groups,
+            flow_group__in=accessible_expense_groups,
             date__range=(start_date, end_date),
             realized=True,
             is_child_expense=False
@@ -369,7 +428,6 @@ def dashboard_view(request):
         
         realized_expense += kids_groups_realized_budget
     
-
     summary_totals = {
         'total_budgeted_income': budgeted_income,
         'total_realized_income': realized_income,
@@ -379,10 +437,8 @@ def dashboard_view(request):
         'realized_result': realized_income - realized_expense,
     }
 
-    # Get default date for this period
     default_date = get_default_date_for_period(start_date, end_date)
     
-    # Determine if child can create groups (has manual income)
     child_can_create_groups = False
     if member_role_for_period == 'CHILD':
         child_manual_income_total = Transaction.objects.filter(
@@ -403,7 +459,7 @@ def dashboard_view(request):
         'income_flow_group_id': income_flow_group_id,
         'family_members': family_members,
         'current_member': current_member,
-        'member_role_for_period': member_role_for_period,  # Historical role
+        'member_role_for_period': member_role_for_period,
         'today_date': default_date.strftime('%Y-%m-%d'),
         'summary_totals': summary_totals,
         'child_can_create_groups': child_can_create_groups,
@@ -411,7 +467,6 @@ def dashboard_view(request):
         'children_manual_income': children_manual_income if member_role_for_period in ['ADMIN', 'PARENT'] else {},
     }
     
-    # Add base.html context
     context.update(get_base_template_context(family, query_period, start_date))
     
     return render(request, 'finances/dashboard.html', context)
@@ -782,6 +837,9 @@ def create_flow_group_view(request):
                     }
                     context.update(get_base_template_context(family, query_period, start_date))
                     return render(request, 'finances/add_flow_group.html', context)
+                
+                # CHILD FlowGroups are automatically shared with all Parents/Admins
+                flow_group.is_shared = True
             
             # If Kids group is checked, automatically enable shared
             if flow_group.is_kids_group:
@@ -789,8 +847,16 @@ def create_flow_group_view(request):
             
             flow_group.save()
             
-            # Save assigned children (ManyToMany field)
-            form.save_m2m()
+            # If CHILD created the group, auto-assign all Parents/Admins
+            if current_member.role == 'CHILD':
+                parents_admins = FamilyMember.objects.filter(
+                    family=family,
+                    role__in=['ADMIN', 'PARENT']
+                )
+                flow_group.assigned_members.set(parents_admins)
+            else:
+                # Save assigned members/children (ManyToMany field)
+                form.save_m2m()
             
             messages.success(request, f"Flow Group '{flow_group.name}' created for period starting {start_date.strftime('%B %d, %Y')}.")
             # Preserve period in redirect
@@ -848,7 +914,7 @@ def edit_flow_group_view(request, group_id):
     
     start_date, end_date, _ = get_current_period_dates(family, query_period)
     
-    from .utils import get_member_role_for_period # Verifique se está importado
+    from .utils import get_member_role_for_period
     member_role_for_period = get_member_role_for_period(current_member, start_date)
     
     

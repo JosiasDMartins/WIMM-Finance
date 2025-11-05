@@ -70,7 +70,11 @@
                                 {% endif %}
                             </td>
                             <td class="py-4 px-4 text-right">
-                                <a href="{% url 'edit_flow_group' group.id %}{% if selected_period %}?period={{ selected_period }}{% endif %}" class="{% if group.is_child_group %}text-yellow-600 hover:text-yellow-700{% else %}text-primary hover:text-primary/80{% endif %} text-sm">View Details</a>
+                                {% if group.is_accessible %}
+                                    <a href="{% url 'edit_flow_group' group.id %}{% if selected_period %}?period={{ selected_period }}{% endif %}" class="{% if group.is_child_group %}text-yellow-600 hover:text-yellow-700{% else %}text-primary hover:text-primary/80{% endif %} text-sm">View Details</a>
+                                {% else %}
+                                    <span class="text-gray-400 dark:text-gray-600 text-sm cursor-not-allowed" title="You don't have access to this group">View Details</span>
+                                {% endif %}
                             </td>
                         </tr>
                         {% empty %}
