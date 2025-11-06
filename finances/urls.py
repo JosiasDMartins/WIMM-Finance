@@ -4,6 +4,10 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    # === SETUP (must be first) ===
+    path('setup/', views.initial_setup_view, name='initial_setup'),
+    
+    # === EXISTING ROUTES ===
     # General
     path('', views.dashboard_view, name='dashboard'),
     path('settings/', views.configuration_view, name='configuration'),
@@ -41,4 +45,7 @@ urlpatterns = [
 
     # Get available periods for dropdown
     path('api/periods/', views.get_periods_ajax, name='get_periods_ajax'),
+    
+    # Reorder items at the dashboard
+    path('ajax/reorder-flow-groups/', views.reorder_flow_groups_ajax, name='reorder_flow_groups_ajax'),
 ]

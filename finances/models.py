@@ -131,6 +131,12 @@ class FlowGroup(models.Model):
         help_text="Children who have access to this Kids group"
     )
     
+    # NEW: Investment flag - when checked, realized amounts go to investment balance
+    is_investment = models.BooleanField(
+        default=False,
+        help_text="If True, realized amounts are added to investment balance and deducted from expense calculations"
+    )
+    
     # For reordering FlowGroups in a list/dashboard
     order = models.PositiveIntegerField(default=0, db_index=True) 
 

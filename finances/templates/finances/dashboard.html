@@ -3,10 +3,60 @@
 {% load humanize %} 
 
 {% block content %}
-<div class="p-6 md:p-10 lg:p-12">
-    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-8">
-        <div class="h-32 flex items-center justify-center text-gray-400 border border-dashed rounded-lg">
-            [ Chart.js or similar chart code will be integrated here ]
+<div class="p-6 md:p-8 lg:p-10">
+    <div class="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm mb-4">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+            <!-- Charts Section -->
+            <div class="lg:col-span-2 flex flex-col">
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="flex flex-col">
+                        <h3 class="text-lg font-semibold text-[#0d171b] dark:text-white mb-3 text-center">Top Expenses</h3>
+                        <div class="flex items-center justify-center" style="height: 220px; width: 100%; overflow: visible;">
+                            <div style="position: relative; height: 200px; width: 100%; max-width: 280px;">
+                                <canvas id="expensesPieChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bar Chart -->
+                    <div class="flex flex-col col-span-2">
+                        <h3 class="text-lg font-semibold text-[#0d171b] dark:text-white mb-3 text-center">Expense History (Last 12 Periods)</h3>
+                        <div class="flex items-center justify-center" style="height: 220px; width: 100%;">
+                            <div style="position: relative; height: 200px; width: 100%;">
+                                <canvas id="expensesBarChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Metrics Card -->
+            <div class="flex flex-col">
+                <h3 class="text-lg font-semibold text-[#0d171b] dark:text-white mb-3">Key Metrics</h3>
+                <div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-4 space-y-3" style="height: 220px;">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">Highest Expense</span>
+                        <span class="text-lg font-bold text-red-600 dark:text-red-500" id="metric-highest">$ 0.00</span>
+                    </div>
+                    <div class="h-px bg-gray-300 dark:bg-gray-600"></div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">Avg. Savings (12 periods)</span>
+                        <span class="text-lg font-bold text-green-600 dark:text-green-500" id="metric-avg-savings">$ 0.00</span>
+                    </div>
+                    <div class="h-px bg-gray-300 dark:bg-gray-600"></div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">Expense Trend</span>
+                        <span class="text-lg font-bold" id="metric-trend">
+                            <span class="material-symbols-outlined align-middle">trending_flat</span>
+                        </span>
+                    </div>
+                    <div class="h-px bg-gray-300 dark:bg-gray-600"></div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">Income Commitment</span>
+                        <span class="text-lg font-bold" id="metric-commitment">0%</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -34,6 +84,7 @@
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead>
                         <tr>
+                            <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 40px;"></th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Group</th>
                             <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Estimated</th>
                             <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -46,9 +97,12 @@
                             <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody id="expense-groups-tbody" class="divide-y divide-gray-200 dark:divide-gray-700">
                         {% for group in expense_groups %}
-                        <tr {% if group.is_child_group %}style="color: #DAA520;"{% endif %}>
+                        <tr {% if group.is_child_group %}style="color: #DAA520;"{% endif %} data-group-id="{{ group.id }}" data-order="{{ group.order }}" draggable="true" class="draggable-row cursor-move hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                            <td class="px-2 py-4 text-center">
+                                <span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle cursor-grab active:cursor-grabbing">drag_indicator</span>
+                            </td>
                             <td class="py-4 px-4 text-sm {% if not group.is_child_group %}text-[#0d171b] dark:text-white{% endif %}">
                                 {{ group.name }}
                                 {% if group.is_child_group %}
@@ -57,8 +111,8 @@
                                 <span class="ml-2 text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 px-2 py-1 rounded-full">⚠ Over budget</span>
                                 {% endif %}
                             </td>
-                            <td class="py-4 px-4 text-sm {% if group.is_child_group %}font-medium{% elif group.budget_warning %}text-yellow-600 dark:text-yellow-500 font-semibold{% else %}text-gray-500 dark:text-gray-400{% endif %} text-right">$ {{ group.total_estimated|intcomma }}</td>
-                            <td class="py-4 px-4 text-sm {% if group.is_child_group %}font-medium{% else %}text-red-600 dark:text-red-500{% endif %} text-right">
+                            <td class="py-4 px-4 text-sm {% if group.is_child_group %}font-medium{% elif group.budget_warning %}text-yellow-600 dark:text-yellow-500 font-semibold{% else %}text-gray-500 dark:text-gray-400{% endif %} text-right group-estimated" data-value="{{ group.total_estimated }}">$ {{ group.total_estimated|intcomma }}</td>
+                            <td class="py-4 px-4 text-sm {% if group.is_child_group %}font-medium{% else %}text-red-600 dark:text-red-500{% endif %} text-right group-realized" data-value="{{ group.total_spent|default:'0.00' }}">
                                 {% if group.is_kids_group and member_role_for_period in 'PARENT,ADMIN' %}
                                     {% if group.realized %}
                                         $ {{ group.budgeted_amount|intcomma }} ($ {{ group.child_expenses|default:"0.00"|intcomma }})
@@ -294,6 +348,7 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
     // Utility for getting CSRF token
     function getCookie(name) {
@@ -322,6 +377,299 @@
     function formatCurrency(amount) {
         return parseFloat(amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     }
+
+    // === CHARTS INITIALIZATION ===
+    
+    // Chart.js default colors
+    const chartColors = [
+        'rgb(239, 68, 68)',   // red-500
+        'rgb(249, 115, 22)',  // orange-500
+        'rgb(234, 179, 8)',   // yellow-500
+        'rgb(34, 197, 94)',   // green-500
+        'rgb(59, 130, 246)',  // blue-500
+        'rgb(168, 85, 247)',  // purple-500
+        'rgb(236, 72, 153)',  // pink-500
+    ];
+    
+    let pieChart, barChart;
+    
+    // Initialize Pie Chart
+    function initPieChart() {
+        const ctx = document.getElementById('expensesPieChart');
+        if (!ctx) return;
+        
+        const expenseData = getTop3ExpensesData();
+        
+        pieChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: expenseData.labels,
+                datasets: [{
+                    data: expenseData.values,
+                    backgroundColor: chartColors,
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: $${formatCurrency(value)} (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                layout: {
+                    padding: {
+                        left: 5,
+                        right: 5,
+                        top: 5,
+                        bottom: 5
+                    }
+                }
+            }
+        });
+    }
+    
+    // Calculate linear regression for trend line
+    function calculateTrendLine(values) {
+        const n = values.length;
+        if (n === 0) return [];
+        
+        const xValues = values.map((_, i) => i);
+        const sumX = xValues.reduce((a, b) => a + b, 0);
+        const sumY = values.reduce((a, b) => a + b, 0);
+        const sumXY = xValues.reduce((sum, x, i) => sum + x * values[i], 0);
+        const sumX2 = xValues.reduce((sum, x) => sum + x * x, 0);
+        
+        const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+        const intercept = (sumY - slope * sumX) / n;
+        
+        return xValues.map(x => slope * x + intercept);
+    }
+    
+    // Initialize Bar Chart with dynamic colors and trend line
+    function initBarChart() {
+        const ctx = document.getElementById('expensesBarChart');
+        if (!ctx) return;
+        
+        const barData = {{ periods_history_json|safe }};
+        
+        // Calculate bar colors based on income commitment
+        const barColors = barData.colors || barData.values.map(() => 'rgb(239, 68, 68)');
+        
+        // Calculate trend line
+        const trendLine = calculateTrendLine(barData.values);
+        
+        barChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: barData.labels,
+                datasets: [
+                    {
+                        label: 'Total Expenses',
+                        data: barData.values,
+                        backgroundColor: barColors,
+                        borderColor: barColors.map(color => color.replace('rgb', 'rgba').replace(')', ', 0.8)')),
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Trend',
+                        data: trendLine,
+                        type: 'line',
+                        borderColor: 'rgb(59, 130, 246)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        borderDash: [5, 5],
+                        fill: false,
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + formatCurrency(value);
+                            }
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45,
+                            font: {
+                                size: 9
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            font: {
+                                size: 10
+                            },
+                            boxWidth: 12,
+                            padding: 8
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                if (context.datasetIndex === 0) {
+                                    return 'Total: $' + formatCurrency(context.parsed.y);
+                                } else {
+                                    return 'Trend: $' + formatCurrency(context.parsed.y);
+                                }
+                            }
+                        }
+                    }
+                },
+                layout: {
+                    padding: {
+                        left: 5,
+                        right: 5,
+                        top: 5,
+                        bottom: 5
+                    }
+                }
+            }
+        });
+    }
+    
+    // Get Top 3 Expenses Data
+    function getTop3ExpensesData() {
+        const expenseRows = document.querySelectorAll('tbody tr[data-group-id]');
+        const expenses = [];
+        
+        expenseRows.forEach(row => {
+            // Get the first cell (after drag handle) which contains the group name
+            const nameCell = row.querySelectorAll('td')[1]; // Second td (index 1)
+            const nameText = nameCell.textContent.trim();
+            // Get only the first line (group name) before any badges/labels
+            const name = nameText.split('\n')[0].trim();
+            
+            const estimatedValue = parseFloat(row.querySelector('.group-estimated').getAttribute('data-value')) || 0;
+            const realizedValue = parseFloat(row.querySelector('.group-realized').getAttribute('data-value')) || 0;
+            const value = Math.max(estimatedValue, realizedValue);
+            
+            if (value > 0) {
+                expenses.push({ name, value });
+            }
+        });
+        
+        // Sort by value descending
+        expenses.sort((a, b) => b.value - a.value);
+        
+        // Get top 3
+        const top3 = expenses.slice(0, 3);
+        const others = expenses.slice(3).reduce((sum, item) => sum + item.value, 0);
+        
+        const labels = top3.map(e => e.name);
+        const values = top3.map(e => e.value);
+        
+        if (others > 0) {
+            labels.push('Others');
+            values.push(others);
+        }
+        
+        return { labels, values };
+    }
+    
+    // Update Pie Chart
+    function updatePieChart() {
+        if (!pieChart) return;
+        
+        const expenseData = getTop3ExpensesData();
+        pieChart.data.labels = expenseData.labels;
+        pieChart.data.datasets[0].data = expenseData.values;
+        pieChart.update('none');
+    }
+    
+    // Update metrics card
+    function updateMetrics() {
+        const barData = {{ periods_history_json|safe }};
+        
+        // Highest expense (from current period)
+        const expenseRows = document.querySelectorAll('tbody tr[data-group-id]');
+        let highestExpense = 0;
+        expenseRows.forEach(row => {
+            const realizedValue = parseFloat(row.querySelector('.group-realized').getAttribute('data-value')) || 0;
+            if (realizedValue > highestExpense) {
+                highestExpense = realizedValue;
+            }
+        });
+        document.getElementById('metric-highest').textContent = '$ ' + formatCurrency(highestExpense);
+        
+        // Average savings (from 6 periods)
+        const avgSavings = barData.avg_savings || 0;
+        const avgSavingsElem = document.getElementById('metric-avg-savings');
+        avgSavingsElem.textContent = '$ ' + formatCurrency(Math.abs(avgSavings));
+        if (avgSavings < 0) {
+            avgSavingsElem.classList.remove('text-green-600', 'dark:text-green-500');
+            avgSavingsElem.classList.add('text-red-600', 'dark:text-red-500');
+        }
+        
+        // Trend
+        const trend = barData.trend || 'stable';
+        const trendElem = document.getElementById('metric-trend');
+        if (trend === 'up') {
+            trendElem.innerHTML = '<span class="material-symbols-outlined align-middle text-red-600">trending_up</span>';
+        } else if (trend === 'down') {
+            trendElem.innerHTML = '<span class="material-symbols-outlined align-middle text-green-600">trending_down</span>';
+        } else {
+            trendElem.innerHTML = '<span class="material-symbols-outlined align-middle text-gray-600">trending_flat</span>';
+        }
+        
+        // Current commitment percentage
+        const realizedIncomeText = document.getElementById('balance-realized-income').textContent.replace('$', '').replace(/,/g, '').trim();
+        const realizedExpenseText = document.getElementById('balance-realized-expense').textContent.replace('$', '').replace(/,/g, '').trim();
+        const realizedIncome = parseFloat(realizedIncomeText) || 0;
+        const realizedExpense = parseFloat(realizedExpenseText) || 0;
+        
+        const commitment = realizedIncome > 0 ? (realizedExpense / realizedIncome * 100) : 0;
+        const commitmentElem = document.getElementById('metric-commitment');
+        commitmentElem.textContent = commitment.toFixed(1) + '%';
+        
+        if (commitment >= 98) {
+            commitmentElem.classList.remove('text-green-600', 'dark:text-green-500', 'text-yellow-600', 'dark:text-yellow-500');
+            commitmentElem.classList.add('text-red-600', 'dark:text-red-500');
+        } else if (commitment >= 90) {
+            commitmentElem.classList.remove('text-green-600', 'dark:text-green-500', 'text-red-600', 'dark:text-red-500');
+            commitmentElem.classList.add('text-yellow-600', 'dark:text-yellow-500');
+        } else {
+            commitmentElem.classList.remove('text-red-600', 'dark:text-red-500', 'text-yellow-600', 'dark:text-yellow-500');
+            commitmentElem.classList.add('text-green-600', 'dark:text-green-500');
+        }
+    }
+    
+    // Initialize charts on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        initPieChart();
+        initBarChart();
+        updateMetrics();
+    });
+    
+    // === END CHARTS ===
 
     // Function to update balance sheet
     function updateBalanceSheet() {
@@ -377,6 +725,9 @@
         } else {
             realResultCell.className = 'py-4 px-4 text-sm text-red-600 dark:text-red-500 font-bold';
         }
+        
+        // Update metrics
+        updateMetrics();
     }
 
     // Function to add a new income row
@@ -592,6 +943,7 @@
             if (data.status === 'success') {
                 row.remove();
                 updateBalanceSheet();
+                updatePieChart();
             } else {
                 alert('Error deleting item: ' + data.error);
             }
@@ -672,6 +1024,137 @@
         .catch(error => {
             console.error('Fetch Error:', error);
             alert('A network error occurred.');
+        });
+    }
+    
+    // === DRAG AND DROP REORDERING FOR EXPENSE GROUPS ===
+    
+    let draggedRow = null;
+    let draggedOverRow = null;
+    
+    // Initialize drag and drop on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeDragAndDrop();
+    });
+    
+    function initializeDragAndDrop() {
+        const tbody = document.getElementById('expense-groups-tbody');
+        if (!tbody) return;
+        
+        const rows = tbody.querySelectorAll('tr.draggable-row');
+        
+        rows.forEach(row => {
+            row.addEventListener('dragstart', handleDragStart);
+            row.addEventListener('dragover', handleDragOver);
+            row.addEventListener('dragenter', handleDragEnter);
+            row.addEventListener('dragleave', handleDragLeave);
+            row.addEventListener('drop', handleDrop);
+            row.addEventListener('dragend', handleDragEnd);
+        });
+    }
+    
+    function handleDragStart(e) {
+        draggedRow = this;
+        this.style.opacity = '0.4';
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', this.innerHTML);
+    }
+    
+    function handleDragOver(e) {
+        if (e.preventDefault) {
+            e.preventDefault();
+        }
+        e.dataTransfer.dropEffect = 'move';
+        return false;
+    }
+    
+    function handleDragEnter(e) {
+        if (this !== draggedRow) {
+            this.classList.add('border-t-2', 'border-primary');
+            draggedOverRow = this;
+        }
+    }
+    
+    function handleDragLeave(e) {
+        this.classList.remove('border-t-2', 'border-primary');
+    }
+    
+    function handleDrop(e) {
+        if (e.stopPropagation) {
+            e.stopPropagation();
+        }
+        
+        if (draggedRow !== this) {
+            // Get the tbody
+            const tbody = document.getElementById('expense-groups-tbody');
+            const allRows = Array.from(tbody.querySelectorAll('tr.draggable-row'));
+            
+            const draggedIndex = allRows.indexOf(draggedRow);
+            const targetIndex = allRows.indexOf(this);
+            
+            // Move the dragged row
+            if (draggedIndex < targetIndex) {
+                this.parentNode.insertBefore(draggedRow, this.nextSibling);
+            } else {
+                this.parentNode.insertBefore(draggedRow, this);
+            }
+            
+            // Save new order to backend
+            saveGroupsOrder();
+        }
+        
+        return false;
+    }
+    
+    function handleDragEnd(e) {
+        this.style.opacity = '1';
+        
+        // Remove all drag-related classes
+        const rows = document.querySelectorAll('tr.draggable-row');
+        rows.forEach(row => {
+            row.classList.remove('border-t-2', 'border-primary');
+        });
+        
+        draggedRow = null;
+        draggedOverRow = null;
+    }
+    
+    function saveGroupsOrder() {
+        const tbody = document.getElementById('expense-groups-tbody');
+        const rows = tbody.querySelectorAll('tr.draggable-row');
+        
+        const orderData = [];
+        rows.forEach((row, index) => {
+            const groupId = row.getAttribute('data-group-id');
+            orderData.push({
+                id: groupId,
+                order: index + 1
+            });
+        });
+        
+        fetch("{% url 'reorder_flow_groups_ajax' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ groups: orderData })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                console.log('Order saved successfully');
+                // Optionally update pie chart if order affects display
+                updatePieChart();
+            } else {
+                console.error('Error saving order:', data.error);
+                alert('Error saving order: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Fetch Error:', error);
+            alert('A network error occurred while saving order.');
         });
     }
 </script>

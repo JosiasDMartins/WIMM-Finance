@@ -1,13 +1,42 @@
 {% extends "finances/base.html" %}
 {% load static %}
+{% load humanize %}
 
 {% block content %}
 <main class="p-6 md:p-10 lg:p-12">
     <div class="max-w-7xl mx-auto">
         <h1 class="text-[#0d171b] dark:text-white text-2xl font-bold tracking-[-0.015em] mb-6">Family Investments</h1>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {# Add New Investment Form #}
+        <!-- Available Balance Card -->
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 dark:from-blue-700 dark:to-blue-800 rounded-xl shadow-lg p-8 mb-8 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold opacity-90 mb-2">Available Investment Balance</h2>
+                    <p class="text-4xl font-bold">$ {{ available_balance|intcomma|default:"0.00" }}</p>
+                    <p class="text-sm opacity-80 mt-2">From investment Flow Groups (realized transactions)</p>
+                </div>
+                <div class="text-6xl opacity-20">
+                    <span class="material-symbols-outlined" style="font-size: 96px;">savings</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Future Development Notice -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden p-8 text-center">
+            <span class="material-symbols-outlined text-6xl text-blue-500 mb-4">construction</span>
+            <h2 class="text-2xl font-bold text-[#0d171b] dark:text-white mb-4">Coming Soon</h2>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">
+                The investments management interface is currently under development. 
+                <br>Soon you'll be able to track and manage your family investments directly from this page.
+            </p>
+            <p class="text-sm text-gray-500 dark:text-gray-500">
+                For now, mark Flow Groups as "Investment" in the dashboard to track money set aside for investing.
+            </p>
+        </div>
+
+        <!-- Legacy Investment List (if you want to keep) -->
+        <!--
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
             <div class="lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden h-fit">
                 <h2 class="text-lg font-semibold text-[#0d171b] dark:text-white p-6 border-b dark:border-slate-700">Add New Investment</h2>
                 <form method="post" action="{% url 'investment_add' %}">
@@ -30,7 +59,6 @@
                 </form>
             </div>
 
-            {# Investments List #}
             <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
                 <h2 class="text-lg font-semibold text-[#0d171b] dark:text-white p-6 border-b dark:border-slate-700">Existing Investments</h2>
                 <div class="overflow-x-auto">
@@ -42,19 +70,18 @@
                                 <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                            {% for investment in family_investments %}
-                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                                <td class="px-6 py-4 font-medium text-slate-900 dark:text-white">{{ investment.name }}</td>
-                                <td class="px-6 py-4 text-right text-green-600 dark:text-green-500">$ {{ investment.amount|floatformat:2 }}</td>
-                                <td class="px-6 py-4 text-center">
-                                    <button class="text-primary hover:text-primary/80 mr-2"><span class="material-symbols-outlined">edit</span></button>
-                                    <button class="text-red-500 hover:text-red-400"><span class="material-symbols-outlined">delete</span></button>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                            {% for inv in family_investments %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#0d171b] dark:text-white">{{ inv.name }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">$ {{ inv.amount|intcomma }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
+                                    <a href="#" class="text-primary hover:text-primary/80">Edit</a>
                                 </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="3" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">No investments registered.</td>
+                                <td colspan="3" class="px-6 py-8 text-center text-gray-500">No investments recorded yet.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -62,6 +89,7 @@
                 </div>
             </div>
         </div>
+        -->
     </div>
 </main>
 {% endblock %}

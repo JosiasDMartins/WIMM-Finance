@@ -1,10 +1,129 @@
+# finances/forms.py
+
 from django import forms
 from django.forms import modelformset_factory
 from django.contrib.auth import get_user_model
 
 from .models import FamilyConfiguration, FamilyMember, FlowGroup, Transaction, Investment, CustomUser
 
+class InitialSetupForm(forms.Form):
+    """
+    Form for initial setup of the WIMM application.
+    Creates the first admin user, family, and configuration.
+    """
+    
+    # Family Information
+    family_name = forms.CharField(
+        max_length=100,
+        label='Family Name',
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent',
+            'placeholder': 'e.g., The Smiths, Johnson Family'
+        }),
+        help_text='The name of your family financial group'
+    )
+    
+    # Administrator Account
+    username = forms.CharField(
+        max_length=150,
+        label='Username',
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent',
+            'placeholder': 'Choose a username'
+        })
+    )
+    
+    email = forms.EmailField(
+        required=False,
+        label='Email (Optional)',
+        widget=forms.EmailInput(attrs={
+            'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent',
+            'placeholder': 'your.email@example.com'
+        })
+    )
+    
+    password = forms.CharField(
+        min_length=6,
+        label='Password',
+        widget=forms.PasswordInput(attrs={
+            'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent',
+            'placeholder': 'Minimum 6 characters'
+        }),
+        help_text='Must be at least 6 characters long'
+    )
+    
+    confirm_password = forms.CharField(
+        label='Confirm Password',
+        widget=forms.PasswordInput(attrs={
+            'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent',
+            'placeholder': 'Re-enter your password'
+        })
+    )
+    
+    # Financial Configuration
+    period_type = forms.ChoiceField(
+        choices=FamilyConfiguration.PERIOD_TYPES,
+        initial='M',
+        label='Period Frequency',
+        widget=forms.RadioSelect(attrs={
+            'class': 'form-radio text-teal-600 focus:ring-teal-500'
+        })
+    )
+    
+    starting_day = forms.IntegerField(
+        min_value=1,
+        max_value=31,
+        initial=1,
+        label='Starting Day (for Monthly Cycle)',
+        widget=forms.NumberInput(attrs={
+            'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent',
+            'min': '1',
+            'max': '31'
+        }),
+        help_text='Day of the month (1-31) when your budget cycle starts'
+    )
+    
+    base_date = forms.DateField(
+        required=False,
+        label='Base Date (for Bi-weekly/Weekly cycles)',
+        widget=forms.DateInput(attrs={
+            'type': 'date',
+            'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent'
+        }),
+        help_text='Reference date for calculating bi-weekly/weekly periods'
+    )
+    
+    def clean_username(self):
+        username = self.cleaned_data['username']
+        UserModel = get_user_model()
+        
+        if UserModel.objects.filter(username__iexact=username).exists():
+            raise forms.ValidationError("This username is already taken.")
+        
+        return username
+    
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        
+        if email:
+            UserModel = get_user_model()
+            if UserModel.objects.filter(email__iexact=email).exists():
+                raise forms.ValidationError("An account with this email already exists.")
+        
+        return email
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        password = cleaned_data.get('password')
+        confirm_password = cleaned_data.get('confirm_password')
+        
+        if password and confirm_password:
+            if password != confirm_password:
+                raise forms.ValidationError("Passwords do not match.")
+        
+        return cleaned_data
 
+    
 # --- Configuration Form ---
 class FamilyConfigurationForm(forms.ModelForm):
     class Meta:
@@ -36,12 +155,13 @@ class FlowGroupForm(forms.ModelForm):
     
     class Meta:
         model = FlowGroup
-        fields = ['name', 'budgeted_amount', 'is_shared', 'is_kids_group', 'assigned_members', 'assigned_children']
+        fields = ['name', 'budgeted_amount', 'is_shared', 'is_kids_group', 'is_investment', 'assigned_members', 'assigned_children']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-input'}),
             'budgeted_amount': forms.NumberInput(attrs={'class': 'form-input'}),
             'is_shared': forms.CheckboxInput(attrs={'class': 'shared-checkbox'}),
             'is_kids_group': forms.CheckboxInput(attrs={'class': 'kids-checkbox'}),
+            'is_investment': forms.CheckboxInput(attrs={'class': 'investment-checkbox'}),
         }
     
     def __init__(self, *args, **kwargs):

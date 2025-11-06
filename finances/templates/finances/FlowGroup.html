@@ -143,8 +143,18 @@
                         <span class="text-sm text-gray-500 p-2">No children in family</span>
                         {% endfor %}
                     </div>
+                    
+                    <!-- Investment Checkbox -->
+                    <label class="flex items-center p-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-slate-50 dark:bg-slate-700/50 cursor-pointer">
+                        <input class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" 
+                               id="id_is_investment" 
+                               name="is_investment" 
+                               type="checkbox"
+                               {% if flow_group.is_investment %}checked{% endif %}>
+                        <span class="ml-2 text-sm font-medium text-slate-700 dark:text-slate-300">Investment</span>
+                    </label>
                 </div>
-                {% endif %}
+                {% endif %}                
             </div>
             
             {% if form.errors %}

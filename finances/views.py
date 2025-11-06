@@ -1,17 +1,22 @@
 # finances/views.py
 
+from django.core.management import call_command
+import io
+
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Max, Q
 from django.db import transaction as db_transaction
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponse
 from django.views.decorators.http import require_POST, require_http_methods
-from django.contrib.auth import get_user_model, logout as auth_logout
+from django.contrib.auth import get_user_model, logout as auth_logout, login
 from django.contrib import messages 
 from django.utils import timezone
 import json
 from datetime import datetime as dt_datetime 
 from decimal import Decimal
+from .forms import InitialSetupForm  
+from django.db.utils import OperationalError
 
 # Import Models
 from .models import (
@@ -27,6 +32,137 @@ from .forms import (
 
 # Import Utility Functions
 from .utils import get_current_period_dates, get_available_periods
+
+
+
+def initial_setup_view(request):
+    """
+    Initial setup view for first-time installation.
+    Creates the first admin user, family, and configuration.
+    Also handles database creation and migrations if needed.
+    """
+    
+    # === STEP 1: Ensure database and tables exist ===
+    try:
+        UserModel = get_user_model()
+        # Try to check if users exist
+        users_exist = UserModel.objects.exists()
+        
+        # If users exist, redirect appropriately
+        if users_exist:
+            if request.user.is_authenticated:
+                return redirect('dashboard')
+            return redirect('auth_login')
+            
+    except OperationalError as e:
+        # Database tables don't exist - need to run migrations
+        if request.method != 'POST':
+            # Show a loading message and run migrations
+            context = {
+                'needs_migration': True,
+                'error_message': 'Database setup required. Running migrations...'
+            }
+            
+            # Run migrations in the background
+            try:
+                # Capture output
+                out = io.StringIO()
+                
+                # Run migrate command
+                call_command('migrate', '--noinput', stdout=out, stderr=out)
+                
+                migration_output = out.getvalue()
+                
+                # Add success message
+                context['migration_success'] = True
+                context['migration_output'] = migration_output
+                
+            except Exception as migration_error:
+                context['migration_error'] = str(migration_error)
+            
+            # Re-render the setup page (will now work with DB created)
+            return render(request, 'finances/setup.html', {'form': InitialSetupForm(), **context})
+    
+    except Exception as e:
+        # Other database errors
+        messages.error(request, f"Database error: {str(e)}")
+        context = {
+            'form': InitialSetupForm(),
+            'database_error': str(e)
+        }
+        return render(request, 'finances/setup.html', context)
+    
+    # === STEP 2: Handle form submission ===
+    if request.method == 'POST':
+        form = InitialSetupForm(request.POST)
+        
+        if form.is_valid():
+            try:
+                with db_transaction.atomic():
+                    # 1. Create the admin user
+                    UserModel = get_user_model()
+                    admin_user = UserModel.objects.create_user(
+                        username=form.cleaned_data['username'],
+                        email=form.cleaned_data.get('email', ''),
+                        password=form.cleaned_data['password']
+                    )
+                    
+                    # 2. Create the family
+                    family = Family.objects.create(
+                        name=form.cleaned_data['family_name']
+                    )
+                    
+                    # 3. Create the family member (admin)
+                    family_member = FamilyMember.objects.create(
+                        user=admin_user,
+                        family=family,
+                        role='ADMIN'
+                    )
+                    
+                    # 4. Create the family configuration
+                    base_date = form.cleaned_data.get('base_date')
+                    if not base_date:
+                        base_date = timezone.localdate()
+                    
+                    config = FamilyConfiguration.objects.create(
+                        family=family,
+                        starting_day=form.cleaned_data['starting_day'],
+                        period_type=form.cleaned_data['period_type'],
+                        base_date=base_date
+                    )
+                    
+                    # 5. Log the user in
+                    login(request, admin_user)
+                    
+                    # 6. Success message and redirect
+                    messages.success(
+                        request,
+                        f"Welcome to WIMM! Your family '{family.name}' has been created successfully."
+                    )
+                    return redirect('dashboard')
+                    
+            except Exception as e:
+                messages.error(
+                    request,
+                    f"An error occurred during setup: {str(e)}. Please try again."
+                )
+        else:
+            # Form has validation errors
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
+    else:
+        # GET request - show empty form
+        # Set default base_date to today
+        initial_data = {
+            'base_date': timezone.localdate(),
+            'starting_day': 1,
+            'period_type': 'M'
+        }
+        form = InitialSetupForm(initial=initial_data)
+    
+    return render(request, 'finances/setup.html', {'form': form})
+
 
 # === Utility Function to get Family Context ===
 def get_family_context(user):
@@ -210,6 +346,103 @@ def get_default_date_for_period(start_date, end_date):
     else:
         # Past or future period - use start date
         return start_date
+
+# === NEW: Get periods history for bar chart ===
+def get_periods_history(family, current_period_start):
+    """
+    Returns the last 12 periods with total expenses for bar chart.
+    Includes dynamic bar colors based on income commitment %.
+    Returns dict with 'labels', 'values', 'colors', 'avg_savings', and 'trend'.
+    """
+    available_periods = get_available_periods(family)
+    
+    # Get up to 12 most recent periods
+    periods_to_show = []
+    savings_values = []
+    
+    for period in available_periods[:12]:
+        period_start = period['start_date']
+        period_end = period['end_date']
+        
+        # Calculate total realized expenses
+        total_expenses = Transaction.objects.filter(
+            flow_group__family=family,
+            flow_group__group_type__in=FLOW_TYPE_EXPENSE,
+            date__range=(period_start, period_end),
+            realized=True
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        # Calculate total realized income
+        total_income = Transaction.objects.filter(
+            flow_group__family=family,
+            flow_group__group_type=FLOW_TYPE_INCOME,
+            date__range=(period_start, period_end),
+            realized=True,
+            is_child_manual_income=False
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        # Add Kids groups realized budgets to expenses
+        kids_realized = FlowGroup.objects.filter(
+            family=family,
+            period_start_date=period_start,
+            is_kids_group=True,
+            realized=True
+        ).aggregate(total=Sum('budgeted_amount'))['total'] or Decimal('0.00')
+        
+        total_expenses += kids_realized
+        
+        # Calculate commitment percentage
+        commitment_pct = 0
+        if total_income > 0:
+            commitment_pct = float(total_expenses / total_income * 100)
+        
+        # Determine bar color based on commitment
+        if commitment_pct >= 98:
+            bar_color = 'rgb(239, 68, 68)'  # Red
+        elif commitment_pct >= 90:
+            bar_color = 'rgb(249, 115, 22)'  # Orange
+        else:
+            bar_color = 'rgb(134, 239, 172)'  # Light green
+        
+        # Calculate savings (income - expenses)
+        savings = float(total_income - total_expenses)
+        savings_values.append(savings)
+        
+        periods_to_show.append({
+            'label': period['label'],
+            'value': float(total_expenses),
+            'color': bar_color,
+            'savings': savings
+        })
+    
+    # Reverse to show oldest to newest (left to right)
+    periods_to_show.reverse()
+    savings_values.reverse()
+    
+    # Calculate average savings
+    avg_savings = sum(savings_values) / len(savings_values) if savings_values else 0
+    
+    # Calculate trend (compare first half vs second half)
+    trend = 'stable'
+    if len(periods_to_show) >= 6:
+        half_point = len(periods_to_show) // 2
+        first_half_avg = sum(p['value'] for p in periods_to_show[:half_point]) / half_point
+        second_half_avg = sum(p['value'] for p in periods_to_show[half_point:]) / (len(periods_to_show) - half_point)
+        
+        # If second half is 5% or more higher, trend is up
+        if second_half_avg > first_half_avg * 1.05:
+            trend = 'up'
+        # If second half is 5% or more lower, trend is down
+        elif second_half_avg < first_half_avg * 0.95:
+            trend = 'down'
+    
+    return {
+        'labels': [p['label'] for p in periods_to_show],
+        'values': [p['value'] for p in periods_to_show],
+        'colors': [p['color'] for p in periods_to_show],
+        'avg_savings': avg_savings,
+        'trend': trend
+    }
 
 # === Core Views ===
 
@@ -450,6 +683,9 @@ def dashboard_view(request):
         
         child_can_create_groups = child_manual_income_total > Decimal('0.00')
 
+    # Get periods history for bar chart
+    periods_history = get_periods_history(family, start_date)
+
     context = {
         'start_date': start_date,
         'end_date': end_date,
@@ -465,6 +701,7 @@ def dashboard_view(request):
         'child_can_create_groups': child_can_create_groups,
         'kids_income_entries': context_kids_income if member_role_for_period == 'CHILD' else [],
         'children_manual_income': children_manual_income if member_role_for_period in ['ADMIN', 'PARENT'] else {},
+        'periods_history_json': json.dumps(periods_history),
     }
     
     context.update(get_base_template_context(family, query_period, start_date))
@@ -639,6 +876,52 @@ def toggle_kids_group_realized_ajax(request):
             'realized': flow_group.realized,
             'budget': str(flow_group.budgeted_amount)
         })
+        
+    except Exception as e:
+        return JsonResponse({'error': f'A server error occurred: {str(e)}'}, status=500)
+
+
+@login_required
+@require_POST
+@db_transaction.atomic
+def reorder_flow_groups_ajax(request):
+    """
+    Handles AJAX request to reorder FlowGroups.
+    Receives array of {id, order} objects and updates the order field.
+    """
+    if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return HttpResponseBadRequest("Not an AJAX request.")
+    
+    family, current_member, _ = get_family_context(request.user)
+    if not family:
+        return HttpResponseForbidden("User is not associated with a family.")
+    
+    try:
+        data = json.loads(request.body)
+        groups_data = data.get('groups', [])
+        
+        if not groups_data:
+            return JsonResponse({'error': 'No groups data provided.'}, status=400)
+        
+        # Update each group's order
+        for group_data in groups_data:
+            group_id = group_data.get('id')
+            new_order = group_data.get('order')
+            
+            if group_id and new_order is not None:
+                flow_group = FlowGroup.objects.filter(
+                    id=group_id,
+                    family=family
+                ).first()
+                
+                if flow_group:
+                    # Check if user has permission to reorder
+                    # Only accessible groups can be reordered
+                    if can_access_flow_group(flow_group, current_member):
+                        flow_group.order = new_order
+                        flow_group.save(update_fields=['order'])
+        
+        return JsonResponse({'status': 'success'})
         
     except Exception as e:
         return JsonResponse({'error': f'A server error occurred: {str(e)}'}, status=500)
