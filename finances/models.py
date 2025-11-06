@@ -68,6 +68,24 @@ class FamilyConfiguration(models.Model):
     def __str__(self):
         return f"Config for {self.family.name}"
 
+class ClosedPeriod(models.Model):
+    """
+    Stores closed periods to maintain historical period boundaries.
+    When period settings change, previous periods remain as they were.
+    """
+    family = models.ForeignKey(Family, on_delete=models.CASCADE, related_name='closed_periods')
+    start_date = models.DateField(help_text="Start date of the closed period")
+    end_date = models.DateField(help_text="End date of the closed period")
+    period_type = models.CharField(max_length=1, choices=FamilyConfiguration.PERIOD_TYPES, help_text="Type of period when it was closed")
+    closed_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-start_date']
+        unique_together = ('family', 'start_date')
+    
+    def __str__(self):
+        return f"{self.family.name} - {self.start_date} to {self.end_date} ({self.get_period_type_display()})"
+
 class FlowGroup(models.Model):
     """
     Groups transactions (Income or Expense) and holds budget information.

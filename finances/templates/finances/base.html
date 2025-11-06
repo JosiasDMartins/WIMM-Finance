@@ -44,6 +44,13 @@
             font-size: 1.25rem; /* 20px */
             line-height: 1;
         }
+        /* Animation for spinner */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
     </style>
 
     <script>
@@ -127,6 +134,23 @@
                             {% endif %}
                         </span>
                         
+                        <!-- Dark Mode Toggle -->
+                        <button @click="darkMode = !darkMode; localStorage.setItem('darkMode', darkMode)" 
+                                class="text-gray-600 dark:text-gray-400 hover:text-primary">
+                            <span x-show="!darkMode" class="material-symbols-outlined">light_mode</span>
+                            <span x-show="darkMode" class="material-symbols-outlined">dark_mode</span>
+                        </button>
+                        
+                        <!-- Copy Previous Period Button (conditionally shown) -->
+                        <button id="copy-previous-period-btn" 
+                                onclick="confirmCopyPreviousPeriod()" 
+                                class="hidden px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                                title="Copy all data from previous period">
+                            <span class="material-symbols-outlined text-base">content_copy</span>
+                            <span class="hidden md:inline">Copy Previous Period</span>
+                        </button>
+                        
+                        <!-- Period Selector Dropdown -->
                         <div class="relative" x-data="{ open: false }" @click.away="open = false">
                             <button @click="open = !open" class="flex items-center text-gray-600 dark:text-gray-400 hover:text-primary px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600">
                                 <span class="material-symbols-outlined mr-2">calendar_month</span>
@@ -164,11 +188,6 @@
                         </div>
                     </div>
                     
-                    <button @click="darkMode = !darkMode; localStorage.setItem('darkMode', darkMode)" 
-                            class="text-gray-600 dark:text-gray-400 hover:text-primary">
-                        <span x-show="!darkMode" class="material-symbols-outlined">light_mode</span>
-                        <span x-show="darkMode" class="material-symbols-outlined">dark_mode</span>
-                    </button>
                     <a href="#" class="text-gray-600 dark:text-gray-400 hover:text-primary">
                         <span class="material-symbols-outlined">notifications</span>
                     </a>
@@ -186,6 +205,111 @@
             </main>
         </div>
     </div>
+    
+    <script>
+        // Utility for getting CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        // Check if current period is empty and show/hide copy button
+        function checkPeriodEmpty() {
+            const copyBtn = document.getElementById('copy-previous-period-btn');
+            if (!copyBtn) return;
+            
+            fetch("{% url 'check_period_empty_ajax' %}", {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success' && data.can_copy) {
+                    copyBtn.classList.remove('hidden');
+                    copyBtn.classList.add('flex');
+                } else {
+                    copyBtn.classList.add('hidden');
+                    copyBtn.classList.remove('flex');
+                }
+            })
+            .catch(error => {
+                console.error('Error checking period:', error);
+            });
+        }
+        
+        // Confirm and copy previous period
+        function confirmCopyPreviousPeriod() {
+            const message = 'This will copy all Flow Groups and transactions from the previous period to the current period.\n\n' +
+                           'All dates will be updated to today.\n' +
+                           'Data created by children will NOT be copied.\n\n' +
+                           'Do you want to proceed?';
+            
+            if (!confirm(message)) {
+                return;
+            }
+            
+            // Show loading state
+            const copyBtn = document.getElementById('copy-previous-period-btn');
+            const originalHTML = copyBtn.innerHTML;
+            copyBtn.disabled = true;
+            copyBtn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">refresh</span><span class="hidden md:inline ml-2">Copying...</span>';
+            
+            fetch("{% url 'copy_previous_period_ajax' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Show success message
+                    alert(`Success!\n\nCopied ${data.groups_copied} groups and ${data.transactions_copied} transactions.`);
+                    
+                    // Reload page to show new data
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error occurred'));
+                    copyBtn.disabled = false;
+                    copyBtn.innerHTML = originalHTML;
+                }
+            })
+            .catch(error => {
+                console.error('Error copying period:', error);
+                alert('A network error occurred while copying the period.');
+                copyBtn.disabled = false;
+                copyBtn.innerHTML = originalHTML;
+            });
+        }
+        
+        // Re-check when any data is added (exported for use in other templates)
+        function onDataAdded() {
+            const copyBtn = document.getElementById('copy-previous-period-btn');
+            if (copyBtn) {
+                copyBtn.classList.add('hidden');
+                copyBtn.classList.remove('flex');
+            }
+        }
+        
+        // Check on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkPeriodEmpty();
+        });
+    </script>
     
     {% block extra_js %}{% endblock %}
 </body>

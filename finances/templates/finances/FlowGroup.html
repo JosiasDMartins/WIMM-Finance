@@ -716,20 +716,81 @@
         toggleCircle.classList.remove('translate-x-4');
     }
 
+    // New function to save the order of items
+    function saveItemsOrder() {
+        const tbody = document.getElementById('expense-items-body');
+        if (!tbody) return;
+        
+        const rows = tbody.querySelectorAll('tr[data-item-id]:not(#new-item-template)');
+        
+        const orderData = [];
+        rows.forEach((row, index) => {
+            const itemId = row.getAttribute('data-item-id');
+            if (itemId && itemId !== 'NEW') {
+                orderData.push({
+                    id: itemId,
+                    order: index + 1
+                });
+            }
+        });
+        
+        if (orderData.length === 0) return;
+        
+        fetch("{% url 'reorder_flow_items_ajax' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ items: orderData })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                console.log('Order saved successfully');
+            } else {
+                console.error('Error saving order:', data.error);
+                alert('Error saving order: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Fetch Error:', error);
+            alert('A network error occurred while saving order.');
+        });
+    }
+
+
+
+
     function moveRow(rowId, direction) {
         console.log(`Moving ${rowId} ${direction}`);
         const row = document.getElementById(rowId);
         if (!row) return;
 
-        if (direction === 'up' && row.previousElementSibling && row.previousElementSibling.id !== 'new-item-template') {
-            row.parentNode.insertBefore(row, row.previousElementSibling);
+        const tbody = row.parentNode;
+        let moved = false;
+
+        if (direction === 'up' && row.previousElementSibling) {
+            const prevRow = row.previousElementSibling;
+            if (prevRow.id !== 'new-item-template') {
+                tbody.insertBefore(row, prevRow);
+                moved = true;
+            }
         } else if (direction === 'down' && row.nextElementSibling) {
-            if (row.nextElementSibling.id !== 'new-item-template' || row.nextElementSibling.classList.contains('hidden')) {
-                row.parentNode.insertBefore(row.nextElementSibling, row);
+            const nextRow = row.nextElementSibling;
+            if (nextRow.id !== 'new-item-template' || nextRow.classList.contains('hidden')) {
+                tbody.insertBefore(nextRow, row);
+                moved = true;
             }
         }
+
+        // If row was moved, save the new order
+        if (moved) {
+            saveItemsOrder();
+        }
     }
-    
+        
     // Add click handler for new item toggle
     document.addEventListener('DOMContentLoaded', function() {
         const toggleNew = document.querySelector('.realized-toggle-new');

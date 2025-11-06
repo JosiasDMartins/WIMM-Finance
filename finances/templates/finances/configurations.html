@@ -24,13 +24,7 @@
             {% csrf_token %}
             <div class="p-6 space-y-6">
                 
-                {# Day of Closure #}
-                <div class="flex flex-col">
-                    <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.starting_day.id_for_label }}">Starting Day (for Monthly Cycle)</label>
-                    {{ form.starting_day }}
-                    <p class="text-xs text-gray-500 mt-1">Day of the month (1-31) that defines the cycle start.</p>
-                </div>
-
+                
                 {# Period Type Selection #}
                 <div class="flex flex-col">
                     <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2">Period Frequency</label>
@@ -46,12 +40,19 @@
                     </div>
                 </div>
 
-                {# Base Date #}
-                <div class="flex flex-col">
+                {# Starting Day - Only for Monthly #}
+                <div id="starting-day-field" class="flex flex-col">
+                    <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.starting_day.id_for_label }}">Starting Day (for Monthly Cycle)</label>
+                    {{ form.starting_day }}
+                    <p class="text-xs text-gray-500 mt-1">Day of the month (1-31) that defines the cycle start.</p>
+                </div>
+
+                {# Base Date - Only for Bi-weekly/Weekly #}
+                <div id="base-date-field" class="flex flex-col" style="display: none;">
                     <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.base_date.id_for_label }}">Initial Date / Base Day for the Cycle</label>
                     {{ form.base_date }}
-                    <p class="text-xs text-gray-500 mt-1">Reference date for bi-weekly cycle calculations.</p>
-                </div>
+                    <p class="text-xs text-gray-500 mt-1">Reference date used to calculate bi-weekly or weekly periods.</p>
+                </div>                
 
             </div>
             
@@ -62,5 +63,132 @@
             </div>
         </form>
     </div>
+
+
+    {% if show_confirmation %}
+    <!-- Confirmation Modal -->
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full mx-4 p-6">
+            <div class="flex items-start mb-4">
+                <div class="flex-shrink-0">
+                    <span class="material-symbols-outlined text-4xl text-yellow-500">warning</span>
+                </div>
+                <div class="ml-4 flex-1">
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                        Confirm Period Configuration Change
+                    </h3>
+                    <div class="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+                        <p class="font-medium">{{ impact.message }}</p>
+                        
+                        <div class="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                            <p class="font-semibold text-blue-900 dark:text-blue-200 mb-2">What will happen:</p>
+                            <ul class="list-disc list-inside space-y-1 text-blue-800 dark:text-blue-300">
+                                <li>Current period ({{ impact.current_period.0 }} to {{ impact.current_period.1 }}) will be closed</li>
+                                <li>A new period will start ({{ impact.new_current_period.0 }} to {{ impact.new_current_period.1 }})</li>
+                                <li>All Flow Groups will be copied to the new period</li>
+                                <li>Transactions will be distributed:
+                                    <ul class="list-circle list-inside ml-4 mt-1">
+                                        <li>Transactions dated before {{ impact.new_current_period.0 }} remain in closed period</li>
+                                        <li>Transactions dated on or after {{ impact.new_current_period.0 }} move to new period</li>
+                                    </ul>
+                                </li>
+                                <li>Previous closed periods remain unchanged</li>
+                            </ul>
+                        </div>
+                        
+                        <p class="mt-4 text-yellow-700 dark:text-yellow-400 font-medium">
+                            ⚠️ Please review your entries after this change to ensure they're in the correct period.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-3 mt-6">
+                <form method="GET" action="{% url 'configuration' %}" class="inline">
+                    {% if selected_period %}
+                    <input type="hidden" name="period" value="{{ selected_period }}">
+                    {% endif %}
+                    <button type="submit" 
+                            class="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition-colors">
+                        Cancel
+                    </button>
+                </form>
+                
+                <form method="POST" action="{% url 'configuration' %}" class="inline">
+                    {% csrf_token %}
+                    {% if selected_period %}
+                    <input type="hidden" name="period" value="{{ selected_period }}">
+                    {% endif %}
+                    <input type="hidden" name="period_type" value="{{ pending_changes.period_type }}">
+                    <input type="hidden" name="starting_day" value="{{ pending_changes.starting_day }}">
+                    {% if pending_changes.base_date %}
+                    <input type="hidden" name="base_date" value="{{ pending_changes.base_date }}">
+                    {% endif %}
+                    <input type="hidden" name="confirmed" value="true">
+                    
+                    <button type="submit" 
+                            class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 font-medium transition-colors">
+                        Accept & Continue
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
 </main>
+
+
+<script>
+    // Show/hide fields based on period type selection
+    document.addEventListener('DOMContentLoaded', function() {
+        const periodTypeRadios = document.querySelectorAll('input[name="period_type"]');
+        const startingDayField = document.getElementById('starting-day-field');
+        const baseDateField = document.getElementById('base-date-field');
+        
+        function updateFieldsVisibility() {
+            const selectedType = document.querySelector('input[name="period_type"]:checked');
+            if (!selectedType) return;
+            
+            const value = selectedType.value;
+            
+            if (value === 'M') {
+                // Monthly - show starting_day, hide base_date
+                if (startingDayField) startingDayField.style.display = 'flex';
+                if (baseDateField) baseDateField.style.display = 'none';
+            } else {
+                // Bi-weekly or Weekly - hide starting_day, show base_date
+                if (startingDayField) startingDayField.style.display = 'none';
+                if (baseDateField) baseDateField.style.display = 'flex';
+            }
+        }
+        
+        // Initial setup
+        updateFieldsVisibility();
+        
+        // Listen for changes
+        periodTypeRadios.forEach(radio => {
+            radio.addEventListener('change', updateFieldsVisibility);
+        });
+    });
+    
+    // Intercept form submission to show warning if needed
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const currentType = '{{ form.period_type.value }}';
+        const newType = document.querySelector('input[name="period_type"]:checked').value;
+        
+        if (currentType !== newType) {
+            e.preventDefault();
+            
+            const message = "Changing the period type will affect your current period boundaries. " +
+                          "Previous periods already closed will remain as they were, but the current period " +
+                          "may be adjusted. Are you sure you want to continue?";
+            
+            if (confirm(message)) {
+                // User confirmed, submit the form
+                e.target.submit();
+            }
+        }
+    });
+</script>
 {% endblock %}

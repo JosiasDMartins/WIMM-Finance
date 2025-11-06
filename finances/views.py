@@ -20,8 +20,17 @@ from django.db.utils import OperationalError
 
 # Import Models
 from .models import (
-    Family, FamilyMember, FlowGroup, Transaction, Investment, FamilyConfiguration,
+    Family, FamilyMember, FlowGroup, Transaction, Investment, FamilyConfiguration, ClosedPeriod,
     FLOW_TYPE_INCOME, EXPENSE_MAIN, EXPENSE_SECONDARY, FLOW_TYPE_EXPENSE 
+)
+from .utils import (
+    get_current_period_dates, 
+    get_available_periods,
+    check_period_change_impact, 
+    close_current_period,
+    copy_flow_groups_to_new_period,
+    copy_previous_period_data,
+    current_period_has_data
 )
 
 # Import Forms
@@ -714,6 +723,53 @@ def dashboard_view(request):
 @login_required
 @require_POST
 @db_transaction.atomic
+def reorder_flow_items_ajax(request):
+    """
+    Handles AJAX request to reorder Transactions within a FlowGroup.
+    Receives array of {id, order} objects and updates the order field.
+    """
+    if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return HttpResponseBadRequest("Not an AJAX request.")
+    
+    family, current_member, _ = get_family_context(request.user)
+    if not family:
+        return HttpResponseForbidden("User is not associated with a family.")
+    
+    try:
+        data = json.loads(request.body)
+        items_data = data.get('items', [])
+        
+        if not items_data:
+            return JsonResponse({'error': 'No items data provided.'}, status=400)
+        
+        # Update each transaction's order
+        for item_data in items_data:
+            item_id = item_data.get('id')
+            new_order = item_data.get('order')
+            
+            if item_id and new_order is not None:
+                transaction = Transaction.objects.filter(
+                    id=item_id,
+                    flow_group__family=family
+                ).first()
+                
+                if transaction:
+                    # Check if user has permission to reorder
+                    flow_group = transaction.flow_group
+                    if can_access_flow_group(flow_group, current_member):
+                        transaction.order = new_order
+                        transaction.save(update_fields=['order'])
+        
+        return JsonResponse({'status': 'success'})
+        
+    except Exception as e:
+        return JsonResponse({'error': f'A server error occurred: {str(e)}'}, status=500)
+
+
+
+@login_required
+@require_POST
+@db_transaction.atomic
 def save_flow_item_ajax(request):
     """
     Handles AJAX request to save or update a Transaction.
@@ -959,6 +1015,72 @@ def delete_flow_group_view(request, group_id):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
+@login_required
+@require_POST
+@db_transaction.atomic
+def copy_previous_period_ajax(request):
+    """
+    Copies all data from previous period to current period.
+    Excludes child-created data.
+    """
+    if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return HttpResponseBadRequest("Not an AJAX request.")
+    
+    family, current_member, _ = get_family_context(request.user)
+    if not family:
+        return HttpResponseForbidden("User is not associated with a family.")
+    
+    # Only admins and parents can copy period data
+    if current_member.role not in ['ADMIN', 'PARENT']:
+        return HttpResponseForbidden("Only Admins and Parents can copy period data.")
+    
+    try:
+        # Check if current period already has data
+        if current_period_has_data(family):
+            return JsonResponse({
+                'error': 'Current period already has data. Cannot copy.'
+            }, status=400)
+        
+        # Copy data
+        result = copy_previous_period_data(family, exclude_child_data=True)
+        
+        return JsonResponse({
+            'status': 'success',
+            'groups_copied': result['groups_copied'],
+            'transactions_copied': result['transactions_copied'],
+            'message': f"Copied {result['groups_copied']} groups and {result['transactions_copied']} transactions from previous period."
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': f'Error copying period: {str(e)}'}, status=500)
+
+
+@login_required
+def check_period_empty_ajax(request):
+    """
+    Checks if current period is empty (for showing copy button).
+    """
+    if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return HttpResponseBadRequest("Not an AJAX request.")
+    
+    family, current_member, _ = get_family_context(request.user)
+    if not family:
+        return HttpResponseForbidden("User is not associated with a family.")
+    
+    try:
+        has_data = current_period_has_data(family)
+        
+        return JsonResponse({
+            'status': 'success',
+            'has_data': has_data,
+            'can_copy': not has_data and current_member.role in ['ADMIN', 'PARENT']
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': f'Error checking period: {str(e)}'}, status=500)
+
+
+
 
 # === Logout View ===
 @require_POST
@@ -1047,32 +1169,118 @@ def user_profile_view(request):
 # === Configuration View ===
 @login_required
 def configuration_view(request):
-    family, _, _ = get_family_context(request.user)
+    import datetime
+    family, current_member, _ = get_family_context(request.user)
     if not family:
-        return redirect('dashboard') 
-
-    config, created = FamilyConfiguration.objects.get_or_create(family=family)
+        return redirect('dashboard')
     
     query_period = request.GET.get('period')
+    start_date, end_date, _ = get_current_period_dates(family, query_period)
+    
+    config, _ = FamilyConfiguration.objects.get_or_create(family=family)
     
     if request.method == 'POST':
         form = FamilyConfigurationForm(request.POST, instance=config)
         if form.is_valid():
-            form.save()
-            messages.success(request, 'Settings saved successfully.')
-            # Preserve period in redirect
-            if query_period:
-                return redirect(f"{request.path}?period={query_period}")
-            return redirect('configuration')
+            # Get new values from form
+            new_period_type = form.cleaned_data.get('period_type')
+            new_starting_day = form.cleaned_data.get('starting_day')
+            new_base_date = form.cleaned_data.get('base_date')
+            
+            # Store OLD values before any changes
+            old_period_type = config.period_type
+            old_starting_day = config.starting_day
+            old_base_date = config.base_date
+            
+            # Check impact of changes
+            impact = check_period_change_impact(
+                family, 
+                new_period_type, 
+                new_starting_day, 
+                new_base_date
+            )
+            
+            # If significant change detected and user hasn't confirmed yet
+            if impact['requires_close'] and not request.POST.get('confirmed'):
+                # Show confirmation in context
+                context = {
+                    'form': form,
+                    'show_confirmation': True,
+                    'impact': impact,
+                    'pending_changes': {
+                        'period_type': new_period_type,
+                        'starting_day': new_starting_day,
+                        'base_date': new_base_date.isoformat() if new_base_date else None,
+                    }
+                }
+                context.update(get_base_template_context(family, query_period, start_date))
+                return render(request, 'finances/configurations.html', context)
+            
+            # User confirmed or no significant change
+            if impact['requires_close']:
+                # Get period boundaries
+                current_start, current_end, _ = impact['current_period']
+                new_start, new_end, _ = impact['new_current_period']
+                
+                # CRITICAL: Closed period must end 1 day BEFORE new period starts
+                # This creates a short adjustment period
+                adjusted_close_end = new_start - datetime.timedelta(days=1)
+                
+                print(f"DEBUG - Old config: {old_period_type}, starting_day={old_starting_day}, base_date={old_base_date}")
+                print(f"DEBUG - New config: {new_period_type}, starting_day={new_starting_day}, base_date={new_base_date}")
+                print(f"DEBUG - Current period (OLD config): {current_start} to {current_end}")
+                print(f"DEBUG - New period (NEW config): {new_start} to {new_end}")
+                print(f"DEBUG - Adjusted close period: {current_start} to {adjusted_close_end}")
+                
+                # Create ClosedPeriod with adjusted end date
+                from .models import ClosedPeriod
+                
+                
+                # Check if already closed
+                existing_closed = ClosedPeriod.objects.filter(
+                    family=family,
+                    start_date=current_start
+                ).first()
+                
+                if not existing_closed:
+                    closed_period = ClosedPeriod.objects.create(
+                        family=family,
+                        start_date=current_start,
+                        end_date=adjusted_close_end,  # ← AJUSTADO: new_start - 1 dia
+                        period_type=old_period_type
+                    )
+                    print(f"DEBUG - Created ClosedPeriod: {closed_period.start_date} to {closed_period.end_date}, type={closed_period.period_type}")
+                else:
+                    closed_period = existing_closed
+                    print(f"DEBUG - ClosedPeriod already exists: {closed_period.start_date} to {closed_period.end_date}")
+                
+                # NOW save the new configuration
+                form.save()
+                print(f"DEBUG - Saved new configuration")
+                
+                # Copy FlowGroups from closed period to new period
+                copied_count = copy_flow_groups_to_new_period(
+                    family, 
+                    current_start,  # Old period start
+                    new_start,      # New period start
+                    new_end         # New period end
+                )
+                print(f"DEBUG - Copied {copied_count} FlowGroups from {current_start} to {new_start}")
+                
+                messages.success(request, f'Configuration updated successfully. Closed period: {current_start} to {adjusted_close_end}. New period starts: {new_start}.')
+            else:
+                # No need to close, just save
+                form.save()
+                messages.success(request, 'Configuration updated successfully.')
+            
+            redirect_url = f"?period={query_period}" if query_period else ""
+            return redirect(f"/settings/{redirect_url}")
     else:
         form = FamilyConfigurationForm(instance=config)
-
-    start_date, end_date, _ = get_current_period_dates(family, query_period)
     
     context = {
         'form': form,
-        'start_date': start_date,
-        'end_date': end_date,
+        'show_confirmation': False,
     }
     context.update(get_base_template_context(family, query_period, start_date))
     return render(request, 'finances/configurations.html', context)
@@ -1481,6 +1689,72 @@ def get_periods_ajax(request):
     } for p in periods]
     
     return JsonResponse({'periods': periods_data})
+
+@login_required
+@require_POST
+@db_transaction.atomic
+def copy_previous_period_ajax(request):
+    """
+    Copies all data from previous period to current period.
+    Excludes child-created data.
+    """
+    if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return HttpResponseBadRequest("Not an AJAX request.")
+    
+    family, current_member, _ = get_family_context(request.user)
+    if not family:
+        return HttpResponseForbidden("User is not associated with a family.")
+    
+    # Only admins and parents can copy period data
+    if current_member.role not in ['ADMIN', 'PARENT']:
+        return HttpResponseForbidden("Only Admins and Parents can copy period data.")
+    
+    try:
+        # Check if current period already has data
+        if current_period_has_data(family):
+            return JsonResponse({
+                'error': 'Current period already has data. Cannot copy.'
+            }, status=400)
+        
+        # Copy data
+        result = copy_previous_period_data(family, exclude_child_data=True)
+        
+        return JsonResponse({
+            'status': 'success',
+            'groups_copied': result['groups_copied'],
+            'transactions_copied': result['transactions_copied'],
+            'message': f"Copied {result['groups_copied']} groups and {result['transactions_copied']} transactions from previous period."
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': f'Error copying period: {str(e)}'}, status=500)
+
+
+@login_required
+def check_period_empty_ajax(request):
+    """
+    Checks if current period is empty (for showing copy button).
+    """
+    if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return HttpResponseBadRequest("Not an AJAX request.")
+    
+    family, current_member, _ = get_family_context(request.user)
+    if not family:
+        return HttpResponseForbidden("User is not associated with a family.")
+    
+    try:
+        has_data = current_period_has_data(family)
+        
+        return JsonResponse({
+            'status': 'success',
+            'has_data': has_data,
+            'can_copy': not has_data and current_member.role in ['ADMIN', 'PARENT']
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': f'Error checking period: {str(e)}'}, status=500)
+
+
 
 
 @login_required

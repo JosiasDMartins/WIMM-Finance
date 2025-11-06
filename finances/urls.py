@@ -39,12 +39,17 @@ urlpatterns = [
     # Used for both Expense Group items and Income items
     path('api/flow-group/item/save/', views.save_flow_item_ajax, name='save_flow_item_ajax'),
     path('api/flow-group/item/delete/', views.delete_flow_item_ajax, name='delete_flow_item_ajax'),
+    path('api/flow-group/item/reorder/', views.reorder_flow_items_ajax, name='reorder_flow_items_ajax'),
 
     # Toggle Kids group realized status
     path('api/kids-group/toggle-realized/', views.toggle_kids_group_realized_ajax, name='toggle_kids_group_realized_ajax'),
 
     # Get available periods for dropdown
     path('api/periods/', views.get_periods_ajax, name='get_periods_ajax'),
+    
+    # Copy previous period data
+    path('api/period/copy-previous/', views.copy_previous_period_ajax, name='copy_previous_period_ajax'),
+    path('api/period/check-empty/', views.check_period_empty_ajax, name='check_period_empty_ajax'),
     
     # Reorder items at the dashboard
     path('ajax/reorder-flow-groups/', views.reorder_flow_groups_ajax, name='reorder_flow_groups_ajax'),
