@@ -24,10 +24,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-@+@#^v(s25&0t6yvx5)tm$3!ug(f*thk==-_b4v=v7pieqk0z_'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
 
-ALLOWED_HOSTS = []
+
 
 
 # Application definition
@@ -82,22 +80,45 @@ WSGI_APPLICATION = 'wimm_project.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DB_PATH = os.environ.get('DB_PATH', '/vol/db/db.sqlite3')
+ALLOWED_HOSTS = []
+CSRF_TRUSTED_ORIGINS = []
+DEBUG = False
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        # O Django usará este caminho no volume do Docker
-        'NAME': DB_PATH,
+EXTERNAL_SETTINGS_PATH = '/vol/config/local_settings.py'
+
+if os.path.exists(EXTERNAL_SETTINGS_PATH):
+    print(f"*** Loading external settings ***")
+    try:
+        # Executes the code from the external file in the global context (overwriting the variables above)
+        # The external file can redefine ALLOWED_HOSTS, DATABASES, CSRF_TRUSTED_ORIGINS, etc.
+        #It means that SweetMoney is running from a container - Deployment mode
+        exec(open(EXTERNAL_SETTINGS_PATH).read())
+    except Exception as e:        
+        print(f"Critical error when loading external settings: {e}")
+
+    
+    DB_PATH = os.environ.get('DB_PATH', '/vol/db/db.sqlite3')
+
+    DEBUG = False
+
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            #Django will use this path in the Docker volume.
+            'NAME': DB_PATH,
+        }
     }
-}
 
-#DATABASES = {
-#    'default': {
-#        'ENGINE': 'django.db.backends.sqlite3',
-#        'NAME': BASE_DIR / 'db/db.sqlite3',
-#    }
-#}
+else:
+    # SECURITY WARNING: don't run with debug turned on in production!
+    print('Devel mode')
+    DEBUG = True
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db/db.sqlite3',
+        }
+    }
 
 # 1. Configura o seu modelo CustomUser como o modelo padrão de usuário
 AUTH_USER_MODEL = 'finances.CustomUser'
