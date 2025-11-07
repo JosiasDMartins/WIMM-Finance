@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}WIMM Dashboard{% endblock %}</title>
+    <title>{% block title %}SweetMoney Dashboard{% endblock %}</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -79,7 +79,7 @@
             <div class="flex items-center justify-between">
                 <a href="{% url 'dashboard' %}{% if selected_period %}?period={{ selected_period }}{% endif %}" class="flex items-center gap-2">
                     <span class="material-symbols-outlined text-3xl text-primary">savings</span>
-                    <span class="text-2xl font-bold text-gray-800 dark:text-white">WIMM</span>
+                    <span class="text-2xl font-bold text-gray-800 dark:text-white">SweetMoney</span>
                 </a>
                 <button @click="sidebarOpen = false" class="md:hidden text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white">
                     <span class="material-symbols-outlined">close</span>
