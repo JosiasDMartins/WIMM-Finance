@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -77,12 +79,25 @@ WSGI_APPLICATION = 'wimm_project.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# Database
+# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+
+DB_PATH = os.environ.get('DB_PATH', '/vol/db/db.sqlite3')
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db/db.sqlite3',
+        # O Django usará este caminho no volume do Docker
+        'NAME': DB_PATH,
     }
 }
+
+#DATABASES = {
+#    'default': {
+#        'ENGINE': 'django.db.backends.sqlite3',
+#        'NAME': BASE_DIR / 'db/db.sqlite3',
+#    }
+#}
 
 # 1. Configura o seu modelo CustomUser como o modelo padrão de usuário
 AUTH_USER_MODEL = 'finances.CustomUser'
@@ -134,3 +149,7 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+#Deploy CFG
+STATIC_ROOT = os.path.join(Path(__file__).resolve().parent.parent, 'staticfiles')
+
