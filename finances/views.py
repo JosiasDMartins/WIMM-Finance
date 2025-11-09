@@ -458,6 +458,7 @@ def get_periods_history(family, current_period_start):
 @login_required
 def dashboard_view(request):
     family, current_member, family_members = get_family_context(request.user)
+    from decimal import Decimal, ROUND_DOWN
     if not family:
         return render(request, 'finances/setup.html') 
 
@@ -506,8 +507,8 @@ def dashboard_view(request):
     # Process accessible groups
     budgeted_expense = Decimal(0.00)
     for group in accessible_expense_groups:
-        group.total_estimated = group.total_estimated if group.total_estimated is not None else Decimal('0.00')
-        group.total_spent = group.total_spent if group.total_spent is not None else Decimal('0.00')
+        group.total_estimated = (group.total_estimated if group.total_estimated is not None else Decimal('0.00')).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+        group.total_spent = (group.total_spent if group.total_spent is not None else Decimal('0.00')).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
         group.is_accessible = True  # Mark as accessible
         
         # For Kids groups shown to Parents/Admins, calculate child expenses
@@ -537,11 +538,13 @@ def dashboard_view(request):
         
         if not is_child_own_group:
             budgeted_expense = group.total_estimated + budgeted_expense
+
+        
     
     # Process display-only groups (for Parents/Admins)
     for group in display_only_expense_groups:
-        group.total_estimated = group.total_estimated if group.total_estimated is not None else Decimal('0.00')
-        group.total_spent = group.total_spent if group.total_spent is not None else Decimal('0.00')
+        group.total_estimated = (group.total_estimated if group.total_estimated is not None else Decimal('0.00')).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+        group.total_spent = (group.total_spent if group.total_spent is not None else Decimal('0.00')).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
         group.is_accessible = False  # Mark as NOT accessible
         
         # Check if estimated exceeds budget
@@ -572,7 +575,7 @@ def dashboard_view(request):
             kids_income_entries.append({
                 'id': f'kids_{kids_group.id}',
                 'description': kids_group.name,
-                'amount': kids_group.budgeted_amount,
+                'amount': (kids_group.budgeted_amount).quantize(Decimal('0.01'), rounding=ROUND_DOWN),
                 'date': start_date,
                 'realized': kids_group.realized,
                 'is_kids_income': True,
@@ -669,14 +672,15 @@ def dashboard_view(request):
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         
         realized_expense += kids_groups_realized_budget
+
     
     summary_totals = {
-        'total_budgeted_income': budgeted_income,
-        'total_realized_income': realized_income,
-        'total_budgeted_expense': budgeted_expense,
-        'total_realized_expense': realized_expense,
-        'estimated_result': budgeted_income - budgeted_expense,
-        'realized_result': realized_income - realized_expense,
+        'total_budgeted_income': (budgeted_income).quantize(Decimal('0.01'), rounding=ROUND_DOWN),
+        'total_realized_income': (realized_income).quantize(Decimal('0.01'), rounding=ROUND_DOWN),
+        'total_budgeted_expense': (budgeted_expense).quantize(Decimal('0.01'), rounding=ROUND_DOWN),
+        'total_realized_expense': (realized_expense).quantize(Decimal('0.01'), rounding=ROUND_DOWN),
+        'estimated_result': (budgeted_income - budgeted_expense).quantize(Decimal('0.01'), rounding=ROUND_DOWN),
+        'realized_result': (realized_income - realized_expense).quantize(Decimal('0.01'), rounding=ROUND_DOWN),
     }
 
     default_date = get_default_date_for_period(start_date, end_date)
@@ -712,7 +716,7 @@ def dashboard_view(request):
         'children_manual_income': children_manual_income if member_role_for_period in ['ADMIN', 'PARENT'] else {},
         'periods_history_json': json.dumps(periods_history),
     }
-    
+    print(expense_groups)
     context.update(get_base_template_context(family, query_period, start_date))
     
     return render(request, 'finances/dashboard.html', context)
