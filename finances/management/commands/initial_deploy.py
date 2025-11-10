@@ -7,7 +7,7 @@ from django.db import connection
 from django.db.utils import OperationalError
 
 class Command(BaseCommand):
-    help = 'Performs initial deployment setup for WIMM application'
+    help = 'Performs initial deployment setup for SweetMoney application'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -18,7 +18,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS('=' * 70))
-        self.stdout.write(self.style.SUCCESS('WIMM - Initial Deployment'))
+        self.stdout.write(self.style.SUCCESS('SweetMoney - Initial Deployment'))
         self.stdout.write(self.style.SUCCESS('=' * 70))
         self.stdout.write('')
 

@@ -1,32 +1,24 @@
 # finances/forms.py
 
 from django import forms
-from django.forms import modelformset_factory
 from django.contrib.auth import get_user_model
+from .models import (
+    Family, FamilyMember, FamilyConfiguration, FlowGroup, 
+    Transaction, Investment, EXPENSE_MAIN
+)
+from django.forms import modelformset_factory
 
-from .models import FamilyConfiguration, FamilyMember, FlowGroup, Transaction, Investment, CustomUser
 
+# --- Initial Setup Form (First Time User) ---
 class InitialSetupForm(forms.Form):
     """
-    Form for initial setup of the WIMM application.
-    Creates the first admin user, family, and configuration.
+    Form for creating the first admin user, family, and configuration
+    during initial setup.
     """
-    
-    # Family Information
-    family_name = forms.CharField(
-        max_length=100,
-        label='Family Name',
-        widget=forms.TextInput(attrs={
-            'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent',
-            'placeholder': 'e.g., The Smiths, Johnson Family'
-        }),
-        help_text='The name of your family financial group'
-    )
-    
-    # Administrator Account
+    # User fields
     username = forms.CharField(
         max_length=150,
-        label='Username',
+        label='Admin Username',
         widget=forms.TextInput(attrs={
             'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent',
             'placeholder': 'Choose a username'
@@ -38,78 +30,78 @@ class InitialSetupForm(forms.Form):
         label='Email (Optional)',
         widget=forms.EmailInput(attrs={
             'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent',
-            'placeholder': 'your.email@example.com'
+            'placeholder': 'your@email.com'
         })
     )
     
     password = forms.CharField(
-        min_length=6,
-        label='Password',
         widget=forms.PasswordInput(attrs={
             'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent',
-            'placeholder': 'Minimum 6 characters'
+            'placeholder': 'Create a password'
         }),
-        help_text='Must be at least 6 characters long'
+        label='Password',
+        min_length=6
     )
     
     confirm_password = forms.CharField(
-        label='Confirm Password',
         widget=forms.PasswordInput(attrs={
             'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent',
-            'placeholder': 'Re-enter your password'
+            'placeholder': 'Confirm your password'
+        }),
+        label='Confirm Password'
+    )
+    
+    # Family fields
+    family_name = forms.CharField(
+        max_length=100,
+        label='Family Name',
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent',
+            'placeholder': 'e.g., Smith Family'
         })
     )
     
-    # Financial Configuration
+    # Configuration fields
     period_type = forms.ChoiceField(
         choices=FamilyConfiguration.PERIOD_TYPES,
         initial='M',
-        label='Period Frequency',
-        widget=forms.RadioSelect(attrs={
-            'class': 'form-radio text-teal-600 focus:ring-teal-500'
-        })
+        label='Period Type',
+        widget=forms.RadioSelect(attrs={'class': 'form-radio'})
     )
     
     starting_day = forms.IntegerField(
+        initial=1,
         min_value=1,
         max_value=31,
-        initial=1,
-        label='Starting Day (for Monthly Cycle)',
+        label='Starting Day of Month',
         widget=forms.NumberInput(attrs={
             'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent',
-            'min': '1',
-            'max': '31'
-        }),
-        help_text='Day of the month (1-31) when your budget cycle starts'
+            'placeholder': '1-31'
+        })
     )
     
     base_date = forms.DateField(
         required=False,
-        label='Base Date (for Bi-weekly/Weekly cycles)',
+        label='Base Date for Bi-weekly/Weekly Cycles',
         widget=forms.DateInput(attrs={
-            'type': 'date',
-            'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent'
-        }),
-        help_text='Reference date for calculating bi-weekly/weekly periods'
+            'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent',
+            'type': 'date'
+        })
     )
     
     def clean_username(self):
         username = self.cleaned_data['username']
         UserModel = get_user_model()
-        
         if UserModel.objects.filter(username__iexact=username).exists():
             raise forms.ValidationError("This username is already taken.")
-        
         return username
     
     def clean_email(self):
         email = self.cleaned_data.get('email')
-        
         if email:
             UserModel = get_user_model()
             if UserModel.objects.filter(email__iexact=email).exists():
                 raise forms.ValidationError("An account with this email already exists.")
-        
         return email
     
     def clean(self):
@@ -137,12 +129,12 @@ class FamilyConfigurationForm(forms.ModelForm):
 
 # --- FlowGroup Form ---
 class FlowGroupForm(forms.ModelForm):
-    # Add field for selecting Parents/Admins for Shared groups
+    # Add field for selecting ONLY PARENTS for Shared groups (exclude ADMIN)
     assigned_members = forms.ModelMultipleChoiceField(
         queryset=FamilyMember.objects.none(),  # Will be set in __init__
         required=False,
         widget=forms.CheckboxSelectMultiple(attrs={'class': 'members-checkbox'}),
-        label='Assign Members (Parents/Admins)'
+        label='Assign Members (Parents)'
     )
     
     # Add field for selecting children (will be populated dynamically)
@@ -168,11 +160,12 @@ class FlowGroupForm(forms.ModelForm):
         family = kwargs.pop('family', None)
         super().__init__(*args, **kwargs)
         
-        # Populate members (Parents/Admins) queryset if family is provided
+        # Populate members (ONLY PARENTS, exclude ADMIN) queryset if family is provided
+        # Admins don't need to be in assigned_members since they have access to everything
         if family:
             self.fields['assigned_members'].queryset = FamilyMember.objects.filter(
                 family=family,
-                role__in=['ADMIN', 'PARENT']
+                role='PARENT'  # Only PARENT, not ADMIN
             ).select_related('user').order_by('user__username')
             
             # Populate children queryset if family is provided

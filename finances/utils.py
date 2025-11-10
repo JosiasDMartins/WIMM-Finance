@@ -7,6 +7,7 @@ from dateutil.relativedelta import relativedelta
 from calendar import monthrange
 from .models import Transaction, FlowGroup, FamilyMemberRoleHistory, ClosedPeriod
 
+
 def get_current_period_dates(family, query_period=None):
     """
     Determines the start and end dates of the financial period.
@@ -46,72 +47,385 @@ def get_current_period_dates(family, query_period=None):
             end_date = reference_date.replace(month=reference_date.month + 1, day=1) - datetime.timedelta(days=1)
         except ValueError:
             end_date = reference_date.replace(year=reference_date.year + 1, month=1, day=1) - datetime.timedelta(days=1)
-        period_label = start_date.strftime("%B %Y")
+        period_label = f"{start_date.strftime('%B %Y')}"
         return start_date, end_date, period_label
     
     period_type = config.period_type
     
     if period_type == 'M':
-        # Monthly period logic
+        # Monthly Period
         starting_day = config.starting_day
         
-        if reference_date.day >= starting_day:
-            # Period starts this month
-            start_date = reference_date.replace(day=starting_day)
-            next_month = start_date + relativedelta(months=1)
-            last_day_next_month = monthrange(next_month.year, next_month.month)[1]
-            day_to_use = min(starting_day, last_day_next_month)
-            end_date = next_month.replace(day=day_to_use) - relativedelta(days=1)
-        else:
-            # Period started last month
-            prev_month = reference_date.replace(day=1) - relativedelta(days=1)
-            start_date = prev_month.replace(day=starting_day)
-            end_date = reference_date.replace(day=starting_day) - relativedelta(days=1)
+        # Calculate period start based on starting_day
+        year, month = reference_date.year, reference_date.month
+        
+        # If reference date is before starting_day, we're in previous month's period
+        if reference_date.day < starting_day:
+            if month == 1:
+                month = 12
+                year -= 1
+            else:
+                month -= 1
+        
+        # Determine actual starting day (handle months with fewer days)
+        max_day = monthrange(year, month)[1]
+        actual_start_day = min(starting_day, max_day)
+        
+        start_date = datetime.date(year, month, actual_start_day)
+        
+        # Calculate end date (day before next period starts)
+        next_month = month + 1
+        next_year = year
+        if next_month > 12:
+            next_month = 1
+            next_year += 1
+        
+        max_day_next = monthrange(next_year, next_month)[1]
+        actual_start_day_next = min(starting_day, max_day_next)
+        
+        end_date = datetime.date(next_year, next_month, actual_start_day_next) - datetime.timedelta(days=1)
+        
+        period_label = f"{start_date.strftime('%b %d')} - {end_date.strftime('%b %d, %Y')}"
     
     elif period_type == 'B':
-        # Bi-weekly period logic (14 days)
+        # Bi-weekly Period (14 days)
         base_date = config.base_date
+        
+        # Calculate days difference from base date
         days_diff = (reference_date - base_date).days
         
-        # Calculate which bi-weekly period we're in
-        period_number = days_diff // 14
+        # Find the start of the current bi-weekly period
+        periods_elapsed = days_diff // 14
+        start_date = base_date + datetime.timedelta(days=periods_elapsed * 14)
+        end_date = start_date + datetime.timedelta(days=13)
         
-        start_date = base_date + datetime.timedelta(days=period_number * 14)
-        end_date = start_date + datetime.timedelta(days=13)  # 14 days total (0-13)
-    
-    elif period_type == 'W':
-        # Weekly period logic (7 days)
-        base_date = config.base_date
-        days_diff = (reference_date - base_date).days
-        
-        # Calculate which weekly period we're in
-        period_number = days_diff // 7
-        
-        start_date = base_date + datetime.timedelta(days=period_number * 7)
-        end_date = start_date + datetime.timedelta(days=6)  # 7 days total (0-6)
-    
-    else:
-        # Fallback to calendar month
-        start_date = reference_date.replace(day=1)
-        try:
-            end_date = reference_date.replace(month=reference_date.month + 1, day=1) - datetime.timedelta(days=1)
-        except ValueError:
-            end_date = reference_date.replace(year=reference_date.year + 1, month=1, day=1) - datetime.timedelta(days=1)
-
-    # Generate label
-    if start_date.year == end_date.year and start_date.month == end_date.month:
-        period_label = start_date.strftime("%B %Y")
-    else:
         period_label = f"{start_date.strftime('%b %d')} - {end_date.strftime('%b %d, %Y')}"
-
+    
+    else:  # period_type == 'W'
+        # Weekly Period (7 days)
+        base_date = config.base_date
+        
+        # Calculate days difference from base date
+        days_diff = (reference_date - base_date).days
+        
+        # Find the start of the current weekly period
+        periods_elapsed = days_diff // 7
+        start_date = base_date + datetime.timedelta(days=periods_elapsed * 7)
+        end_date = start_date + datetime.timedelta(days=6)
+        
+        period_label = f"{start_date.strftime('%b %d')} - {end_date.strftime('%b %d, %Y')}"
+    
     return start_date, end_date, period_label
+
+
+def calculate_period_for_date(family, target_date, period_type, starting_day=None, base_date=None):
+    """
+    Calculates which period a specific date belongs to, using given configuration.
+    Used for simulating period boundaries when configuration changes.
+    """
+    if period_type == 'M':
+        # Monthly Period
+        year, month = target_date.year, target_date.month
+        
+        # If target date is before starting_day, we're in previous month's period
+        if target_date.day < starting_day:
+            if month == 1:
+                month = 12
+                year -= 1
+            else:
+                month -= 1
+        
+        # Determine actual starting day (handle months with fewer days)
+        max_day = monthrange(year, month)[1]
+        actual_start_day = min(starting_day, max_day)
+        
+        start_date = datetime.date(year, month, actual_start_day)
+        
+        # Calculate end date
+        next_month = month + 1
+        next_year = year
+        if next_month > 12:
+            next_month = 1
+            next_year += 1
+        
+        max_day_next = monthrange(next_year, next_month)[1]
+        actual_start_day_next = min(starting_day, max_day_next)
+        
+        end_date = datetime.date(next_year, next_month, actual_start_day_next) - datetime.timedelta(days=1)
+        
+    elif period_type == 'B':
+        # Bi-weekly Period
+        days_diff = (target_date - base_date).days
+        periods_elapsed = days_diff // 14
+        start_date = base_date + datetime.timedelta(days=periods_elapsed * 14)
+        end_date = start_date + datetime.timedelta(days=13)
+        
+    else:  # Weekly
+        days_diff = (target_date - base_date).days
+        periods_elapsed = days_diff // 7
+        start_date = base_date + datetime.timedelta(days=periods_elapsed * 7)
+        end_date = start_date + datetime.timedelta(days=6)
+    
+    return start_date, end_date
+
+
+def check_period_change_impact(family, new_period_type, new_starting_day=None, new_base_date=None):
+    """
+    Analyzes the impact of changing period settings.
+    
+    Returns a dict with:
+    - 'requires_close': bool - if current period needs to be closed/adjusted
+    - 'current_period': tuple - (start_date, end_date, label) with OLD config
+    - 'new_current_period': tuple - (start_date, end_date, label) with NEW config
+    - 'adjustment_period': tuple or None - (start_date, end_date) for adjustment period if needed
+    - 'message': str - detailed warning message for user
+    """
+    config = family.configuration
+    today = timezone.localdate()
+    
+    old_type = config.period_type
+    old_starting_day = config.starting_day
+    old_base_date = config.base_date
+    
+    # Get current period with OLD settings
+    current_start, current_end, current_label = get_current_period_dates(family, None)
+    
+    # Calculate where we should be with NEW settings
+    if new_period_type == 'M':
+        new_start, new_end = calculate_period_for_date(
+            family, today, new_period_type, 
+            starting_day=new_starting_day or old_starting_day
+        )
+    else:
+        new_start, new_end = calculate_period_for_date(
+            family, today, new_period_type,
+            base_date=new_base_date or old_base_date
+        )
+    
+    new_label = f"{new_start.strftime('%b %d')} - {new_end.strftime('%b %d, %Y')}"
+    
+    requires_close = False
+    adjustment_period = None
+    message = ""
+    
+    # CASE 1: Same period type, changing starting day (Monthly only)
+    if old_type == new_period_type == 'M' and new_starting_day != old_starting_day:
+        # Check if new starting day would create a split
+        if new_start != current_start or new_end != current_end:
+            requires_close = True
+            
+            if new_starting_day < old_starting_day:
+                message = f"Moving starting day from {old_starting_day} to {new_starting_day} will make the current period {(current_end - current_start).days + 1} days long (ending {current_end.strftime('%b %d')}). The next period will start on {new_start.strftime('%b %d')} with the new schedule."
+            else:
+                message = f"Moving starting day from {old_starting_day} to {new_starting_day} will make the current period {(current_end - current_start).days + 1} days long (ending {current_end.strftime('%b %d')}). The next period will start on {new_start.strftime('%b %d')} with the new schedule."
+    
+    # CASE 2: Changing base date (Bi-weekly or Weekly)
+    elif old_type == new_period_type and old_type in ['B', 'W']:
+        if new_base_date and new_base_date != old_base_date:
+            requires_close = True
+            
+            # Calculate where the new period boundaries would be with new base date
+            if new_start > current_start:
+                # New period would start AFTER current period started
+                # Need to create an adjustment period
+                adjustment_period = (current_start, new_start - datetime.timedelta(days=1))
+                message = f"Changing base date will create an adjustment period from {adjustment_period[0].strftime('%b %d')} to {adjustment_period[1].strftime('%b %d')} ({(adjustment_period[1] - adjustment_period[0]).days + 1} days). The new {dict(config.PERIOD_TYPES)[new_period_type].lower()} cycle will start on {new_start.strftime('%b %d, %Y')}."
+            else:
+                # New period would have started before current period
+                message = f"Changing base date will adjust your current period. The period will be recalculated to align with the new base date starting {new_start.strftime('%b %d, %Y')}."
+    
+    # CASE 3: Changing period type
+    elif old_type != new_period_type:
+        requires_close = True
+        
+        # Determine if new period would have already started
+        if new_start > current_start and new_start <= today:
+            # New period should have started already
+            adjustment_period = (current_start, new_start - datetime.timedelta(days=1))
+            adj_days = (adjustment_period[1] - adjustment_period[0]).days + 1
+            
+            message = f"Changing from {dict(config.PERIOD_TYPES)[old_type]} to {dict(config.PERIOD_TYPES)[new_period_type]} will create an adjustment period of {adj_days} days (from {adjustment_period[0].strftime('%b %d')} to {adjustment_period[1].strftime('%b %d')}). Your new {dict(config.PERIOD_TYPES)[new_period_type].lower()} cycle will start on {new_start.strftime('%b %d, %Y')}."
+        else:
+            message = f"Changing from {dict(config.PERIOD_TYPES)[old_type]} to {dict(config.PERIOD_TYPES)[new_period_type]} will adjust the current period. The new {dict(config.PERIOD_TYPES)[new_period_type].lower()} cycle starts on {new_start.strftime('%b %d, %Y')}."
+    
+    return {
+        'requires_close': requires_close,
+        'current_period': (current_start, current_end, current_label),
+        'new_current_period': (new_start, new_end, new_label),
+        'adjustment_period': adjustment_period,
+        'message': message
+    }
+
+
+def apply_period_configuration_change(family, old_config, new_config, adjustment_period=None):
+    """
+    Applies period configuration changes by creating closed periods and copying FlowGroups.
+    Also adjusts future transactions to the start of the new current period.
+    
+    Args:
+        family: Family instance
+        old_config: dict with old configuration values
+        new_config: dict with new configuration values
+        adjustment_period: tuple (start_date, end_date) if adjustment period is needed
+    
+    Returns:
+        dict with operation results
+    """
+    today = timezone.localdate()
+    
+    # Get OLD current period boundaries
+    current_start = old_config['current_start']
+    current_end = old_config['current_end']
+    
+    # Get NEW period boundaries
+    new_start = new_config['new_start']
+    new_end = new_config['new_end']
+    
+    results = {
+        'closed_periods_created': [],
+        'flow_groups_copied': 0,
+        'transactions_moved': 0,
+        'future_transactions_adjusted': 0
+    }
+    
+    # FIRST: Adjust any future transactions (beyond new period end) to new period start
+    future_transactions = Transaction.objects.filter(
+        flow_group__family=family,
+        date__gt=new_end
+    )
+    
+    if future_transactions.exists():
+        future_count = future_transactions.count()
+        future_transactions.update(date=new_start)
+        results['future_transactions_adjusted'] = future_count
+    
+    if adjustment_period:
+        # Create an adjustment period
+        adj_start, adj_end = adjustment_period
+        
+        # Check if already exists
+        existing = ClosedPeriod.objects.filter(
+            family=family,
+            start_date=adj_start
+        ).first()
+        
+        if not existing:
+            closed_period = ClosedPeriod.objects.create(
+                family=family,
+                start_date=adj_start,
+                end_date=adj_end,
+                period_type=old_config['period_type']
+            )
+            results['closed_periods_created'].append(closed_period)
+            
+            # Copy FlowGroups from current period to adjustment period
+            copied = copy_flow_groups_to_new_period(
+                family,
+                current_start,  # Source period
+                adj_start,      # Target period start
+                adj_end         # Target period end
+            )
+            results['flow_groups_copied'] += copied
+    
+    else:
+        # No adjustment period, but current period boundaries changed
+        if new_start != current_start:
+            # Close the old current period with its original boundaries
+            adj_end = new_start - datetime.timedelta(days=1)
+            
+            existing = ClosedPeriod.objects.filter(
+                family=family,
+                start_date=current_start
+            ).first()
+            
+            if not existing:
+                closed_period = ClosedPeriod.objects.create(
+                    family=family,
+                    start_date=current_start,
+                    end_date=adj_end,
+                    period_type=old_config['period_type']
+                )
+                results['closed_periods_created'].append(closed_period)
+    
+    # Copy FlowGroups to the NEW current period
+    copied = copy_flow_groups_to_new_period(
+        family,
+        current_start,  # Source period
+        new_start,      # New period start
+        new_end         # New period end
+    )
+    results['flow_groups_copied'] += copied
+    
+    return results
+
+
+def copy_flow_groups_to_new_period(family, old_period_start, new_period_start, new_period_end):
+    """
+    Copies FlowGroups from old period to new period.
+    Also moves transactions that belong to the new period.
+    
+    Returns the number of FlowGroups copied.
+    """
+    # Get all FlowGroups from the old period
+    old_flow_groups = FlowGroup.objects.filter(
+        family=family,
+        period_start_date=old_period_start
+    )
+    
+    copied_count = 0
+    
+    for old_group in old_flow_groups:
+        # Check if already exists in new period
+        existing = FlowGroup.objects.filter(
+            family=family,
+            name=old_group.name,
+            period_start_date=new_period_start
+        ).first()
+        
+        if not existing:
+            # Create new FlowGroup for new period
+            new_group = FlowGroup.objects.create(
+                family=family,
+                owner=old_group.owner,
+                name=old_group.name,
+                group_type=old_group.group_type,
+                budgeted_amount=old_group.budgeted_amount,
+                period_start_date=new_period_start,
+                is_shared=old_group.is_shared,
+                is_kids_group=old_group.is_kids_group,
+                realized=False,  # Reset realized status
+                is_investment=old_group.is_investment,
+                order=old_group.order
+            )
+            
+            # Copy assigned members and children
+            new_group.assigned_members.set(old_group.assigned_members.all())
+            new_group.assigned_children.set(old_group.assigned_children.all())
+            
+            copied_count += 1
+            
+            # Move transactions that belong to the new period
+            transactions_to_move = Transaction.objects.filter(
+                flow_group=old_group,
+                date__gte=new_period_start,
+                date__lte=new_period_end
+            )
+            
+            transactions_to_move.update(flow_group=new_group)
+    
+    return copied_count
 
 
 def get_available_periods(family):
     """
-    Returns list of available periods for selection based on actual data.
-    Shows periods where transactions exist + one empty period before the earliest data.
-    Also includes all closed periods.
+    Returns list of available periods for the dropdown selector.
+    Shows:
+    - Current period (always)
+    - All closed periods
+    - One empty period before the earliest data (if needed)
+    
+    Sorted with most recent first (descending order).
+    Does NOT include future periods.
     """
     config = getattr(family, 'configuration', None)
     if not config:
@@ -120,7 +434,26 @@ def get_available_periods(family):
     today = timezone.localdate()
     periods = []
     
-    # Get all closed periods first
+    # Get current period FIRST
+    current_start, current_end, current_label = get_current_period_dates(family, None)
+    
+    # Check if current period has data
+    current_has_data = Transaction.objects.filter(
+        flow_group__family=family,
+        date__range=(current_start, current_end)
+    ).exists()
+    
+    periods.append({
+        'label': current_label,
+        'value': current_start.strftime('%Y-%m-%d'),
+        'start_date': current_start,
+        'end_date': current_end,
+        'is_current': True,
+        'has_data': current_has_data,
+        'is_closed': False
+    })
+    
+    # Get all closed periods
     closed_periods = ClosedPeriod.objects.filter(family=family).order_by('-start_date')
     for closed in closed_periods:
         period_label = f"{closed.start_date.strftime('%b %d')} - {closed.end_date.strftime('%b %d, %Y')}"
@@ -134,130 +467,48 @@ def get_available_periods(family):
             'value': closed.start_date.strftime('%Y-%m-%d'),
             'start_date': closed.start_date,
             'end_date': closed.end_date,
-            'is_current': False,  # Closed periods are never current
+            'is_current': False,
             'has_data': has_data,
             'is_closed': True
         })
     
-    # Get all unique transaction dates (not FlowGroup period_start_dates)
+    # Get all unique transaction dates to find earliest data
     transaction_dates = Transaction.objects.filter(
         flow_group__family=family
-    ).values_list('date', flat=True).distinct().order_by('-date')
+    ).values_list('date', flat=True).distinct()
     
-    # Get current period
-    current_start, current_end, current_label = get_current_period_dates(family, None)
-    
-    if not transaction_dates:
-        # No data exists - show current period and one previous period
-        periods.append({
-            'label': current_label,
-            'value': current_start.strftime('%Y-%m-%d'),
-            'start_date': current_start,
-            'end_date': current_end,
-            'is_current': True,
-            'has_data': False,
-            'is_closed': False
-        })
+    if transaction_dates:
+        # Find the earliest transaction date
+        earliest_trans_date = min(transaction_dates)
         
-        # Add one previous empty period
-        if config.period_type == 'M':
-            prev_ref = today - relativedelta(months=1)
-        elif config.period_type == 'B':
-            prev_ref = today - datetime.timedelta(days=14)
-        else:  # Weekly
-            prev_ref = today - datetime.timedelta(days=7)
+        # Check if we need to add one period before earliest
+        # Only add if earliest transaction is NOT in current period or closed periods
+        earliest_covered = False
+        for period in periods:
+            if period['start_date'] <= earliest_trans_date <= period['end_date']:
+                earliest_covered = True
+                break
         
-        prev_start, prev_end, prev_label = get_current_period_dates(family, prev_ref.strftime('%Y-%m-%d'))
-        
-        # Check if not already in closed periods
-        if not any(p['value'] == prev_start.strftime('%Y-%m-%d') for p in periods):
-            periods.append({
-                'label': prev_label,
-                'value': prev_start.strftime('%Y-%m-%d'),
-                'start_date': prev_start,
-                'end_date': prev_end,
-                'is_current': False,
-                'has_data': False,
-                'is_closed': False
-            })
-        
-        return periods
-    
-    # Find all periods that contain transaction dates (excluding closed periods)
-    periods_with_data = set()
-    for trans_date in transaction_dates:
-        # Skip if date is in a closed period
-        if any(p['start_date'] <= trans_date <= p['end_date'] for p in periods if p.get('is_closed')):
-            continue
+        if not earliest_covered:
+            # Calculate the period that would contain the earliest transaction
+            earliest_period_start, earliest_period_end, earliest_label = get_current_period_dates(
+                family, 
+                earliest_trans_date.strftime('%Y-%m-%d')
+            )
             
-        period_start, period_end, _ = get_current_period_dates(family, trans_date.strftime('%Y-%m-%d'))
-        periods_with_data.add(period_start)
+            # Add this period if not already in list
+            if not any(p['value'] == earliest_period_start.strftime('%Y-%m-%d') for p in periods):
+                periods.append({
+                    'label': earliest_label,
+                    'value': earliest_period_start.strftime('%Y-%m-%d'),
+                    'start_date': earliest_period_start,
+                    'end_date': earliest_period_end,
+                    'is_current': False,
+                    'has_data': True,
+                    'is_closed': False
+                })
     
-    # Convert to sorted list (most recent first)
-    periods_with_data = sorted(periods_with_data, reverse=True)
-    
-    # Build periods list for non-closed periods
-    for period_start in periods_with_data:
-        # Skip if already in closed periods
-        if any(p['value'] == period_start.strftime('%Y-%m-%d') for p in periods if p.get('is_closed')):
-            continue
-            
-        _, period_end, period_label = get_current_period_dates(family, period_start.strftime('%Y-%m-%d'))
-        
-        # Check if this period has actual data
-        has_data = Transaction.objects.filter(
-            flow_group__family=family,
-            date__range=(period_start, period_end)
-        ).exists()
-        
-        periods.append({
-            'label': period_label,
-            'value': period_start.strftime('%Y-%m-%d'),
-            'start_date': period_start,
-            'end_date': period_end,
-            'is_current': (period_start == current_start),
-            'has_data': has_data,
-            'is_closed': False
-        })
-    
-    # Ensure current period is always included (even if no data)
-    if not any(p['value'] == current_start.strftime('%Y-%m-%d') for p in periods):
-        periods.insert(0, {
-            'label': current_label,
-            'value': current_start.strftime('%Y-%m-%d'),
-            'start_date': current_start,
-            'end_date': current_end,
-            'is_current': True,
-            'has_data': False,
-            'is_closed': False
-        })
-    
-    # Add one empty period before the earliest data
-    if periods_with_data:
-        earliest_period = min(periods_with_data)
-        
-        if config.period_type == 'M':
-            prev_ref = earliest_period - relativedelta(months=1)
-        elif config.period_type == 'B':
-            prev_ref = earliest_period - datetime.timedelta(days=14)
-        else:  # Weekly
-            prev_ref = earliest_period - datetime.timedelta(days=7)
-        
-        prev_start, prev_end, prev_label = get_current_period_dates(family, prev_ref.strftime('%Y-%m-%d'))
-        
-        # Check if this period already exists
-        if not any(p['value'] == prev_start.strftime('%Y-%m-%d') for p in periods):
-            periods.append({
-                'label': prev_label,
-                'value': prev_start.strftime('%Y-%m-%d'),
-                'start_date': prev_start,
-                'end_date': prev_end,
-                'is_current': False,
-                'has_data': False,
-                'is_closed': False
-            })
-    
-    # Sort by start_date descending (most recent first)
+    # Sort by start_date DESCENDING (most recent first)
     periods.sort(key=lambda x: x['start_date'], reverse=True)
     
     return periods
@@ -287,7 +538,6 @@ def get_member_role_for_period(member, period_start_date):
     Falls back to current role if no history exists.
     """
     try:
-        # Try to get historical role for this period
         role_history = FamilyMemberRoleHistory.objects.filter(
             member=member,
             period_start_date__lte=period_start_date
@@ -298,7 +548,6 @@ def get_member_role_for_period(member, period_start_date):
     except:
         pass
     
-    # Fallback to current role
     return member.role
 
 
@@ -307,10 +556,8 @@ def save_role_history_if_changed(member, new_role, period_start_date):
     Saves role history if the role changed.
     Should be called when updating a member's role.
     """
-    # Get current role for this period
     current_role = get_member_role_for_period(member, period_start_date)
     
-    # If role changed, save history
     if current_role != new_role:
         FamilyMemberRoleHistory.objects.update_or_create(
             member=member,
@@ -318,9 +565,28 @@ def save_role_history_if_changed(member, new_role, period_start_date):
             defaults={'role': new_role}
         )
         
-        # Update member's current role
         member.role = new_role
         member.save()
+
+
+def copy_previous_period_data(family, from_period_start, to_period_start, to_period_end):
+    """
+    Copies FlowGroups and their structure from one period to another.
+    Does NOT copy transactions, only the group structure.
+    """
+    return copy_flow_groups_to_new_period(family, from_period_start, to_period_start, to_period_end)
+
+
+def current_period_has_data(family):
+    """
+    Checks if the current period has any transactions.
+    """
+    current_start, current_end, _ = get_current_period_dates(family, None)
+    
+    return Transaction.objects.filter(
+        flow_group__family=family,
+        date__range=(current_start, current_end)
+    ).exists()
 
 
 def close_current_period(family):
@@ -332,7 +598,6 @@ def close_current_period(family):
     config = family.configuration
     current_start, current_end, _ = get_current_period_dates(family, None)
     
-    # Check if already closed
     existing = ClosedPeriod.objects.filter(
         family=family,
         start_date=current_start
@@ -341,7 +606,6 @@ def close_current_period(family):
     if existing:
         return existing
     
-    # Create closed period
     closed = ClosedPeriod.objects.create(
         family=family,
         start_date=current_start,
@@ -350,239 +614,3 @@ def close_current_period(family):
     )
     
     return closed
-
-
-def check_period_change_impact(family, new_period_type, new_starting_day=None, new_base_date=None):
-    """
-    Analyzes the impact of changing period settings.
-    Returns a dict with:
-    - 'requires_close': bool - if current period needs to be closed
-    - 'current_period': tuple - (start_date, end_date, label)
-    - 'new_current_period': tuple - (start_date, end_date, label) after change
-    - 'message': str - warning message for user
-    """
-    config = family.configuration
-    old_type = config.period_type
-    old_starting_day = config.starting_day
-    old_base_date = config.base_date
-    
-    # Get current period with old settings
-    current_start, current_end, current_label = get_current_period_dates(family, None)
-    
-    # Temporarily apply new settings to calculate new period
-    config.period_type = new_period_type
-    if new_starting_day:
-        config.starting_day = new_starting_day
-    if new_base_date:
-        config.base_date = new_base_date
-    
-    # Calculate new current period
-    new_start, new_end, new_label = get_current_period_dates(family, None)
-    
-    # Restore old settings (don't save)
-    config.period_type = old_type
-    config.starting_day = old_starting_day
-    config.base_date = old_base_date
-    
-    # Determine if we need to close the current period
-    requires_close = False
-    message = ""
-    
-    # Check if dates changed
-    if old_type == new_period_type and old_type == 'M':
-        # Monthly to Monthly with different starting day
-        if new_starting_day and new_starting_day != old_starting_day:
-            requires_close = True
-            message = f"Changing starting day will adjust the current period. Previous period may have more or fewer days. Current period: {current_label}. Review your entries after this change."
-    
-    elif old_type != new_period_type:
-        # Period type is changing
-        today = timezone.localdate()
-        
-        # Check if new period boundaries would split current period
-        if new_start > current_start or new_end < current_end:
-            requires_close = True
-            message = f"Changing from {config.get_period_type_display()} to {dict(config.PERIOD_TYPES)[new_period_type]} will close the current period on {current_end.strftime('%b %d, %Y')}. A new period will start on {new_start.strftime('%b %d, %Y')}. Please review your entries to ensure they're in the correct period."
-        else:
-            requires_close = True
-            message = f"Changing period type from {config.get_period_type_display()} to {dict(config.PERIOD_TYPES)[new_period_type]}. The current period will be adjusted. Please review your entries."
-    
-    return {
-        'requires_close': requires_close,
-        'current_period': (current_start, current_end, current_label),
-        'new_current_period': (new_start, new_end, new_label),
-        'message': message
-    }
-
-
-def copy_flow_groups_to_new_period(family, old_period_start, new_period_start, new_period_end):
-    """
-    Copies FlowGroups from old period to new period.
-    Distributes transactions based on their dates:
-    - Transactions before new period start stay in old period
-    - Transactions within new period move to new period's FlowGroup copy
-    
-    Returns count of groups copied.
-    """
-    from django.db import transaction as db_transaction
-    
-    with db_transaction.atomic():
-        # Get all FlowGroups from old period
-        old_flow_groups = FlowGroup.objects.filter(
-            family=family,
-            period_start_date=old_period_start
-        )
-        
-        groups_copied = 0
-        
-        for old_group in old_flow_groups:
-            # Create copy for new period with new period_start_date
-            new_group = FlowGroup.objects.create(
-                name=old_group.name,
-                family=old_group.family,
-                owner=old_group.owner,
-                group_type=old_group.group_type,
-                budgeted_amount=old_group.budgeted_amount,
-                period_start_date=new_period_start,
-                is_shared=old_group.is_shared,
-                is_kids_group=old_group.is_kids_group,
-                realized=False,  # Reset realized for new period
-                is_investment=old_group.is_investment,
-                order=old_group.order
-            )
-            
-            # Copy assigned members and children
-            new_group.assigned_members.set(old_group.assigned_members.all())
-            new_group.assigned_children.set(old_group.assigned_children.all())
-            
-            # Get transactions from old group
-            old_transactions = Transaction.objects.filter(flow_group=old_group)
-            
-            # Move transactions that fall within new period to new group
-            for transaction in old_transactions:
-                if new_period_start <= transaction.date <= new_period_end:
-                    # Move to new group
-                    transaction.flow_group = new_group
-                    transaction.save()
-            
-            groups_copied += 1
-        
-        return groups_copied
-
-
-def copy_previous_period_data(family, exclude_child_data=True):
-    """
-    Copies all FlowGroups and Transactions from previous period to current period.
-    Updates dates to current date.
-    Excludes data created by CHILD users if exclude_child_data=True.
-    
-    Returns dict with counts of items copied.
-    """
-    from django.db import transaction as db_transaction
-    from .models import FamilyMember
-    
-    with db_transaction.atomic():
-        # Get current period
-        current_start, current_end, _ = get_current_period_dates(family, None)
-        
-        # Get previous period
-        config = family.configuration
-        if config.period_type == 'M':
-            prev_ref = current_start - relativedelta(months=1)
-        elif config.period_type == 'B':
-            prev_ref = current_start - datetime.timedelta(days=14)
-        else:  # Weekly
-            prev_ref = current_start - datetime.timedelta(days=7)
-        
-        prev_start, prev_end, _ = get_current_period_dates(family, prev_ref.strftime('%Y-%m-%d'))
-        
-        # Get FlowGroups from previous period
-        prev_groups = FlowGroup.objects.filter(
-            family=family,
-            period_start_date=prev_start
-        )
-        
-        groups_copied = 0
-        transactions_copied = 0
-        today = timezone.localdate()
-        
-        for old_group in prev_groups:
-            # Check if group already exists in current period
-            existing = FlowGroup.objects.filter(
-                family=family,
-                name=old_group.name,
-                period_start_date=current_start
-            ).first()
-            
-            if existing:
-                # Use existing group
-                new_group = existing
-            else:
-                # Create new group
-                new_group = FlowGroup.objects.create(
-                    name=old_group.name,
-                    family=old_group.family,
-                    owner=old_group.owner,
-                    group_type=old_group.group_type,
-                    budgeted_amount=old_group.budgeted_amount,
-                    period_start_date=current_start,
-                    is_shared=old_group.is_shared,
-                    is_kids_group=old_group.is_kids_group,
-                    realized=False,
-                    is_investment=old_group.is_investment,
-                    order=old_group.order
-                )
-                
-                # Copy assigned members and children
-                new_group.assigned_members.set(old_group.assigned_members.all())
-                new_group.assigned_children.set(old_group.assigned_children.all())
-                groups_copied += 1
-            
-            # Copy transactions
-            old_transactions = Transaction.objects.filter(flow_group=old_group)
-            
-            for old_trans in old_transactions:
-                # Skip child manual income and child expenses if requested
-                if exclude_child_data:
-                    if old_trans.is_child_manual_income or old_trans.is_child_expense:
-                        continue
-                
-                # Get max order for new group
-                max_order = Transaction.objects.filter(flow_group=new_group).aggregate(
-                    max_order=models.Max('order')
-                )['max_order'] or 0
-                
-                # Create copy with today's date
-                Transaction.objects.create(
-                    description=old_trans.description,
-                    amount=old_trans.amount,
-                    date=today,
-                    realized=False,  # Reset realized
-                    is_child_manual_income=False,
-                    is_child_expense=False,
-                    member=old_trans.member,
-                    flow_group=new_group,
-                    order=max_order + 1
-                )
-                transactions_copied += 1
-        
-        return {
-            'groups_copied': groups_copied,
-            'transactions_copied': transactions_copied
-        }
-
-
-def current_period_has_data(family):
-    """
-    Checks if current period has any transactions.
-    Returns True if there's data, False if empty.
-    """
-    current_start, current_end, _ = get_current_period_dates(family, None)
-    
-    # Check for any transactions in current period
-    has_transactions = Transaction.objects.filter(
-        flow_group__family=family,
-        date__range=(current_start, current_end)
-    ).exists()
-    
-    return has_transactions

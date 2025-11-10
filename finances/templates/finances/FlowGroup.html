@@ -226,9 +226,11 @@
                     
                     <td class="px-6 py-4 text-sm text-gray-500 cell-member-display" data-member-id="{{ transaction.member.id }}">{{ transaction.member.user.username }}</td>
                     <td class="px-6 py-2 cell-member-edit hidden">
-                         <select data-field="member_id" class="w-full border-b border-primary bg-transparent focus:ring-0 focus:border-primary text-sm p-1">
+                        <select data-field="member_id" class="w-full border-b border-primary bg-transparent focus:ring-0 focus:border-primary text-sm p-1">
                             {% for member in family_members %}
-                                <option value="{{ member.id }}" {% if member.id == transaction.member.id %}selected{% endif %}>{{ member.user.username }}</option>
+                                {% if member_role_for_period == 'ADMIN' or member.role != 'ADMIN' %}
+                                    <option value="{{ member.id }}" {% if member.id == transaction.member.id %}selected{% endif %}>{{ member.user.username }}</option>
+                                {% endif %}
                             {% endfor %}
                         </select>
                     </td>
@@ -277,9 +279,11 @@
                     
                     <td class="px-6 py-4 text-sm text-gray-500 cell-member-display hidden"></td>
                     <td class="px-6 py-2 cell-member-edit">
-                         <select data-field="member_id" class="w-full border-b border-primary bg-transparent focus:ring-0 focus:border-primary text-sm p-1">
+                        <select data-field="member_id" class="w-full border-b border-primary bg-transparent focus:ring-0 focus:border-primary text-sm p-1">
                             {% for member in family_members %}
-                                <option value="{{ member.id }}" {% if member.id == current_member.id %}selected{% endif %}>{{ member.user.username }}</option>
+                                {% if member_role_for_period == 'ADMIN' or member.role != 'ADMIN' %}
+                                    <option value="{{ member.id }}" {% if member.id == current_member.id %}selected{% endif %}>{{ member.user.username }}</option>
+                                {% endif %}
                             {% endfor %}
                         </select>
                     </td>

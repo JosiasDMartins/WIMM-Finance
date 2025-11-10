@@ -1,4 +1,4 @@
-# finances/views.py
+VERSION = "1.0-alpha"
 
 from django.core.management import call_command
 import io
@@ -195,14 +195,15 @@ def get_default_income_flow_group(family, user, period_start_date):
     )
     return income_group
 
-# === NEW: Utility function to check FlowGroup access ===
+# === Utility function to check FlowGroup access ===
 def can_access_flow_group(flow_group, family_member):
     """
     Determines if a family member can access a FlowGroup based on sharing rules.
     
     Rules:
     - Owner can always access
-    - Admins and Parents can access shared groups IF they are in assigned_members
+    - Admins can ALWAYS access ALL FlowGroups (to fix sharing errors)
+    - Parents can access shared groups IF they are in assigned_members
     - Children can access Kids groups they are assigned to
     - Children can access Income FlowGroups (to add manual income)
     """
@@ -210,13 +211,17 @@ def can_access_flow_group(flow_group, family_member):
     if flow_group.owner == family_member.user:
         return True
     
-    # Admins and Parents can access shared groups if assigned
-    if family_member.role in ['ADMIN', 'PARENT']:
+    # ADMINS HAVE ACCESS TO EVERYTHING
+    if family_member.role == 'ADMIN':
+        return True
+    
+    # Parents can access shared groups if assigned
+    if family_member.role == 'PARENT':
         if flow_group.is_shared:
             # Check if member is in assigned_members
             if flow_group.assigned_members.filter(id=family_member.id).exists():
                 return True
-        # Kids groups are accessible to all Parents/Admins
+        # Kids groups are accessible to all Parents
         if flow_group.is_kids_group:
             return True
     
@@ -230,7 +235,7 @@ def can_access_flow_group(flow_group, family_member):
     
     return False
 
-# === NEW: Get visible flow groups for dashboard (includes non-accessible for display only) ===
+# === Get visible flow groups for dashboard (includes non-accessible for display only) ===
 def get_visible_flow_groups_for_dashboard(family, family_member, period_start_date, group_type_filter=None):
     """
     Returns FlowGroups visible in the dashboard for the given family member.
@@ -282,6 +287,7 @@ def get_visible_flow_groups(family, family_member, period_start_date, group_type
     - Own groups (always visible)
     - Shared groups (visible to assigned Admins/Parents only)
     - Kids groups (visible to assigned children, and to all Admins/Parents)
+    - Admins can see ALL groups
     """
     base_query = FlowGroup.objects.filter(
         family=family,
@@ -296,8 +302,11 @@ def get_visible_flow_groups(family, family_member, period_start_date, group_type
         visible_groups = base_query.filter(
             Q(is_kids_group=True, assigned_children=family_member)
         )
+    elif family_member.role == 'ADMIN':
+        # Admins see ALL groups
+        visible_groups = base_query.all()
     else:
-        # Admins and Parents see:
+        # Parents see:
         # 1. Their own groups (non-shared)
         # 2. Shared groups they're assigned to
         # 3. All Kids groups
@@ -313,6 +322,7 @@ def get_visible_flow_groups(family, family_member, period_start_date, group_type
 def get_base_template_context(family, query_period, start_date):
     """
     Gets the context required by base.html (period selector with current period label).
+    Adds VERSION to context.
     """
     # Get available periods
     available_periods = get_available_periods(family)
@@ -336,7 +346,8 @@ def get_base_template_context(family, query_period, start_date):
     return {
         'available_periods': available_periods,
         'current_period_label': current_period_label,
-        'selected_period': current_period_value
+        'selected_period': current_period_value,
+        'app_version': VERSION,
     }
 
 # === Utility Function for Default Date ===
@@ -362,16 +373,27 @@ def get_periods_history(family, current_period_start):
     Returns the last 12 periods with total expenses for bar chart.
     Includes dynamic bar colors based on income commitment %.
     Returns dict with 'labels', 'values', 'colors', 'avg_savings', and 'trend'.
+    ONLY INCLUDES PERIODS WITH DATA.
     """
     available_periods = get_available_periods(family)
     
-    # Get up to 12 most recent periods
+    # Get up to 12 most recent periods that have data
     periods_to_show = []
     savings_values = []
     
-    for period in available_periods[:12]:
+    for period in available_periods[:24]:  # Look at more periods to find 12 with data
         period_start = period['start_date']
         period_end = period['end_date']
+        
+        # Check if period has any transaction data
+        has_data = Transaction.objects.filter(
+            flow_group__family=family,
+            date__range=(period_start, period_end)
+        ).exists()
+        
+        # Skip periods without data
+        if not has_data:
+            continue
         
         # Calculate total realized expenses
         total_expenses = Transaction.objects.filter(
@@ -423,6 +445,10 @@ def get_periods_history(family, current_period_start):
             'color': bar_color,
             'savings': savings
         })
+        
+        # Stop if we have 12 periods
+        if len(periods_to_show) >= 12:
+            break
     
     # Reverse to show oldest to newest (left to right)
     periods_to_show.reverse()
@@ -472,7 +498,6 @@ def dashboard_view(request):
     expense_group_q = Q(group_type=EXPENSE_MAIN) | Q(group_type=EXPENSE_SECONDARY)
     
     # Get visible expense groups based on HISTORICAL role
-    # Use new function that returns accessible and display-only groups
     accessible_expense_groups, display_only_expense_groups = get_visible_flow_groups_for_dashboard(
         family, 
         current_member, 
@@ -716,7 +741,7 @@ def dashboard_view(request):
         'children_manual_income': children_manual_income if member_role_for_period in ['ADMIN', 'PARENT'] else {},
         'periods_history_json': json.dumps(periods_history),
     }
-    print(expense_groups)
+    
     context.update(get_base_template_context(family, query_period, start_date))
     
     return render(request, 'finances/dashboard.html', context)
@@ -1174,6 +1199,8 @@ def user_profile_view(request):
 @login_required
 def configuration_view(request):
     import datetime
+    from .utils import apply_period_configuration_change
+    
     family, current_member, _ = get_family_context(request.user)
     if not family:
         return redirect('dashboard')
@@ -1225,53 +1252,58 @@ def configuration_view(request):
                 # Get period boundaries
                 current_start, current_end, _ = impact['current_period']
                 new_start, new_end, _ = impact['new_current_period']
+                adjustment_period = impact.get('adjustment_period')
                 
-                # CRITICAL: Closed period must end 1 day BEFORE new period starts
-                # This creates a short adjustment period
-                adjusted_close_end = new_start - datetime.timedelta(days=1)
+                # Prepare old and new config dictionaries for apply function
+                old_config = {
+                    'period_type': old_period_type,
+                    'starting_day': old_starting_day,
+                    'base_date': old_base_date,
+                    'current_start': current_start,
+                    'current_end': current_end
+                }
                 
-                print(f"DEBUG - Old config: {old_period_type}, starting_day={old_starting_day}, base_date={old_base_date}")
-                print(f"DEBUG - New config: {new_period_type}, starting_day={new_starting_day}, base_date={new_base_date}")
-                print(f"DEBUG - Current period (OLD config): {current_start} to {current_end}")
-                print(f"DEBUG - New period (NEW config): {new_start} to {new_end}")
-                print(f"DEBUG - Adjusted close period: {current_start} to {adjusted_close_end}")
+                new_config = {
+                    'period_type': new_period_type,
+                    'starting_day': new_starting_day,
+                    'base_date': new_base_date,
+                    'new_start': new_start,
+                    'new_end': new_end
+                }
                 
-                # Create ClosedPeriod with adjusted end date
-                from .models import ClosedPeriod
-                
-                
-                # Check if already closed
-                existing_closed = ClosedPeriod.objects.filter(
-                    family=family,
-                    start_date=current_start
-                ).first()
-                
-                if not existing_closed:
-                    closed_period = ClosedPeriod.objects.create(
-                        family=family,
-                        start_date=current_start,
-                        end_date=adjusted_close_end,  # ← AJUSTADO: new_start - 1 dia
-                        period_type=old_period_type
-                    )
-                    print(f"DEBUG - Created ClosedPeriod: {closed_period.start_date} to {closed_period.end_date}, type={closed_period.period_type}")
-                else:
-                    closed_period = existing_closed
-                    print(f"DEBUG - ClosedPeriod already exists: {closed_period.start_date} to {closed_period.end_date}")
+                # Apply the configuration change (creates closed periods, copies flow groups)
+                results = apply_period_configuration_change(
+                    family,
+                    old_config,
+                    new_config,
+                    adjustment_period
+                )
                 
                 # NOW save the new configuration
                 form.save()
-                print(f"DEBUG - Saved new configuration")
                 
-                # Copy FlowGroups from closed period to new period
-                copied_count = copy_flow_groups_to_new_period(
-                    family, 
-                    current_start,  # Old period start
-                    new_start,      # New period start
-                    new_end         # New period end
-                )
-                print(f"DEBUG - Copied {copied_count} FlowGroups from {current_start} to {new_start}")
-                
-                messages.success(request, f'Configuration updated successfully. Closed period: {current_start} to {adjusted_close_end}. New period starts: {new_start}.')
+                # Create success message
+                if adjustment_period:
+                    adj_start, adj_end = adjustment_period
+                    adj_days = (adj_end - adj_start).days + 1
+                    msg = (f'Configuration updated successfully. Created adjustment period of {adj_days} days '
+                          f'({adj_start.strftime("%b %d")} to {adj_end.strftime("%b %d")}). '
+                          f'New period starts: {new_start.strftime("%b %d, %Y")}. '
+                          f'Copied {results["flow_groups_copied"]} Flow Groups.')
+                    
+                    if results['future_transactions_adjusted'] > 0:
+                        msg += f' Adjusted {results["future_transactions_adjusted"]} future transaction(s) to {new_start.strftime("%b %d")}.'
+                    
+                    messages.success(request, msg)
+                else:
+                    msg = (f'Configuration updated successfully. '
+                          f'Period adjusted to start on {new_start.strftime("%b %d, %Y")}. '
+                          f'Copied {results["flow_groups_copied"]} Flow Groups.')
+                    
+                    if results['future_transactions_adjusted'] > 0:
+                        msg += f' Adjusted {results["future_transactions_adjusted"]} future transaction(s) to {new_start.strftime("%b %d")}.'
+                    
+                    messages.success(request, msg)
             else:
                 # No need to close, just save
                 form.save()
@@ -1288,6 +1320,8 @@ def configuration_view(request):
     }
     context.update(get_base_template_context(family, query_period, start_date))
     return render(request, 'finances/configurations.html', context)
+
+
 
 
 @login_required

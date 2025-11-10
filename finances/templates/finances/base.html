@@ -1,69 +1,26 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en" class="h-full" x-data="{ darkMode: localStorage.getItem('darkMode') === 'true' }" :class="{ 'dark': darkMode }">
+<html lang="en" class="h-full">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}SweetMoney Dashboard{% endblock %}</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>{% block title %}SweetMoney | Family Financial Flow{% endblock title %}</title>
     
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
     
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    
-    <style>
-        body {
-            font-family: 'Manrope', sans-serif;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-        }
-        /* Custom scrollbar for webkit browsers */
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background-color: #94a3b8; /* slate-400 */
-            border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background-color: transparent;
-        }
-        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-            background-color: #475569; /* slate-600 */
-        }
-        /* Style for Material Symbols */
-        .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-            vertical-align: middle;
-            font-size: 1.25rem; /* 20px */
-            line-height: 1;
-        }
-        /* Animation for spinner */
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        .animate-spin {
-            animation: spin 1s linear infinite;
-        }
-    </style>
-
     <script>
-        // Set Tailwind config for dark mode and primary color
         tailwind.config = {
-            darkMode: 'class',
+            darkMode: "class",
             theme: {
                 extend: {
                     colors: {
-                        'primary': '#0D9488', // Teal-600
-                        'primary-light': '#CCFBF1', // Teal-100
-                        'background-light': '#F8FAFC', // Slate-50
-                        'background-dark': '#0F172A'   // Slate-900
+                        'primary': '#13a4ec',
+                        'primary-light': '#CCFBF1',
+                        'background-light': '#F8FAFC',
+                        'background-dark': '#0F172A'
                     }
                 }
             }
@@ -105,16 +62,24 @@
                     </a>
                 </div>
 
-                <div class="mt-4 pt-4 border-t dark:border-gray-700">
-                    <a href="{% url 'user_profile' %}{% if selected_period %}?period={{ selected_period }}{% endif %}" class="flex items-center px-4 py-2 text-gray-600 rounded-md dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
-                        <div class="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-bold mr-3">
-                            {{ request.user.username|first|upper }}
-                        </div>
-                        <div class="flex flex-col">
-                            <span class="font-semibold text-gray-800 dark:text-gray-200 text-sm">{{ request.user.username }}</span>
-                            <span class="text-xs text-gray-600 dark:text-gray-400">View profile</span>
-                        </div>
-                    </a>
+                <div class="mt-auto space-y-2">
+                    <!-- User Profile -->
+                    <div class="pt-4 border-t dark:border-gray-700">
+                        <a href="{% url 'user_profile' %}{% if selected_period %}?period={{ selected_period }}{% endif %}" class="flex items-center px-4 py-2 text-gray-600 rounded-md dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <div class="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-bold mr-3">
+                                {{ request.user.username|first|upper }}
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="font-semibold text-gray-800 dark:text-gray-200 text-sm">{{ request.user.username }}</span>
+                                <span class="text-xs text-gray-600 dark:text-gray-400">View profile</span>
+                            </div>
+                        </a>
+                    </div>
+                    
+                    <!-- Version Display -->
+                    <div class="px-4 py-2">
+                        <span class="text-xs text-gray-500 dark:text-gray-600">Version {{ app_version }}</span>
+                    </div>
                 </div>
             </nav>
         </aside>
@@ -134,31 +99,17 @@
                             {% endif %}
                         </span>
                         
-                        <!-- Dark Mode Toggle -->
-                        <button @click="darkMode = !darkMode; localStorage.setItem('darkMode', darkMode)" 
-                                class="text-gray-600 dark:text-gray-400 hover:text-primary">
-                            <span x-show="!darkMode" class="material-symbols-outlined">light_mode</span>
-                            <span x-show="darkMode" class="material-symbols-outlined">dark_mode</span>
-                        </button>
-                        
-                        <!-- Copy Previous Period Button (conditionally shown) -->
-                        <button id="copy-previous-period-btn" 
-                                onclick="confirmCopyPreviousPeriod()" 
-                                class="hidden px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
-                                title="Copy all data from previous period">
-                            <span class="material-symbols-outlined text-base">content_copy</span>
-                            <span class="hidden md:inline">Copy Previous Period</span>
-                        </button>
-                        
                         <!-- Period Selector Dropdown -->
-                        <div class="relative" x-data="{ open: false }" @click.away="open = false">
-                            <button @click="open = !open" class="flex items-center text-gray-600 dark:text-gray-400 hover:text-primary px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600">
-                                <span class="material-symbols-outlined mr-2">calendar_month</span>
-                                <span class="text-sm font-medium">{{ current_period_label|default:"Select Period" }}</span>
-                                <span class="material-symbols-outlined ml-1 text-sm">expand_more</span>
+                        <div x-data="{ periodDropdownOpen: false }" class="relative">
+                            <button @click="periodDropdownOpen = !periodDropdownOpen" 
+                                    class="flex items-center space-x-2 px-3 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors">
+                                <span class="material-symbols-outlined text-sm">calendar_month</span>
+                                <span class="text-sm font-medium">{{ current_period_label }}</span>
+                                <span class="material-symbols-outlined text-sm">expand_more</span>
                             </button>
                             
-                            <div x-show="open" 
+                            <div x-show="periodDropdownOpen" 
+                                 @click.away="periodDropdownOpen = false"
                                  x-transition:enter="transition ease-out duration-100"
                                  x-transition:enter-start="transform opacity-0 scale-95"
                                  x-transition:enter-end="transform opacity-100 scale-100"
@@ -200,117 +151,22 @@
                 </div>
             </header>
             
-            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-background-light dark:bg-background-dark custom-scrollbar">
-                {% block content %}{% endblock %}
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-background-light dark:bg-background-dark">
+                {% if messages %}
+                    <div class="p-4">
+                        {% for message in messages %}
+                            <div class="mb-2 p-3 rounded-lg {% if message.tags == 'error' %}bg-red-100 text-red-700{% elif message.tags == 'success' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                
+                {% block content %}
+                {% endblock content %}
             </main>
         </div>
     </div>
-    
-    <script>
-        // Utility for getting CSRF token
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
-            }
-            return cookieValue;
-        }
-        
-        // Check if current period is empty and show/hide copy button
-        function checkPeriodEmpty() {
-            const copyBtn = document.getElementById('copy-previous-period-btn');
-            if (!copyBtn) return;
-            
-            fetch("{% url 'check_period_empty_ajax' %}", {
-                method: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success' && data.can_copy) {
-                    copyBtn.classList.remove('hidden');
-                    copyBtn.classList.add('flex');
-                } else {
-                    copyBtn.classList.add('hidden');
-                    copyBtn.classList.remove('flex');
-                }
-            })
-            .catch(error => {
-                console.error('Error checking period:', error);
-            });
-        }
-        
-        // Confirm and copy previous period
-        function confirmCopyPreviousPeriod() {
-            const message = 'This will copy all Flow Groups and transactions from the previous period to the current period.\n\n' +
-                           'All dates will be updated to today.\n' +
-                           'Data created by children will NOT be copied.\n\n' +
-                           'Do you want to proceed?';
-            
-            if (!confirm(message)) {
-                return;
-            }
-            
-            // Show loading state
-            const copyBtn = document.getElementById('copy-previous-period-btn');
-            const originalHTML = copyBtn.innerHTML;
-            copyBtn.disabled = true;
-            copyBtn.innerHTML = '<span class="material-symbols-outlined text-base animate-spin">refresh</span><span class="hidden md:inline ml-2">Copying...</span>';
-            
-            fetch("{% url 'copy_previous_period_ajax' %}", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken'),
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    // Show success message
-                    alert(`Success!\n\nCopied ${data.groups_copied} groups and ${data.transactions_copied} transactions.`);
-                    
-                    // Reload page to show new data
-                    window.location.reload();
-                } else {
-                    alert('Error: ' + (data.error || 'Unknown error occurred'));
-                    copyBtn.disabled = false;
-                    copyBtn.innerHTML = originalHTML;
-                }
-            })
-            .catch(error => {
-                console.error('Error copying period:', error);
-                alert('A network error occurred while copying the period.');
-                copyBtn.disabled = false;
-                copyBtn.innerHTML = originalHTML;
-            });
-        }
-        
-        // Re-check when any data is added (exported for use in other templates)
-        function onDataAdded() {
-            const copyBtn = document.getElementById('copy-previous-period-btn');
-            if (copyBtn) {
-                copyBtn.classList.add('hidden');
-                copyBtn.classList.remove('flex');
-            }
-        }
-        
-        // Check on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            checkPeriodEmpty();
-        });
-    </script>
-    
-    {% block extra_js %}{% endblock %}
+
 </body>
 </html>
