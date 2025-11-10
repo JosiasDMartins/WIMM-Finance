@@ -1,4 +1,4 @@
-VERSION = "1.0-alpha"
+VERSION = "1.0-alpha2"
 
 from django.core.management import call_command
 import io
