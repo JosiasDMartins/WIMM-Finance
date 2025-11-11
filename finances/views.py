@@ -18,9 +18,10 @@ from decimal import Decimal
 from .forms import InitialSetupForm  
 from django.db.utils import OperationalError
 
+
 # Import Models
 from .models import (
-    Family, FamilyMember, FlowGroup, Transaction, Investment, FamilyConfiguration, ClosedPeriod,
+    Family, FamilyMember, FlowGroup, Transaction, Investment, FamilyConfiguration, ClosedPeriod, BankBalance,
     FLOW_TYPE_INCOME, EXPENSE_MAIN, EXPENSE_SECONDARY, FLOW_TYPE_EXPENSE 
 )
 from .utils import (
@@ -730,6 +731,129 @@ def dashboard_view(request):
     context.update(get_base_template_context(family, query_period, start_date))
     
     return render(request, 'finances/dashboard.html', context)
+
+@login_required
+def bank_reconciliation_view(request):
+    """
+    Bank reconciliation view.
+    Allows users to input bank balances and compare with calculated balances.
+    """
+    from decimal import Decimal, ROUND_DOWN
+    family, current_member, family_members = get_family_context(request.user)
+    if not family:
+        return redirect('dashboard')
+    
+    query_period = request.GET.get('period')
+    start_date, end_date, current_period_label = get_current_period_dates(family, query_period)
+    
+    # Get member role for period
+    from .utils import get_member_role_for_period
+    member_role_for_period = get_member_role_for_period(current_member, start_date)
+    
+    # Get mode from query param (detailed or general)
+    mode = request.GET.get('mode', 'general')  # 'general' or 'detailed'
+    
+    # Get existing bank balances for this period
+    bank_balances = BankBalance.objects.filter(
+        family=family,
+        period_start_date=start_date
+    ).order_by('member', '-date')
+    
+    # Calculate income and expenses for the period
+    income_transactions = Transaction.objects.filter(
+        flow_group__family=family,
+        flow_group__period_start_date=start_date,
+        flow_group__group_type=FLOW_TYPE_INCOME,
+        date__gte=start_date,
+        date__lte=end_date,
+        realized=True
+    )
+    
+    expense_transactions = Transaction.objects.filter(
+        flow_group__family=family,
+        flow_group__period_start_date=start_date,
+        flow_group__group_type__in=[EXPENSE_MAIN, EXPENSE_SECONDARY],
+        date__gte=start_date,
+        date__lte=end_date,
+        realized=True
+    ).exclude(
+        flow_group__is_investment=True  # Exclude investment groups
+    )
+    
+    if mode == 'general':
+        # General reconciliation - family totals
+        total_income = income_transactions.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        total_expenses = expense_transactions.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        calculated_balance = total_income - total_expenses
+        
+        # Get total bank balance
+        total_bank_balance = bank_balances.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        # Calculate discrepancy
+        discrepancy = total_bank_balance - calculated_balance
+        discrepancy_percentage = abs(discrepancy / calculated_balance * 100) if calculated_balance != 0 else 0
+        has_warning = discrepancy_percentage > 5
+        
+        reconciliation_data = {
+            'mode': 'general',
+            'total_income': total_income,
+            'total_expenses': total_expenses.quantize(Decimal('0.01'), rounding=ROUND_DOWN),
+            'calculated_balance': calculated_balance.quantize(Decimal('0.01'), rounding=ROUND_DOWN),
+            'total_bank_balance': total_bank_balance.quantize(Decimal('0.01'), rounding=ROUND_DOWN),
+            'discrepancy': discrepancy.quantize(Decimal('0.01'), rounding=ROUND_DOWN),
+            'discrepancy_percentage': discrepancy_percentage.quantize(Decimal('0.01'), rounding=ROUND_DOWN),
+            'has_warning': has_warning,
+        }
+    else:
+        # Detailed reconciliation - by member
+        members_data = []
+        
+        for member in family_members:
+            # Income for this member
+            member_income = income_transactions.filter(member=member).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            
+            # Expenses for this member
+            member_expenses = expense_transactions.filter(member=member).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            
+            # Calculated balance for member
+            member_calculated_balance = member_income - member_expenses
+            
+            # Bank balance for member
+            member_bank_balance = bank_balances.filter(member=member).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            
+            # Discrepancy
+            member_discrepancy = member_bank_balance - member_calculated_balance
+            member_discrepancy_percentage = abs(member_discrepancy / member_calculated_balance * 100) if member_calculated_balance != 0 else 0
+            member_has_warning = member_discrepancy_percentage > 5
+            
+            members_data.append({
+                'member': member,
+                'income': member_income.quantize(Decimal('0.01'), rounding=ROUND_DOWN),
+                'expenses': member_expenses.quantize(Decimal('0.01'), rounding=ROUND_DOWN),
+                'calculated_balance': member_calculated_balance.quantize(Decimal('0.01'), rounding=ROUND_DOWN),
+                'bank_balance': member_bank_balance.quantize(Decimal('0.01'), rounding=ROUND_DOWN),
+                'discrepancy': member_discrepancy.quantize(Decimal('0.01'), rounding=ROUND_DOWN),
+                'discrepancy_percentage': member_discrepancy_percentage.quantize(Decimal('0.01'), rounding=ROUND_DOWN),
+                'has_warning': member_has_warning,
+            })
+        
+        reconciliation_data = {
+            'mode': 'detailed',
+            'members_data': members_data,
+        }
+    
+    context = {
+        'start_date': start_date,
+        'end_date': end_date,
+        'bank_balances': bank_balances,
+        'family_members': family_members,
+        'member_role_for_period': member_role_for_period,
+        'reconciliation_data': reconciliation_data,
+        'mode': mode,
+    }
+    context.update(get_base_template_context(family, query_period, start_date))
+    
+    return render(request, 'finances/bank_reconciliation.html', context)
 
 
 # === AJAX Endpoints ===
@@ -1776,6 +1900,92 @@ def check_period_empty_ajax(request):
         
     except Exception as e:
         return JsonResponse({'error': f'Error checking period: {str(e)}'}, status=500)
+
+@login_required
+@require_POST
+def save_bank_balance_ajax(request):
+    """
+    AJAX endpoint to save bank balance entries.
+    """
+    try:
+        data = json.loads(request.body)
+        
+        family, current_member, _ = get_family_context(request.user)
+        if not family:
+            return JsonResponse({'status': 'error', 'error': 'User not in family'}, status=403)
+        
+        description = data.get('description', '').strip()
+        amount = Decimal(data.get('amount', '0'))
+        date_str = data.get('date')
+        member_id = data.get('member_id')
+        period_start_date_str = data.get('period_start_date')
+        balance_id = data.get('id')
+        
+        # Parse dates
+        date = dt_datetime.strptime(date_str, '%Y-%m-%d').date()
+        period_start_date = dt_datetime.strptime(period_start_date_str, '%Y-%m-%d').date()
+        
+        # Get member if specified
+        member = None
+        if member_id and member_id != 'null':
+            member = FamilyMember.objects.get(id=member_id, family=family)
+        
+        # Create or update
+        if balance_id and balance_id != 'new':
+            # Update existing
+            bank_balance = BankBalance.objects.get(id=balance_id, family=family)
+            bank_balance.description = description
+            bank_balance.amount = amount
+            bank_balance.date = date
+            bank_balance.member = member
+            bank_balance.save()
+        else:
+            # Create new
+            bank_balance = BankBalance.objects.create(
+                family=family,
+                member=member,
+                description=description,
+                amount=amount,
+                date=date,
+                period_start_date=period_start_date
+            )
+        
+        return JsonResponse({
+            'status': 'success',
+            'id': bank_balance.id,
+            'description': bank_balance.description,
+            'amount': str(bank_balance.amount),
+            'date': bank_balance.date.strftime('%Y-%m-%d'),
+            'member_id': bank_balance.member.id if bank_balance.member else None,
+            'member_name': bank_balance.member.user.username if bank_balance.member else 'Family',
+        })
+        
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def delete_bank_balance_ajax(request):
+    """
+    AJAX endpoint to delete bank balance entry.
+    """
+    try:
+        data = json.loads(request.body)
+        balance_id = data.get('id')
+        
+        family, _, _ = get_family_context(request.user)
+        if not family:
+            return JsonResponse({'status': 'error', 'error': 'User not in family'}, status=403)
+        
+        bank_balance = BankBalance.objects.get(id=balance_id, family=family)
+        bank_balance.delete()
+        
+        return JsonResponse({'status': 'success'})
+        
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'error': str(e)}, status=400)
+
 
 
 

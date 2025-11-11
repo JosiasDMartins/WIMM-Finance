@@ -318,6 +318,15 @@
                 <div class="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
                     <h2 class="text-xl font-bold text-[#0d171b] dark:text-white">Balance Sheet</h2>
                 </div> 
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+                <div class="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
+                    <h2 class="text-xl font-bold text-[#0d171b] dark:text-white">Balance Sheet</h2>
+                    <a href="{% url 'bank_reconciliation' %}{% if selected_period %}?period={{ selected_period }}{% endif %}" 
+                       class="flex items-center rounded-lg bg-primary text-white text-sm font-medium px-3 py-2 hover:bg-primary/80 transition-colors">
+                        <span class="material-symbols-outlined text-base mr-1">account_balance</span>
+                        Bank Reconciliation
+                    </a>
+                </div> 
                 
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -342,7 +351,7 @@
                             <td id="balance-realized-result" class="py-4 px-4 text-sm {% if summary_totals.realized_result >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %} font-bold">$ {{ summary_totals.realized_result|default:"0.00"|intcomma }}</td>
                         </tr>
                     </tbody>
-                </table>
+                </table>             
             </div>
         </div> 
     </div>

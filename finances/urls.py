@@ -53,4 +53,12 @@ urlpatterns = [
     
     # Reorder items at the dashboard
     path('ajax/reorder-flow-groups/', views.reorder_flow_groups_ajax, name='reorder_flow_groups_ajax'),
+
+    # Bank Reconciliation
+    path('bank-reconciliation/', views.bank_reconciliation_view, name='bank_reconciliation'),
+    path('api/bank-balance/save/', views.save_bank_balance_ajax, name='save_bank_balance_ajax'),
+    path('api/bank-balance/delete/', views.delete_bank_balance_ajax, name='delete_bank_balance_ajax'),
+
+
+
 ]

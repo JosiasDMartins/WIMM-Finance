@@ -236,3 +236,23 @@ class Investment(models.Model):
     
     def __str__(self):
         return f"{self.name} ({self.amount})"
+
+class BankBalance(models.Model):
+    """
+    Stores bank balance entries for reconciliation.
+    Users input actual bank account values to compare with calculated balance.
+    """
+    family = models.ForeignKey(Family, on_delete=models.CASCADE, related_name='bank_balances')
+    member = models.ForeignKey(FamilyMember, on_delete=models.SET_NULL, null=True, blank=True, related_name='bank_balances')
+    description = models.CharField(max_length=255, help_text="Description of the bank account")
+    amount = models.DecimalField(max_digits=10, decimal_places=2, help_text="Current bank balance")
+    date = models.DateField(default=timezone.localdate, help_text="Date of balance check")
+    period_start_date = models.DateField(help_text="Period this balance belongs to")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-date', 'member']
+    
+    def __str__(self):
+        member_name = self.member.user.username if self.member else "Family"
+        return f"{self.description} - {member_name} - {self.amount} ({self.date})"
