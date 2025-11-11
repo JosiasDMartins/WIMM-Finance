@@ -197,40 +197,25 @@ def get_default_income_flow_group(family, user, period_start_date):
 
 # === Utility function to check FlowGroup access ===
 def can_access_flow_group(flow_group, family_member):
-    """
-    Determines if a family member can access a FlowGroup based on sharing rules.
-    
-    Rules:
-    - Owner can always access
-    - Admins can ALWAYS access ALL FlowGroups (to fix sharing errors)
-    - Parents can access shared groups IF they are in assigned_members
-    - Children can access Kids groups they are assigned to
-    - Children can access Income FlowGroups (to add manual income)
-    """
-    # Owner always has access
     if flow_group.owner == family_member.user:
         return True
     
-    # ADMINS HAVE ACCESS TO EVERYTHING
     if family_member.role == 'ADMIN':
         return True
     
-    # Parents can access shared groups if assigned
+    # CRÍTICO: TODOS podem acessar Income (movido para cima)
+    if flow_group.group_type == FLOW_TYPE_INCOME:
+        return True
+    
     if family_member.role == 'PARENT':
         if flow_group.is_shared:
-            # Check if member is in assigned_members
             if flow_group.assigned_members.filter(id=family_member.id).exists():
                 return True
-        # Kids groups are accessible to all Parents
         if flow_group.is_kids_group:
             return True
     
-    # Children can access Kids groups they're assigned to
     if family_member.role == 'CHILD':
         if flow_group.is_kids_group and family_member in flow_group.assigned_children.all():
-            return True
-        # Children can also access Income FlowGroups to add manual income
-        if flow_group.group_type == FLOW_TYPE_INCOME:
             return True
     
     return False
