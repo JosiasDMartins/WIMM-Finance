@@ -59,6 +59,13 @@ urlpatterns = [
     path('api/bank-balance/save/', views.save_bank_balance_ajax, name='save_bank_balance_ajax'),
     path('api/bank-balance/delete/', views.delete_bank_balance_ajax, name='delete_bank_balance_ajax'),
 
-
-
+    # Updates and git updates
+    path('check-updates/', views.check_for_updates, name='check_updates'),
+    path('check-updates/manual/', views.manual_check_updates, name='manual_check_updates'),
+    path('apply-local-updates/', views.apply_local_updates, name='apply_local_updates'),
+    path('download-github-update/', views.download_github_update, name='download_github_update'),
+    path('create-backup/', views.create_backup, name='create_backup'),
+    path('download-backup/<str:filename>/', views.download_backup, name='download_backup'),
+    path('restore-backup/', views.restore_backup, name='restore_backup'),
+    path('skip-updates/', views.skip_updates, name='skip_updates'),
 ]

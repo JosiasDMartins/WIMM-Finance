@@ -7,6 +7,32 @@ from .models import (
     Transaction, Investment, EXPENSE_MAIN
 )
 from django.forms import modelformset_factory
+from djmoney.forms.fields import MoneyField as MoneyFormField
+
+
+# Lista completa de moedas G20 e BRICS
+CURRENCY_CHOICES = [
+    ('BRL', 'BRL - Brazilian Real (R$)'),
+    ('USD', 'USD - US Dollar ($)'),
+    ('EUR', 'EUR - Euro (€)'),
+    ('GBP', 'GBP - British Pound (£)'),
+    ('JPY', 'JPY - Japanese Yen (¥)'),
+    ('CNY', 'CNY - Chinese Yuan (¥)'),
+    ('INR', 'INR - Indian Rupee (₹)'),
+    ('RUB', 'RUB - Russian Ruble (₽)'),
+    ('ZAR', 'ZAR - South African Rand (R)'),
+    ('CAD', 'CAD - Canadian Dollar ($)'),
+    ('AUD', 'AUD - Australian Dollar ($)'),
+    ('MXN', 'MXN - Mexican Peso ($)'),
+    ('KRW', 'KRW - South Korean Won (₩)'),
+    ('TRY', 'TRY - Turkish Lira (₺)'),
+    ('IDR', 'IDR - Indonesian Rupiah (Rp)'),
+    ('SAR', 'SAR - Saudi Riyal (﷼)'),
+    ('ARS', 'ARS - Argentine Peso ($)'),
+    ('EGP', 'EGP - Egyptian Pound (£)'),
+    ('AED', 'AED - UAE Dirham (د.إ)'),
+    ('ETB', 'ETB - Ethiopian Birr (Br)'),
+]
 
 
 # --- Initial Setup Form (First Time User) ---
@@ -89,6 +115,16 @@ class InitialSetupForm(forms.Form):
         })
     )
     
+    # Seleção de moeda base
+    base_currency = forms.ChoiceField(
+        choices=CURRENCY_CHOICES,
+        initial='BRL',
+        label='Base Currency',
+        widget=forms.Select(attrs={
+            'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent'
+        })
+    )
+    
     def clean_username(self):
         username = self.cleaned_data['username']
         UserModel = get_user_model()
@@ -118,9 +154,17 @@ class InitialSetupForm(forms.Form):
     
 # --- Configuration Form ---
 class FamilyConfigurationForm(forms.ModelForm):
+    base_currency = forms.ChoiceField(
+        choices=CURRENCY_CHOICES,
+        label='Base Currency',
+        widget=forms.Select(attrs={
+            'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent'
+        })
+    )
+    
     class Meta:
         model = FamilyConfiguration
-        fields = ['starting_day', 'period_type', 'base_date']
+        fields = ['starting_day', 'period_type', 'base_date', 'base_currency']
         widgets = {
             'starting_day': forms.NumberInput(attrs={'class': 'form-input'}),
             'period_type': forms.RadioSelect(choices=FamilyConfiguration.PERIOD_TYPES),
@@ -150,6 +194,7 @@ class FlowGroupForm(forms.ModelForm):
         fields = ['name', 'budgeted_amount', 'is_shared', 'is_kids_group', 'is_investment', 'assigned_members', 'assigned_children']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-input'}),
+            # budgeted_amount é MoneyField - widget automático do django-money
             'budgeted_amount': forms.NumberInput(attrs={'class': 'form-input'}),
             'is_shared': forms.CheckboxInput(attrs={'class': 'shared-checkbox'}),
             'is_kids_group': forms.CheckboxInput(attrs={'class': 'kids-checkbox'}),
@@ -181,6 +226,7 @@ class TransactionForm(forms.ModelForm):
         fields = ['description', 'amount', 'date']
         widgets = {
             'description': forms.TextInput(attrs={'class': 'editable-cell', 'placeholder': 'Description'}),
+            # amount é MoneyField - widget automático
             'amount': forms.NumberInput(attrs={'class': 'editable-cell', 'placeholder': 'Amount'}),
             'date': forms.DateInput(attrs={'class': 'editable-cell', 'type': 'date'}),
         }
@@ -199,6 +245,7 @@ class InvestmentForm(forms.ModelForm):
         fields = ['name', 'amount']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'e.g., Stocks, Savings Account'}),
+            # amount é MoneyField - widget automático
             'amount': forms.NumberInput(attrs={'class': 'form-input', 'placeholder': '0.00'}),
         }
 

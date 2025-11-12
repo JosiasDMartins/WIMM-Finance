@@ -1,0 +1,184 @@
+<!-- finances/templates/finances/update_modal.html -->
+{% load static %}
+
+<div id="update-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-3xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-start mb-4">
+            <div class="flex-shrink-0">
+                <span id="modal-icon" class="material-symbols-outlined text-4xl text-blue-500">system_update</span>
+            </div>
+            <div class="ml-4 flex-1">
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                    <span id="modal-title">System Update Available</span>
+                </h3>
+                
+                <div id="main-content" class="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+                    <p id="update-description">A new version is available!</p>
+                    
+                    <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 my-4">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-sm font-semibold text-blue-900 dark:text-blue-200">Current Version:</p>
+                                <p class="text-lg font-mono text-blue-700 dark:text-blue-300" id="current-version">-</p>
+                            </div>
+                            <div>
+                                <span class="material-symbols-outlined text-3xl text-blue-500">arrow_forward</span>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-blue-900 dark:text-blue-200">New Version:</p>
+                                <p class="text-lg font-mono text-blue-700 dark:text-blue-300" id="target-version">-</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Local Scripts Info -->
+                    <div id="scripts-info" class="hidden">
+                        <p class="font-semibold text-gray-900 dark:text-gray-200 mb-2">Update Scripts to Apply:</p>
+                        <ul id="scripts-list" class="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-400 max-h-40 overflow-y-auto">
+                        </ul>
+                    </div>
+                    
+                    <!-- GitHub Release Info -->
+                    <div id="github-info" class="hidden">
+                        <div class="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4 mb-4">
+                            <h4 class="font-semibold text-green-900 dark:text-green-200 mb-2" id="release-name"></h4>
+                            <div id="release-notes" class="text-sm text-green-800 dark:text-green-300 max-h-40 overflow-y-auto prose prose-sm dark:prose-invert">
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                            <span class="material-symbols-outlined text-lg">schedule</span>
+                            <span>Published: <span id="release-date"></span></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Container Update Warning -->
+                    <div id="container-warning" class="hidden bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4">
+                        <div class="flex">
+                            <span class="material-symbols-outlined text-yellow-500 mr-2">warning</span>
+                            <div>
+                                <h4 class="font-semibold text-yellow-900 dark:text-yellow-200 mb-1">Container Update Required</h4>
+                                <p class="text-sm text-yellow-800 dark:text-yellow-300">
+                                    This update requires a container update. Please follow the manual update instructions.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Backup Section (GitHub updates only) -->
+                    <div id="backup-section" class="hidden mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                        <div class="flex items-start gap-2 mb-3">
+                            <span class="material-symbols-outlined text-amber-600 text-xl">backup</span>
+                            <div class="flex-1">
+                                <h4 class="font-semibold text-amber-900 dark:text-amber-200 mb-1">Database Backup Recommended</h4>
+                                <p class="text-sm text-amber-800 dark:text-amber-300">
+                                    Before updating, it's highly recommended to backup your database.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <button id="btn-create-backup" 
+                                class="w-full px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium transition-colors flex items-center justify-center gap-2 mb-3">
+                            <span class="material-symbols-outlined">download</span>
+                            Download Database Backup
+                        </button>
+                        
+                        <div class="flex items-center gap-2 p-3 bg-white dark:bg-gray-900 rounded border border-amber-200 dark:border-amber-800">
+                            <input type="checkbox" id="backup-confirmed" class="rounded text-amber-600 focus:ring-amber-500">
+                            <label for="backup-confirmed" class="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                                I have created a backup and want to proceed with the update
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Progress Section -->
+                    <div id="update-progress" class="hidden mt-4">
+                        <p class="font-semibold mb-2" id="progress-title">Applying Updates...</p>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mb-2">
+                            <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                        <p id="progress-text" class="text-sm text-gray-600 dark:text-gray-400">Preparing...</p>
+                    </div>
+                    
+                    <!-- Results Section -->
+                    <div id="update-results" class="hidden mt-4">
+                        <div id="success-message" class="hidden bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4">
+                            <div class="flex">
+                                <span class="material-symbols-outlined text-green-500 mr-2">check_circle</span>
+                                <div class="flex-1">
+                                    <h3 class="text-sm font-medium text-green-800 dark:text-green-200">Update Successful!</h3>
+                                    <p class="mt-2 text-sm text-green-700 dark:text-green-300" id="success-details">
+                                        Your system has been successfully updated.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="error-message" class="hidden bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4">
+                            <div class="flex">
+                                <span class="material-symbols-outlined text-red-500 mr-2">error</span>
+                                <div class="flex-1">
+                                    <h3 class="text-sm font-medium text-red-800 dark:text-red-200">Update Failed</h3>
+                                    <p class="mt-2 text-sm text-red-700 dark:text-red-300" id="error-details">
+                                        An error occurred during the update process.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="results-details" class="mt-4 max-h-60 overflow-y-auto"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex justify-end gap-3 mt-6">
+            <button id="btn-view-release" 
+                    class="hidden px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition-colors">
+                View Release on GitHub
+            </button>
+            
+            <button id="btn-skip" 
+                    class="hidden px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition-colors">
+                Skip Update
+            </button>
+            
+            <button id="btn-apply-local" 
+                    class="hidden px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors">
+                Apply Updates
+            </button>
+            
+            <button id="btn-install-github" 
+                    class="hidden px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                Install Update
+            </button>
+            
+            <button id="btn-close" 
+                    class="hidden px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 font-medium transition-colors">
+                Close & Reload
+            </button>
+            
+            <button id="btn-view-logs" 
+                    class="hidden px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium transition-colors">
+                View Logs
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Logs Modal -->
+<div id="logs-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-4xl w-full mx-4 p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white">Update Logs</h3>
+            <button id="close-logs" class="text-gray-500 hover:text-gray-700">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div class="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm max-h-96 overflow-y-auto">
+            <pre id="logs-content">Loading logs...</pre>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'finances/js/update_manager.js' %}"></script>

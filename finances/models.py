@@ -6,6 +6,8 @@ from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator
 from django.utils import timezone 
 from decimal import Decimal 
+from djmoney.models.fields import MoneyField
+from moneyed import Money
 
 # --- Flow Type Constants (used by views.py for filtering) ---
 
@@ -21,6 +23,39 @@ class CustomUser(AbstractUser):
     pass
 
 # --- Core Finance Models ---
+
+class SystemVersion(models.Model):
+    """
+    Stores the current system version in the database.
+    Used to detect when updates are available.
+    """
+    version = models.CharField(
+        max_length=50,
+        help_text="Current system version (e.g., 1.0.0, 1.0.0-alpha1, 1.0.0-beta1)"
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "System Version"
+        verbose_name_plural = "System Versions"
+    
+    def __str__(self):
+        return f"v{self.version}"
+    
+    @classmethod
+    def get_current_version(cls):
+        """Returns the current version stored in DB, or None if not set."""
+        version_obj = cls.objects.first()
+        return version_obj.version if version_obj else None
+    
+    @classmethod
+    def set_version(cls, version):
+        """Sets or updates the system version in DB."""
+        version_obj, created = cls.objects.get_or_create(id=1)
+        version_obj.version = version
+        version_obj.save()
+        return version_obj
+
 
 class Family(models.Model):
     """Represents a shared financial group (the 'umbrella account')."""
@@ -63,7 +98,14 @@ class FamilyConfiguration(models.Model):
     )
     period_type = models.CharField(max_length=1, choices=PERIOD_TYPES, default='M')
     # Base date used for calculating bi-weekly or weekly cycles
-    base_date = models.DateField(default=timezone.localdate) 
+    base_date = models.DateField(default=timezone.localdate)
+    
+    # NOVO: Moeda base da família
+    base_currency = models.CharField(
+        max_length=3,
+        default='BRL',
+        help_text="Base currency for the family (e.g., BRL, USD, EUR)"
+    )
 
     def __str__(self):
         return f"Config for {self.family.name}"
@@ -105,7 +147,14 @@ class FlowGroup(models.Model):
     owner = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, related_name='owned_flow_groups')
     
     group_type = models.CharField(max_length=20, choices=FLOW_TYPES, default=EXPENSE_MAIN)
-    budgeted_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    
+    # ATUALIZADO: MoneyField com moeda
+    budgeted_amount = MoneyField(
+        max_digits=14,
+        decimal_places=2,
+        default_currency='BRL',
+        default=Decimal('0.00')
+    )
     
     # NEW: Period tracking - stores the start date of the period this group belongs to
     period_start_date = models.DateField(
@@ -169,7 +218,14 @@ class FlowGroup(models.Model):
 class Transaction(models.Model):
     """Individual financial entry."""
     description = models.CharField(max_length=255)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    # ATUALIZADO: MoneyField com moeda
+    amount = MoneyField(
+        max_digits=14,
+        decimal_places=2,
+        default_currency='BRL'
+    )
+    
     date = models.DateField(default=timezone.localdate)
     
     # Realized status (consolidated/completed)
@@ -183,7 +239,7 @@ class Transaction(models.Model):
 
     is_child_expense = models.BooleanField(
         default=False,
-        help_text="True if this is aan expenses added tpo a FlowGroup by a CHILD user)"            
+        help_text="True if this is an expense added to a FlowGroup by a CHILD user)"            
     )
     
     member = models.ForeignKey(FamilyMember, on_delete=models.SET_NULL, null=True, related_name='transactions')
@@ -230,8 +286,15 @@ class FlowGroupAccess(models.Model):
 class Investment(models.Model):
     """Simple model for tracking family investments."""
     name = models.CharField(max_length=150)
-    # The current value of the investment
-    amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00')) 
+    
+    # ATUALIZADO: MoneyField com moeda
+    amount = MoneyField(
+        max_digits=15,
+        decimal_places=2,
+        default_currency='BRL',
+        default=Decimal('0.00')
+    )
+    
     family = models.ForeignKey(Family, on_delete=models.CASCADE, related_name='investments')
     
     def __str__(self):
@@ -245,7 +308,15 @@ class BankBalance(models.Model):
     family = models.ForeignKey(Family, on_delete=models.CASCADE, related_name='bank_balances')
     member = models.ForeignKey(FamilyMember, on_delete=models.SET_NULL, null=True, blank=True, related_name='bank_balances')
     description = models.CharField(max_length=255, help_text="Description of the bank account")
-    amount = models.DecimalField(max_digits=10, decimal_places=2, help_text="Current bank balance")
+    
+    # ATUALIZADO: MoneyField com moeda
+    amount = MoneyField(
+        max_digits=14,
+        decimal_places=2,
+        default_currency='BRL',
+        help_text="Current bank balance"
+    )
+    
     date = models.DateField(default=timezone.localdate, help_text="Date of balance check")
     period_start_date = models.DateField(help_text="Period this balance belongs to")
     created_at = models.DateTimeField(auto_now_add=True)

@@ -1,13 +1,14 @@
-VERSION = "1.0-alpha3"
+VERSION = "1.0.0-alpha4"
 
 from django.core.management import call_command
 import io
+import shutil
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Max, Q
 from django.db import transaction as db_transaction
-from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponse
+from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponse, FileResponse
 from django.views.decorators.http import require_POST, require_http_methods
 from django.contrib.auth import get_user_model, logout as auth_logout, login
 from django.contrib import messages 
@@ -16,12 +17,28 @@ import json
 from datetime import datetime as dt_datetime 
 from decimal import Decimal
 from .forms import InitialSetupForm  
-from django.db.utils import OperationalError
+from django.db.utils import OperationalError, ProgrammingError
+from pathlib import Path
+from django.conf import settings
 
+import os
+import traceback
+
+from .version_utils import Version, needs_update
+
+from .github_utils import (
+    check_github_update, 
+    requires_container_update,
+    download_and_extract_release,
+    create_database_backup
+)
+
+# NOVO: Import para Django-Money
+from moneyed import Money
 
 # Import Models
 from .models import (
-    Family, FamilyMember, FlowGroup, Transaction, Investment, FamilyConfiguration, ClosedPeriod, BankBalance,
+    Family, FamilyMember, FlowGroup, Transaction, Investment, FamilyConfiguration, ClosedPeriod, BankBalance, SystemVersion,
     FLOW_TYPE_INCOME, EXPENSE_MAIN, EXPENSE_SECONDARY, FLOW_TYPE_EXPENSE 
 )
 from .utils import (
@@ -40,9 +57,464 @@ from .forms import (
     AddMemberForm, NewUserAndMemberForm
 )
 
-# Import Utility Functions
-from .utils import get_current_period_dates, get_available_periods
 
+def check_for_updates(request):
+    """
+    Checks for updates from both local scripts and GitHub releases.
+    Priority: Local updates > GitHub updates
+    """
+    target_version = VERSION
+    
+    db_version = None
+    try:
+        db_version = SystemVersion.get_current_version()
+    except (OperationalError, ProgrammingError):
+        pass
+    
+    if db_version is None or db_version == '' or db_version.strip() == '':
+        db_version = "0.0.0"
+    
+    # Check local updates first
+    local_update_needed = False
+    try:
+        local_update_needed = needs_update(db_version, target_version)
+    except ValueError:
+        local_update_needed = True
+    
+    # If local updates exist, return local update info
+    if local_update_needed:
+        local_scripts = get_available_update_scripts(db_version, target_version)
+        
+        return JsonResponse({
+            'needs_update': True,
+            'update_type': 'local',
+            'current_version': db_version,
+            'target_version': target_version,
+            'has_scripts': len(local_scripts) > 0,
+            'update_scripts': local_scripts,
+            'can_skip': False
+        })
+    
+    # No local updates, check GitHub
+    has_github_update, github_release = check_github_update(target_version)
+    
+    if has_github_update:
+        github_version = github_release['version']
+        container_required = requires_container_update(target_version, github_version)
+        
+        return JsonResponse({
+            'needs_update': True,
+            'update_type': 'github',
+            'current_version': target_version,
+            'target_version': github_version,
+            'github_release': github_release,
+            'requires_container': container_required,
+            'can_skip': True
+        })
+    
+    return JsonResponse({
+        'needs_update': False,
+        'current_version': target_version,
+        'target_version': target_version
+    })
+
+
+@require_http_methods(["GET"])
+def manual_check_updates(request):
+    """
+    Manual check for updates from settings page.
+    Returns detailed info about available updates.
+    """
+    target_version = VERSION
+    db_version = SystemVersion.get_current_version() or "0.0.0"
+    
+    # Check local
+    local_update_needed = False
+    try:
+        local_update_needed = needs_update(db_version, target_version)
+    except ValueError:
+        local_update_needed = True
+    
+    # Check GitHub
+    has_github_update, github_release = check_github_update(target_version)
+    
+    response_data = {
+        'current_version': target_version,
+        'db_version': db_version,
+        'local_update_available': local_update_needed,
+        'github_update_available': has_github_update,
+    }
+    
+    if has_github_update:
+        response_data['github_version'] = github_release['version']
+        response_data['github_release'] = github_release
+        response_data['requires_container'] = requires_container_update(
+            target_version, 
+            github_release['version']
+        )
+    
+    return JsonResponse(response_data)
+
+
+def get_available_update_scripts(from_version, to_version):
+    """Finds update scripts that need to be run."""
+    scripts_dir = Path(settings.BASE_DIR) / 'update_scripts'
+    
+    if not scripts_dir.exists():
+        return []
+    
+    if from_version == "0.0.0":
+        from_ver = Version("0.0.0")
+    else:
+        try:
+            from_ver = Version(from_version)
+        except ValueError:
+            from_ver = Version("0.0.0")
+    
+    try:
+        to_ver = Version(to_version)
+    except ValueError:
+        return []
+    
+    applicable_scripts = []
+    
+    for script_file in sorted(scripts_dir.glob('v*_*.py')):
+        filename = script_file.name
+        
+        try:
+            version_str = filename.split('_')[0][1:]
+            script_version = Version(version_str)
+            
+            if from_ver < script_version <= to_ver:
+                description = '_'.join(filename.split('_')[1:]).replace('.py', '').replace('_', ' ').title()
+                
+                applicable_scripts.append({
+                    'filename': filename,
+                    'version': version_str,
+                    'description': description,
+                    'path': str(script_file)
+                })
+        except (ValueError, IndexError):
+            continue
+    
+    applicable_scripts.sort(key=lambda s: Version(s['version']))
+    
+    return applicable_scripts
+
+
+def run_migrations():
+    """
+    Runs makemigrations and migrate commands.
+    Returns (success, output)
+    """
+    try:
+        output = io.StringIO()
+        
+        # Run makemigrations
+        call_command('makemigrations', stdout=output, stderr=output, interactive=False)
+        
+        # Run migrate
+        call_command('migrate', stdout=output, stderr=output, interactive=False)
+        
+        return True, output.getvalue()
+    except Exception as e:
+        return False, str(e)
+
+
+@require_http_methods(["POST"])
+def apply_local_updates(request):
+    """
+    Applies local updates: runs migrations and executes scripts.
+    """
+    try:
+        data = json.loads(request.body)
+        scripts = data.get('scripts', [])
+        
+        results = []
+        all_success = True
+        
+        # ALWAYS run migrations first
+        migration_success, migration_output = run_migrations()
+        
+        results.append({
+            'script': 'Database Migrations',
+            'version': VERSION,
+            'status': 'success' if migration_success else 'error',
+            'output': migration_output if migration_success else None,
+            'error': migration_output if not migration_success else None
+        })
+        
+        if not migration_success:
+            all_success = False
+        else:
+            # Then run custom scripts
+            for script_info in scripts:
+                script_path = script_info['path']
+                script_version = script_info['version']
+                
+                result = {
+                    'script': script_info['filename'],
+                    'version': script_version,
+                    'status': 'pending'
+                }
+                
+                try:
+                    output = execute_update_script(script_path)
+                    result['status'] = 'success'
+                    result['output'] = output
+                except Exception as e:
+                    result['status'] = 'error'
+                    result['error'] = str(e)
+                    result['traceback'] = traceback.format_exc()
+                    all_success = False
+                    results.append(result)
+                    break
+                
+                results.append(result)
+        
+        # Update version in DB if all successful
+        if all_success:
+            SystemVersion.set_version(VERSION)
+        
+        return JsonResponse({
+            'success': all_success,
+            'results': results,
+            'new_version': VERSION if all_success else SystemVersion.get_current_version()
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }, status=500)
+
+
+def execute_update_script(script_path):
+    """Executes an update script and returns output."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("update_script", script_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    
+    if not hasattr(module, 'run'):
+        raise ValueError(f"Script {script_path} must have a run() function")
+    
+    result = module.run()
+    
+    if not result.get('success', False):
+        raise Exception(result.get('message', 'Script failed without message'))
+    
+    return result.get('message', 'Success')
+
+
+@require_http_methods(["POST"])
+def download_github_update(request):
+    """
+    Downloads and installs update from GitHub release.
+    Then runs migrations and local scripts.
+    """
+    try:
+        data = json.loads(request.body)
+        zipball_url = data.get('zipball_url')
+        target_version = data.get('target_version')
+        
+        if not zipball_url or not target_version:
+            return JsonResponse({
+                'success': False,
+                'error': 'Missing required parameters'
+            }, status=400)
+        
+        # Download and extract
+        success, message = download_and_extract_release(zipball_url)
+        
+        if not success:
+            return JsonResponse({
+                'success': False,
+                'error': message
+            })
+        
+        # Update version in DB
+        SystemVersion.set_version(target_version)
+        
+        # IMPORTANT: After files are updated, need to reload
+        # The frontend will trigger a reload which will then check for local updates
+        
+        return JsonResponse({
+            'success': True,
+            'message': message,
+            'new_version': target_version,
+            'needs_reload': True  # Signal to reload and check for local updates
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }, status=500)
+
+
+@require_http_methods(["POST"])
+def create_backup(request):
+    """Creates a database backup and returns download info."""
+    try:
+        success, message, backup_path = create_database_backup()
+        
+        if success and backup_path:
+            return JsonResponse({
+                'success': True,
+                'message': message,
+                'filename': backup_path.name,
+                'download_url': f'/download-backup/{backup_path.name}/'
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': message
+            }, status=500)
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@require_http_methods(["GET"])
+def download_backup(request, filename):
+    """Downloads a database backup file."""
+    try:
+        backup_path = Path(settings.BASE_DIR) / 'backups' / filename
+        
+        if not backup_path.exists():
+            return JsonResponse({'error': 'Backup file not found'}, status=404)
+        
+        # Security: only allow files in backups directory
+        if not str(backup_path.resolve()).startswith(str(Path(settings.BASE_DIR) / 'backups')):
+            return JsonResponse({'error': 'Invalid file path'}, status=403)
+        
+        response = FileResponse(open(backup_path, 'rb'), as_attachment=True)
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        return response
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_http_methods(["POST"])
+def restore_backup(request):
+    """
+    Restores database from uploaded backup file.
+    Returns family and user information from the backup.
+    """
+    try:
+        if 'backup_file' not in request.FILES:
+            return JsonResponse({
+                'success': False,
+                'error': 'No backup file provided'
+            }, status=400)
+        
+        backup_file = request.FILES['backup_file']
+        
+        # Save uploaded file temporarily
+        temp_path = Path(settings.BASE_DIR) / 'temp_restore.sqlite3'
+        
+        with open(temp_path, 'wb+') as destination:
+            for chunk in backup_file.chunks():
+                destination.write(chunk)
+        
+        # Read info from backup before restoring
+        import sqlite3
+        conn = sqlite3.connect(str(temp_path))
+        cursor = conn.cursor()
+        
+        # Get family info
+        cursor.execute("SELECT id, name FROM finances_family LIMIT 1")
+        family_row = cursor.fetchone()
+        
+        family_info = None
+        users_info = []
+        
+        if family_row:
+            family_id, family_name = family_row
+            family_info = {'id': family_id, 'name': family_name}
+            
+            # Get users
+            cursor.execute("""
+                SELECT u.username, u.email, fm.role 
+                FROM finances_familymember fm
+                JOIN finances_customuser u ON fm.user_id = u.id
+                WHERE fm.family_id = ?
+                ORDER BY fm.role, u.username
+            """, (family_id,))
+            
+            for row in cursor.fetchall():
+                users_info.append({
+                    'username': row[0],
+                    'email': row[1] or '',
+                    'role': row[2]
+                })
+        
+        conn.close()
+        
+        # Replace current database
+        db_path = Path(settings.BASE_DIR) / 'db.sqlite3'
+        if db_path.exists():
+            backup_old = Path(settings.BASE_DIR) / 'db.sqlite3.old'
+            shutil.copy2(db_path, backup_old)
+        
+        shutil.move(str(temp_path), str(db_path))
+        
+        return JsonResponse({
+            'success': True,
+            'family': family_info,
+            'users': users_info,
+            'message': 'Database restored successfully'
+        })
+        
+    except Exception as e:
+        # Cleanup temp file on error
+        temp_path = Path(settings.BASE_DIR) / 'temp_restore.sqlite3'
+        if temp_path.exists():
+            temp_path.unlink()
+        
+        return JsonResponse({
+            'success': False,
+            'error': f'Restore failed: {str(e)}'
+        }, status=500)
+
+
+@require_http_methods(["POST"])
+def skip_updates(request):
+    """
+    Skips updates and marks current version as target version.
+    Only allowed for GitHub updates.
+    """
+    try:
+        data = json.loads(request.body)
+        update_type = data.get('update_type', 'local')
+        
+        if update_type == 'local':
+            return JsonResponse({
+                'success': False,
+                'error': 'Local updates cannot be skipped'
+            }, status=400)
+        
+        target_version = VERSION
+        SystemVersion.set_version(target_version)
+        
+        return JsonResponse({
+            'success': True,
+            'new_version': target_version
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
 
 
 def initial_setup_view(request):
@@ -134,20 +606,26 @@ def initial_setup_view(request):
                     if not base_date:
                         base_date = timezone.localdate()
                     
+                    base_currency = form.cleaned_data.get('base_currency', 'BRL')
+                    
                     config = FamilyConfiguration.objects.create(
                         family=family,
                         starting_day=form.cleaned_data['starting_day'],
                         period_type=form.cleaned_data['period_type'],
-                        base_date=base_date
+                        base_date=base_date,
+                        base_currency=base_currency
                     )
                     
-                    # 5. Log the user in
+                    # 5. Set system version
+                    SystemVersion.set_version(VERSION)
+                    
+                    # 6. Log the user in
                     login(request, admin_user)
                     
-                    # 6. Success message and redirect
+                    # 7. Success message and redirect
                     messages.success(
                         request,
-                        f"Welcome to WIMM! Your family '{family.name}' has been created successfully."
+                        f"Welcome to SweetMoney! Your family '{family.name}' has been created successfully."
                     )
                     return redirect('dashboard')
                     
@@ -166,15 +644,92 @@ def initial_setup_view(request):
         # Set default base_date to today
         initial_data = {
             'base_date': timezone.localdate(),
-            'starting_day': 1,
-            'period_type': 'M'
+            'starting_day': 5,
+            'period_type': 'M',
+            'base_currency': 'BRL'
         }
         form = InitialSetupForm(initial=initial_data)
     
-    return render(request, 'finances/setup.html', {'form': form})
+    return render(request, 'finances/setup.html', {'form': form, 'version': VERSION})
 
 
-# === Utility Function to get Family Context ===
+@login_required
+def configuration_view(request):
+    """View for family configuration settings."""
+    try:
+        member = FamilyMember.objects.select_related('family', 'family__configuration').get(user=request.user)
+    except FamilyMember.DoesNotExist:
+        messages.error(request, "You are not associated with any family.")
+        return redirect('dashboard')
+    
+    if member.role not in ['ADMIN', 'PARENT']:
+        messages.error(request, "Only Admins and Parents can access configuration.")
+        return redirect('dashboard')
+    
+    family = member.family
+    config = family.configuration
+    
+    # Get period info for navigation
+    selected_period = request.GET.get('period')
+    start_date, end_date, period_label = get_current_period_dates(family, selected_period)
+    available_periods = get_available_periods(family)
+    current_period_label = period_label
+    
+    if request.method == 'POST':
+        form = FamilyConfigurationForm(request.POST, instance=config)
+        if form.is_valid():
+            old_config = {
+                'period_type': config.period_type,
+                'starting_day': config.starting_day,
+                'base_date': config.base_date
+            }
+            
+            new_config = form.cleaned_data
+            
+            # Check if period configuration changed
+            config_changed = (
+                old_config['period_type'] != new_config['period_type'] or
+                old_config['starting_day'] != new_config['starting_day'] or
+                old_config['base_date'] != new_config['base_date']
+            )
+            
+            if config_changed:
+                # Check for data in current period
+                has_data, data_count = check_period_change_impact(family, start_date, end_date)
+                
+                if has_data:
+                    messages.warning(
+                        request,
+                        f"Period configuration updated. Your current period has {data_count} items. "
+                        f"This period will be preserved as-is, and the new configuration will apply to future periods."
+                    )
+                    # Close current period before changing config
+                    close_current_period(family, start_date, end_date, old_config['period_type'])
+                else:
+                    messages.info(request, "Period configuration updated. Changes will apply to the current and future periods.")
+            
+            form.save()
+            messages.success(request, "Configuration updated successfully!")
+            return redirect('configuration')
+    else:
+        form = FamilyConfigurationForm(instance=config)
+    
+    context = {
+        'form': form,
+        'family': family,
+        'selected_period': selected_period,
+        'start_date': start_date,
+        'end_date': end_date,
+        'period_label': period_label,
+        'available_periods': available_periods,
+        'current_period_label': current_period_label,
+        'VERSION': VERSION,
+        'app_version': VERSION,
+    }
+    
+    return render(request, 'finances/configurations.html', context)
+
+
 def get_family_context(user):
     """Retrieves the Family and FamilyMember context for the logged-in user."""
     try:
@@ -188,11 +743,18 @@ def get_family_context(user):
 # === Utility Function for default Income Group ===
 def get_default_income_flow_group(family, user, period_start_date):
     """Retrieves or creates the default income FlowGroup for the family and period."""
+    # AJUSTE DJANGO-MONEY: Usar Money object ou deixar Django-money converter
+    currency = family.configuration.base_currency if hasattr(family, 'configuration') else 'BRL'
+    
     income_group, created = FlowGroup.objects.get_or_create(
         family=family,
         group_type=FLOW_TYPE_INCOME,
         period_start_date=period_start_date,
-        defaults={'name': 'Income (Default)', 'budgeted_amount': Decimal('0.00'), 'owner': user}
+        defaults={
+            'name': 'Income (Default)', 
+            'budgeted_amount': Money(0, currency),  # AJUSTADO
+            'owner': user
+        }
     )
     return income_group
 
@@ -408,10 +970,21 @@ def get_periods_history(family, current_period_start):
         
         total_expenses += kids_realized
         
+        # AJUSTE DJANGO-MONEY: Converter Money para float para cálculos
+        if hasattr(total_expenses, 'amount'):
+            total_expenses_float = float(total_expenses.amount)
+        else:
+            total_expenses_float = float(total_expenses)
+            
+        if hasattr(total_income, 'amount'):
+            total_income_float = float(total_income.amount)
+        else:
+            total_income_float = float(total_income)
+        
         # Calculate commitment percentage
         commitment_pct = 0
-        if total_income > 0:
-            commitment_pct = float(total_expenses / total_income * 100)
+        if total_income_float > 0:
+            commitment_pct = (total_expenses_float / total_income_float * 100)
         
         # Determine bar color based on commitment
         if commitment_pct >= 98:
@@ -422,12 +995,12 @@ def get_periods_history(family, current_period_start):
             bar_color = 'rgb(134, 239, 172)'  # Light green
         
         # Calculate savings (income - expenses)
-        savings = float(total_income - total_expenses)
+        savings = total_income_float - total_expenses_float
         savings_values.append(savings)
         
         periods_to_show.append({
             'label': period['label'],
-            'value': float(total_expenses),
+            'value': total_expenses_float,
             'color': bar_color,
             'savings': savings
         })
@@ -518,16 +1091,33 @@ def dashboard_view(request):
     # Process accessible groups
     budgeted_expense = Decimal(0.00)
     for group in accessible_expense_groups:
-        group.total_estimated = (group.total_estimated if group.total_estimated is not None else Decimal('0.00')).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
-        group.total_spent = (group.total_spent if group.total_spent is not None else Decimal('0.00')).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+        # AJUSTE DJANGO-MONEY: Extrair valor numérico de Money object
+        if hasattr(group.total_estimated, 'amount'):
+            group.total_estimated = Decimal(str(group.total_estimated.amount))
+        else:
+            group.total_estimated = (group.total_estimated if group.total_estimated is not None else Decimal('0.00'))
+        
+        if hasattr(group.total_spent, 'amount'):
+            group.total_spent = Decimal(str(group.total_spent.amount))
+        else:
+            group.total_spent = (group.total_spent if group.total_spent is not None else Decimal('0.00'))
+        
+        group.total_estimated = group.total_estimated.quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+        group.total_spent = group.total_spent.quantize(Decimal('0.01'), rounding=ROUND_DOWN)
         group.is_accessible = True  # Mark as accessible
         
         # For Kids groups shown to Parents/Admins, calculate child expenses
         if group.is_kids_group and member_role_for_period in ['ADMIN', 'PARENT']:
-            group.child_expenses = Transaction.objects.filter(
+            child_exp = Transaction.objects.filter(
                 flow_group=group,
                 date__range=(start_date, end_date)
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            
+            # AJUSTE DJANGO-MONEY
+            if hasattr(child_exp, 'amount'):
+                group.child_expenses = Decimal(str(child_exp.amount))
+            else:
+                group.child_expenses = child_exp
             
             # Mark if this group was created by a child (owner is a child)
             group.is_child_group = False
@@ -536,9 +1126,16 @@ def dashboard_view(request):
                 if owner_member and owner_member.role == 'CHILD':
                     group.is_child_group = True
         
+        # AJUSTE DJANGO-MONEY: Extrair budgeted_amount
+        budgeted_amt = group.budgeted_amount
+        if hasattr(budgeted_amt, 'amount'):
+            budgeted_amt = Decimal(str(budgeted_amt.amount))
+        else:
+            budgeted_amt = Decimal(str(budgeted_amt))
+        
         # Check if estimated exceeds budget
-        group.budget_warning = group.total_estimated > group.budgeted_amount
-        group.total_estimated = group.total_estimated if group.total_estimated > group.budgeted_amount else group.budgeted_amount
+        group.budget_warning = group.total_estimated > budgeted_amt
+        group.total_estimated = group.total_estimated if group.total_estimated > budgeted_amt else budgeted_amt
         
         # Only add to budgeted_expense if it's NOT a child's own group
         is_child_own_group = False
@@ -554,13 +1151,31 @@ def dashboard_view(request):
     
     # Process display-only groups (for Parents/Admins)
     for group in display_only_expense_groups:
-        group.total_estimated = (group.total_estimated if group.total_estimated is not None else Decimal('0.00')).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
-        group.total_spent = (group.total_spent if group.total_spent is not None else Decimal('0.00')).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+        # AJUSTE DJANGO-MONEY: Extrair valor numérico
+        if hasattr(group.total_estimated, 'amount'):
+            group.total_estimated = Decimal(str(group.total_estimated.amount))
+        else:
+            group.total_estimated = (group.total_estimated if group.total_estimated is not None else Decimal('0.00'))
+        
+        if hasattr(group.total_spent, 'amount'):
+            group.total_spent = Decimal(str(group.total_spent.amount))
+        else:
+            group.total_spent = (group.total_spent if group.total_spent is not None else Decimal('0.00'))
+        
+        group.total_estimated = group.total_estimated.quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+        group.total_spent = group.total_spent.quantize(Decimal('0.01'), rounding=ROUND_DOWN)
         group.is_accessible = False  # Mark as NOT accessible
         
+        # AJUSTE DJANGO-MONEY: Extrair budgeted_amount
+        budgeted_amt = group.budgeted_amount
+        if hasattr(budgeted_amt, 'amount'):
+            budgeted_amt = Decimal(str(budgeted_amt.amount))
+        else:
+            budgeted_amt = Decimal(str(budgeted_amt))
+        
         # Check if estimated exceeds budget
-        group.budget_warning = group.total_estimated > group.budgeted_amount
-        group.total_estimated = group.total_estimated if group.total_estimated > group.budgeted_amount else group.budgeted_amount
+        group.budget_warning = group.total_estimated > budgeted_amt
+        group.total_estimated = group.total_estimated if group.total_estimated > budgeted_amt else budgeted_amt
         
         # Add to budgeted_expense
         budgeted_expense = group.total_estimated + budgeted_expense
@@ -583,19 +1198,26 @@ def dashboard_view(request):
         realized_income = Decimal('0.00')
         
         for kids_group in kids_groups:
+            # AJUSTE DJANGO-MONEY: Extrair budgeted_amount
+            budg_amt = kids_group.budgeted_amount
+            if hasattr(budg_amt, 'amount'):
+                budg_amt = Decimal(str(budg_amt.amount))
+            else:
+                budg_amt = Decimal(str(budg_amt))
+            
             kids_income_entries.append({
                 'id': f'kids_{kids_group.id}',
                 'description': kids_group.name,
-                'amount': (kids_group.budgeted_amount).quantize(Decimal('0.01'), rounding=ROUND_DOWN),
+                'amount': budg_amt.quantize(Decimal('0.01'), rounding=ROUND_DOWN),
                 'date': start_date,
                 'realized': kids_group.realized,
                 'is_kids_income': True,
                 'kids_group_id': kids_group.id,
                 'member': current_member,
             })
-            budgeted_income += kids_group.budgeted_amount
+            budgeted_income += budg_amt
             if kids_group.realized:
-                realized_income += kids_group.budgeted_amount
+                realized_income += budg_amt
         
         income_group = get_default_income_flow_group(family, request.user, start_date)
         manual_income_transactions = Transaction.objects.filter(
@@ -606,20 +1228,33 @@ def dashboard_view(request):
         ).select_related('member__user').order_by('-date', 'order')
         
         for trans in manual_income_transactions:
-            budgeted_income += trans.amount
+            # AJUSTE DJANGO-MONEY
+            amt = trans.amount
+            if hasattr(amt, 'amount'):
+                amt = Decimal(str(amt.amount))
+            else:
+                amt = Decimal(str(amt))
+            
+            budgeted_income += amt
             if trans.realized:
-                realized_income += trans.amount
+                realized_income += amt
         
         recent_income_transactions = list(manual_income_transactions)
         income_flow_group_id = income_group.id
         context_kids_income = kids_income_entries
 
-        realized_expense = Transaction.objects.filter(
+        realized_exp = Transaction.objects.filter(
             flow_group__in=accessible_expense_groups,
             date__range=(start_date, end_date),
             realized=True,
             is_child_expense=True
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')        
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        # AJUSTE DJANGO-MONEY
+        if hasattr(realized_exp, 'amount'):
+            realized_expense = Decimal(str(realized_exp.amount))
+        else:
+            realized_expense = realized_exp
         
     else:
         # === PARENTS/ADMINS VIEW ===
@@ -633,25 +1268,43 @@ def dashboard_view(request):
         
         income_flow_group_id = income_group.id
         
-        budgeted_income = Transaction.objects.filter(
+        budg_inc = Transaction.objects.filter(
             flow_group=income_group,
             date__range=(start_date, end_date),
             is_child_manual_income=False
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         
-        realized_income = Transaction.objects.filter(
+        # AJUSTE DJANGO-MONEY
+        if hasattr(budg_inc, 'amount'):
+            budgeted_income = Decimal(str(budg_inc.amount))
+        else:
+            budgeted_income = budg_inc
+        
+        real_inc = Transaction.objects.filter(
             flow_group=income_group,
             date__range=(start_date, end_date),
             realized=True,
             is_child_manual_income=False
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         
-        kids_groups_realized_budget = FlowGroup.objects.filter(
+        # AJUSTE DJANGO-MONEY
+        if hasattr(real_inc, 'amount'):
+            realized_income = Decimal(str(real_inc.amount))
+        else:
+            realized_income = real_inc
+        
+        kids_realized_sum = FlowGroup.objects.filter(
             family=family,
             period_start_date=start_date,
             is_kids_group=True,
             realized=True
         ).aggregate(total=Sum('budgeted_amount'))['total'] or Decimal('0.00')
+        
+        # AJUSTE DJANGO-MONEY
+        if hasattr(kids_realized_sum, 'amount'):
+            kids_groups_realized_budget = Decimal(str(kids_realized_sum.amount))
+        else:
+            kids_groups_realized_budget = kids_realized_sum
             
         children_manual_income = {}
         for child in family_members:
@@ -664,23 +1317,36 @@ def dashboard_view(request):
                 )
                 
                 if child_income.exists():
-                    total = child_income.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-                    realized_total = child_income.filter(realized=True).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+                    tot = child_income.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+                    real_tot = child_income.filter(realized=True).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+                    
+                    # AJUSTE DJANGO-MONEY
+                    if hasattr(tot, 'amount'):
+                        tot = Decimal(str(tot.amount))
+                    if hasattr(real_tot, 'amount'):
+                        real_tot = Decimal(str(real_tot.amount))
                     
                     children_manual_income[child.id] = {
                         'member': child,
-                        'total': total,
-                        'realized_total': realized_total,
+                        'total': tot,
+                        'realized_total': real_tot,
                         'transactions': list(child_income.values('description', 'amount', 'date', 'realized'))
                     }
         
         context_kids_income = []
-        realized_expense = Transaction.objects.filter(
+        
+        realized_exp_calc = Transaction.objects.filter(
             flow_group__in=accessible_expense_groups,
             date__range=(start_date, end_date),
             realized=True,
             is_child_expense=False
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        # AJUSTE DJANGO-MONEY
+        if hasattr(realized_exp_calc, 'amount'):
+            realized_expense = Decimal(str(realized_exp_calc.amount))
+        else:
+            realized_expense = realized_exp_calc
         
         realized_expense += kids_groups_realized_budget
 
@@ -698,12 +1364,18 @@ def dashboard_view(request):
     
     child_can_create_groups = False
     if member_role_for_period == 'CHILD':
-        child_manual_income_total = Transaction.objects.filter(
+        child_manual_sum = Transaction.objects.filter(
             flow_group__group_type=FLOW_TYPE_INCOME,
             date__range=(start_date, end_date),
             member=current_member,
             is_child_manual_income=True
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        # AJUSTE DJANGO-MONEY
+        if hasattr(child_manual_sum, 'amount'):
+            child_manual_income_total = Decimal(str(child_manual_sum.amount))
+        else:
+            child_manual_income_total = child_manual_sum
         
         child_can_create_groups = child_manual_income_total > Decimal('0.00')
 
@@ -782,12 +1454,30 @@ def bank_reconciliation_view(request):
     
     if mode == 'general':
         # General reconciliation - family totals
-        total_income = income_transactions.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        total_expenses = expense_transactions.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        tot_inc = income_transactions.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        tot_exp = expense_transactions.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        # AJUSTE DJANGO-MONEY
+        if hasattr(tot_inc, 'amount'):
+            total_income = Decimal(str(tot_inc.amount))
+        else:
+            total_income = tot_inc
+            
+        if hasattr(tot_exp, 'amount'):
+            total_expenses = Decimal(str(tot_exp.amount))
+        else:
+            total_expenses = tot_exp
+        
         calculated_balance = total_income - total_expenses
         
         # Get total bank balance
-        total_bank_balance = bank_balances.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        tot_bank = bank_balances.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        # AJUSTE DJANGO-MONEY
+        if hasattr(tot_bank, 'amount'):
+            total_bank_balance = Decimal(str(tot_bank.amount))
+        else:
+            total_bank_balance = tot_bank
         
         # Calculate discrepancy
         discrepancy = total_bank_balance - calculated_balance
@@ -810,16 +1500,33 @@ def bank_reconciliation_view(request):
         
         for member in family_members:
             # Income for this member
-            member_income = income_transactions.filter(member=member).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            mem_inc = income_transactions.filter(member=member).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
             
             # Expenses for this member
-            member_expenses = expense_transactions.filter(member=member).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            mem_exp = expense_transactions.filter(member=member).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            
+            # AJUSTE DJANGO-MONEY
+            if hasattr(mem_inc, 'amount'):
+                member_income = Decimal(str(mem_inc.amount))
+            else:
+                member_income = mem_inc
+                
+            if hasattr(mem_exp, 'amount'):
+                member_expenses = Decimal(str(mem_exp.amount))
+            else:
+                member_expenses = mem_exp
             
             # Calculated balance for member
             member_calculated_balance = member_income - member_expenses
             
             # Bank balance for member
-            member_bank_balance = bank_balances.filter(member=member).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            mem_bank = bank_balances.filter(member=member).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            
+            # AJUSTE DJANGO-MONEY
+            if hasattr(mem_bank, 'amount'):
+                member_bank_balance = Decimal(str(mem_bank.amount))
+            else:
+                member_bank_balance = mem_bank
             
             # Discrepancy
             member_discrepancy = member_bank_balance - member_calculated_balance
@@ -945,6 +1652,9 @@ def save_flow_item_ajax(request):
         if not can_access_flow_group(flow_group, current_member):
             return HttpResponseForbidden("You don't have permission to edit this group.")
 
+        # AJUSTE DJANGO-MONEY: Pegar moeda da família
+        currency = family.configuration.base_currency
+
         if transaction_id and transaction_id != '0' and transaction_id is not None:
             transaction = get_object_or_404(Transaction, id=transaction_id, flow_group=flow_group)
             if member_id:
@@ -966,7 +1676,8 @@ def save_flow_item_ajax(request):
             transaction.member = member
 
         transaction.description = description
-        transaction.amount = abs(amount) 
+        # AJUSTE DJANGO-MONEY: Criar Money object com moeda correta
+        transaction.amount = Money(abs(amount), currency)
         transaction.date = date
         transaction.realized = realized
         
@@ -979,11 +1690,14 @@ def save_flow_item_ajax(request):
         
         transaction.save()
 
+        # AJUSTE DJANGO-MONEY: Retornar só o valor numérico
+        amount_value = str(transaction.amount.amount) if hasattr(transaction.amount, 'amount') else str(transaction.amount)
+
         return JsonResponse({
             'status': 'success',
             'transaction_id': transaction.id,
             'description': transaction.description,
-            'amount': str(transaction.amount),
+            'amount': amount_value,
             'date': transaction.date.strftime('%Y-%m-%d'),
             'member_id': transaction.member.id,
             'member_name': transaction.member.user.username,
@@ -1064,11 +1778,14 @@ def toggle_kids_group_realized_ajax(request):
         flow_group.realized = new_realized_status
         flow_group.save()
         
+        # AJUSTE DJANGO-MONEY: Extrair valor numérico
+        budget_value = str(flow_group.budgeted_amount.amount) if hasattr(flow_group.budgeted_amount, 'amount') else str(flow_group.budgeted_amount)
+        
         return JsonResponse({
             'status': 'success',
             'flow_group_id': flow_group.id,
             'realized': flow_group.realized,
-            'budget': str(flow_group.budgeted_amount)
+            'budget': budget_value
         })
         
     except Exception as e:
@@ -1304,135 +2021,6 @@ def user_profile_view(request):
     return render(request, 'finances/profile.html', context)
 
 
-# === Configuration View ===
-@login_required
-def configuration_view(request):
-    import datetime
-    from .utils import apply_period_configuration_change
-    
-    family, current_member, _ = get_family_context(request.user)
-    if not family:
-        return redirect('dashboard')
-    
-    query_period = request.GET.get('period')
-    start_date, end_date, _ = get_current_period_dates(family, query_period)
-    
-    config, _ = FamilyConfiguration.objects.get_or_create(family=family)
-    
-    if request.method == 'POST':
-        form = FamilyConfigurationForm(request.POST, instance=config)
-        if form.is_valid():
-            # Get new values from form
-            new_period_type = form.cleaned_data.get('period_type')
-            new_starting_day = form.cleaned_data.get('starting_day')
-            new_base_date = form.cleaned_data.get('base_date')
-            
-            # Store OLD values before any changes
-            old_period_type = config.period_type
-            old_starting_day = config.starting_day
-            old_base_date = config.base_date
-            
-            # Check impact of changes
-            impact = check_period_change_impact(
-                family, 
-                new_period_type, 
-                new_starting_day, 
-                new_base_date
-            )
-            
-            # If significant change detected and user hasn't confirmed yet
-            if impact['requires_close'] and not request.POST.get('confirmed'):
-                # Show confirmation in context
-                context = {
-                    'form': form,
-                    'show_confirmation': True,
-                    'impact': impact,
-                    'pending_changes': {
-                        'period_type': new_period_type,
-                        'starting_day': new_starting_day,
-                        'base_date': new_base_date.isoformat() if new_base_date else None,
-                    }
-                }
-                context.update(get_base_template_context(family, query_period, start_date))
-                return render(request, 'finances/configurations.html', context)
-            
-            # User confirmed or no significant change
-            if impact['requires_close']:
-                # Get period boundaries
-                current_start, current_end, _ = impact['current_period']
-                new_start, new_end, _ = impact['new_current_period']
-                adjustment_period = impact.get('adjustment_period')
-                
-                # Prepare old and new config dictionaries for apply function
-                old_config = {
-                    'period_type': old_period_type,
-                    'starting_day': old_starting_day,
-                    'base_date': old_base_date,
-                    'current_start': current_start,
-                    'current_end': current_end
-                }
-                
-                new_config = {
-                    'period_type': new_period_type,
-                    'starting_day': new_starting_day,
-                    'base_date': new_base_date,
-                    'new_start': new_start,
-                    'new_end': new_end
-                }
-                
-                # Apply the configuration change (creates closed periods, copies flow groups)
-                results = apply_period_configuration_change(
-                    family,
-                    old_config,
-                    new_config,
-                    adjustment_period
-                )
-                
-                # NOW save the new configuration
-                form.save()
-                
-                # Create success message
-                if adjustment_period:
-                    adj_start, adj_end = adjustment_period
-                    adj_days = (adj_end - adj_start).days + 1
-                    msg = (f'Configuration updated successfully. Created adjustment period of {adj_days} days '
-                          f'({adj_start.strftime("%b %d")} to {adj_end.strftime("%b %d")}). '
-                          f'New period starts: {new_start.strftime("%b %d, %Y")}. '
-                          f'Copied {results["flow_groups_copied"]} Flow Groups.')
-                    
-                    if results['future_transactions_adjusted'] > 0:
-                        msg += f' Adjusted {results["future_transactions_adjusted"]} future transaction(s) to {new_start.strftime("%b %d")}.'
-                    
-                    messages.success(request, msg)
-                else:
-                    msg = (f'Configuration updated successfully. '
-                          f'Period adjusted to start on {new_start.strftime("%b %d, %Y")}. '
-                          f'Copied {results["flow_groups_copied"]} Flow Groups.')
-                    
-                    if results['future_transactions_adjusted'] > 0:
-                        msg += f' Adjusted {results["future_transactions_adjusted"]} future transaction(s) to {new_start.strftime("%b %d")}.'
-                    
-                    messages.success(request, msg)
-            else:
-                # No need to close, just save
-                form.save()
-                messages.success(request, 'Configuration updated successfully.')
-            
-            redirect_url = f"?period={query_period}" if query_period else ""
-            return redirect(f"/settings/{redirect_url}")
-    else:
-        form = FamilyConfigurationForm(instance=config)
-    
-    context = {
-        'form': form,
-        'show_confirmation': False,
-    }
-    context.update(get_base_template_context(family, query_period, start_date))
-    return render(request, 'finances/configurations.html', context)
-
-
-
-
 @login_required
 def create_flow_group_view(request):
     family, current_member, family_members = get_family_context(request.user)
@@ -1456,7 +2044,7 @@ def create_flow_group_view(request):
             # Validation for CHILD users: budget cannot exceed manual income
             if current_member.role == 'CHILD':
                 # Calculate child's manual income total for this period
-                child_manual_income_total = Transaction.objects.filter(
+                child_manual_sum = Transaction.objects.filter(
                     flow_group__group_type=FLOW_TYPE_INCOME,
                     flow_group__family=family,
                     date__range=(start_date, end_date),
@@ -1464,7 +2052,20 @@ def create_flow_group_view(request):
                     is_child_manual_income=True
                 ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
                 
-                if flow_group.budgeted_amount > child_manual_income_total:
+                # AJUSTE DJANGO-MONEY
+                if hasattr(child_manual_sum, 'amount'):
+                    child_manual_income_total = Decimal(str(child_manual_sum.amount))
+                else:
+                    child_manual_income_total = child_manual_sum
+                
+                # AJUSTE DJANGO-MONEY: Extrair budgeted_amount
+                budg_amt = flow_group.budgeted_amount
+                if hasattr(budg_amt, 'amount'):
+                    budg_amt_val = Decimal(str(budg_amt.amount))
+                else:
+                    budg_amt_val = Decimal(str(budg_amt))
+                
+                if budg_amt_val > child_manual_income_total:
                     messages.error(request, f"Budget cannot exceed your available balance (${child_manual_income_total}). Please enter a budget of ${child_manual_income_total} or less.")
                     context = {
                         'form': form,
@@ -1509,13 +2110,19 @@ def create_flow_group_view(request):
     # Calculate max budget for child users
     child_max_budget = None
     if current_member.role == 'CHILD':
-        child_max_budget = Transaction.objects.filter(
+        child_sum = Transaction.objects.filter(
             flow_group__group_type=FLOW_TYPE_INCOME,
             flow_group__family=family,
             date__range=(start_date, end_date),
             member=current_member,
             is_child_manual_income=True
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        # AJUSTE DJANGO-MONEY
+        if hasattr(child_sum, 'amount'):
+            child_max_budget = Decimal(str(child_sum.amount))
+        else:
+            child_max_budget = child_sum
 
     context = {
         'form': form,
@@ -1590,11 +2197,24 @@ def edit_flow_group_view(request, group_id):
 
     transactions = Transaction.objects.filter(flow_group=group).select_related('member__user').order_by('order', '-date')
     
-    total_estimated = transactions.filter(date__range=(start_date, end_date)).aggregate(
+    total_est = transactions.filter(date__range=(start_date, end_date)).aggregate(
         total=Sum('amount')
     )['total'] or Decimal('0.00')
     
-    budget_warning = total_estimated > group.budgeted_amount if group.budgeted_amount else False
+    # AJUSTE DJANGO-MONEY
+    if hasattr(total_est, 'amount'):
+        total_estimated = Decimal(str(total_est.amount))
+    else:
+        total_estimated = total_est
+    
+    # AJUSTE DJANGO-MONEY: Extrair budgeted_amount
+    budg_amt = group.budgeted_amount
+    if hasattr(budg_amt, 'amount'):
+        budg_amt_val = Decimal(str(budg_amt.amount))
+    else:
+        budg_amt_val = Decimal(str(budg_amt))
+    
+    budget_warning = total_estimated > budg_amt_val if budg_amt_val else False
 
     # Get default date for this period
     default_date = get_default_date_for_period(start_date, end_date)
@@ -1930,12 +2550,16 @@ def save_bank_balance_ajax(request):
         if member_id and member_id != 'null':
             member = FamilyMember.objects.get(id=member_id, family=family)
         
+        # AJUSTE DJANGO-MONEY: Criar Money object
+        currency = family.configuration.base_currency
+        money_amount = Money(amount, currency)
+        
         # Create or update
         if balance_id and balance_id != 'new':
             # Update existing
             bank_balance = BankBalance.objects.get(id=balance_id, family=family)
             bank_balance.description = description
-            bank_balance.amount = amount
+            bank_balance.amount = money_amount
             bank_balance.date = date
             bank_balance.member = member
             bank_balance.save()
@@ -1945,16 +2569,19 @@ def save_bank_balance_ajax(request):
                 family=family,
                 member=member,
                 description=description,
-                amount=amount,
+                amount=money_amount,
                 date=date,
                 period_start_date=period_start_date
             )
+        
+        # AJUSTE DJANGO-MONEY: Retornar valor numérico
+        amount_value = str(bank_balance.amount.amount) if hasattr(bank_balance.amount, 'amount') else str(bank_balance.amount)
         
         return JsonResponse({
             'status': 'success',
             'id': bank_balance.id,
             'description': bank_balance.description,
-            'amount': str(bank_balance.amount),
+            'amount': amount_value,
             'date': bank_balance.date.strftime('%Y-%m-%d'),
             'member_id': bank_balance.member.id if bank_balance.member else None,
             'member_name': bank_balance.member.user.username if bank_balance.member else 'Family',

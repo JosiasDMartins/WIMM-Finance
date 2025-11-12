@@ -7,188 +7,456 @@
         <h1 class="text-[#0d171b] dark:text-white text-2xl font-bold tracking-[-0.015em] mb-8">Application Settings</h1>
         
         <!-- Navigation Tabs -->
-        <div class="mb-6 border-b border-gray-200 dark:border-gray-700">
-            <nav class="-mb-px flex space-x-8">
-                <a href="{% url 'configuration' %}{% if selected_period %}?period={{ selected_period }}{% endif %}" 
-                   class="border-b-2 border-primary text-primary py-4 px-1 text-sm font-medium">
-                    Configuration
-                </a>
-                <a href="{% url 'members' %}{% if selected_period %}?period={{ selected_period }}{% endif %}" 
-                   class="border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 py-4 px-1 text-sm font-medium">
-                    Members
-                </a>
-            </nav>
-        </div>
-        
-        <form method="post" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
-            {% csrf_token %}
-            <div class="p-6 space-y-6">
-                
-                
-                {# Period Type Selection #}
-                <div class="flex flex-col">
-                    <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2">Period Frequency</label>
-                    <div class="space-y-3">
-                        {% for radio in form.period_type %}
-                        <label class="flex items-center gap-3 border border-[#cfdfe7] dark:border-gray-600 p-[15px] rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-gray-700">
-                            {{ radio.tag }}
-                            <div class="flex grow flex-col">
-                                <p class="text-[#0d171b] dark:text-white text-sm font-medium leading-normal">{{ radio.choice_label }}</p>
-                            </div>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </div>
-
-                {# Starting Day - Only for Monthly #}
-                <div id="starting-day-field" class="flex flex-col">
-                    <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.starting_day.id_for_label }}">Starting Day (for Monthly Cycle)</label>
-                    {{ form.starting_day }}
-                    <p class="text-xs text-gray-500 mt-1">Day of the month (1-31) that defines the cycle start.</p>
-                </div>
-
-                {# Base Date - Only for Bi-weekly/Weekly #}
-                <div id="base-date-field" class="flex flex-col" style="display: none;">
-                    <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.base_date.id_for_label }}">Initial Date / Base Day for the Cycle</label>
-                    {{ form.base_date }}
-                    <p class="text-xs text-gray-500 mt-1">Reference date used to calculate bi-weekly or weekly periods.</p>
-                </div>                
-
+        <div x-data="{ activeTab: 'configuration' }" class="mb-6">
+            <div class="border-b border-gray-200 dark:border-gray-700">
+                <nav class="-mb-px flex space-x-8">
+                    <button @click="activeTab = 'configuration'" 
+                            :class="activeTab === 'configuration' ? 'border-primary text-primary' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
+                            class="border-b-2 py-4 px-1 text-sm font-medium transition-colors">
+                        <span class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-lg">settings</span>
+                            Configuration
+                        </span>
+                    </button>
+                    
+                    <a href="{% url 'members' %}{% if selected_period %}?period={{ selected_period }}{% endif %}" 
+                       class="border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 py-4 px-1 text-sm font-medium">
+                        <span class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-lg">group</span>
+                            Members
+                        </span>
+                    </a>
+                    
+                    <button @click="activeTab = 'backup'" 
+                            :class="activeTab === 'backup' ? 'border-primary text-primary' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
+                            class="border-b-2 py-4 px-1 text-sm font-medium transition-colors">
+                        <span class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-lg">backup</span>
+                            Backup & Restore
+                        </span>
+                    </button>
+                    
+                    <button @click="activeTab = 'updates'" 
+                            :class="activeTab === 'updates' ? 'border-primary text-primary' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
+                            class="border-b-2 py-4 px-1 text-sm font-medium transition-colors">
+                        <span class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-lg">cloud_sync</span>
+                            Updates
+                        </span>
+                    </button>
+                </nav>
             </div>
             
-            <div class="mt-8 pt-6 border-t border-[#dee2e6] dark:border-gray-700 flex justify-end gap-4 p-6">
-                <button type="submit" class="rounded-lg bg-primary text-white text-sm font-medium leading-normal p-3 hover:bg-primary/90">
-                    Save Configuration
-                </button>
-            </div>
-        </form>
-    </div>
-
-
-    {% if show_confirmation %}
-    <!-- Confirmation Modal -->
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full mx-4 p-6">
-            <div class="flex items-start mb-4">
-                <div class="flex-shrink-0">
-                    <span class="material-symbols-outlined text-4xl text-yellow-500">warning</span>
-                </div>
-                <div class="ml-4 flex-1">
-                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                        Confirm Period Configuration Change
-                    </h3>
-                    <div class="text-sm text-gray-600 dark:text-gray-300 space-y-2">
-                        <p class="font-medium">{{ impact.message }}</p>
+            <!-- Configuration Tab -->
+            <div x-show="activeTab === 'configuration'" class="mt-6">
+                <form method="post" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+                    {% csrf_token %}
+                    <div class="p-6 space-y-6">
                         
-                        <div class="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                            <p class="font-semibold text-blue-900 dark:text-blue-200 mb-2">What will happen:</p>
-                            <ul class="list-disc list-inside space-y-1 text-blue-800 dark:text-blue-300">
-                                <li>Current period ({{ impact.current_period.0 }} to {{ impact.current_period.1 }}) will be closed</li>
-                                <li>A new period will start ({{ impact.new_current_period.0 }} to {{ impact.new_current_period.1 }})</li>
-                                <li>All Flow Groups will be copied to the new period</li>
-                                <li>Transactions will be distributed:
-                                    <ul class="list-circle list-inside ml-4 mt-1">
-                                        <li>Transactions dated before {{ impact.new_current_period.0 }} remain in closed period</li>
-                                        <li>Transactions dated on or after {{ impact.new_current_period.0 }} move to new period</li>
-                                    </ul>
-                                </li>
-                                <li>Previous closed periods remain unchanged</li>
-                            </ul>
+                        <!-- Base Currency Selection -->
+                        <div class="flex flex-col">
+                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.base_currency.id_for_label }}">Base Currency</label>
+                            {{ form.base_currency }}
+                            <p class="text-xs text-gray-500 mt-1">All financial values will be stored and displayed in this currency. Changing this will not convert existing values.</p>
                         </div>
                         
-                        <p class="mt-4 text-yellow-700 dark:text-yellow-400 font-medium">
-                            ⚠️ Please review your entries after this change to ensure they're in the correct period.
+                        <!-- Period Type Selection -->
+                        <div class="flex flex-col">
+                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2">Period Frequency</label>
+                            <div class="space-y-3">
+                                {% for radio in form.period_type %}
+                                <label class="flex items-center gap-3 border border-[#cfdfe7] dark:border-gray-600 p-[15px] rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-gray-700">
+                                    {{ radio.tag }}
+                                    <div class="flex grow flex-col">
+                                        <p class="text-[#0d171b] dark:text-white text-sm font-medium leading-normal">{{ radio.choice_label }}</p>
+                                    </div>
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Starting Day - Only for Monthly -->
+                        <div id="starting-day-field" class="flex flex-col">
+                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.starting_day.id_for_label }}">Starting Day of Month</label>
+                            {{ form.starting_day }}
+                            <p class="text-xs text-gray-500 mt-1">Day of the month (1-31) that defines the cycle start.</p>
+                        </div>
+
+                        <!-- Base Date - Only for Bi-weekly/Weekly -->
+                        <div id="base-date-field" class="flex flex-col" style="display: none;">
+                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.base_date.id_for_label }}">Base Date for Cycle</label>
+                            {{ form.base_date }}
+                            <p class="text-xs text-gray-500 mt-1">Reference date used to calculate bi-weekly or weekly periods.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-8 pt-6 border-t border-[#dee2e6] dark:border-gray-700 flex justify-end gap-4 p-6">
+                        <button type="submit" class="rounded-lg bg-primary text-white text-sm font-medium leading-normal p-3 hover:bg-primary/90">
+                            Save Configuration
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Backup & Restore Tab -->
+            <div x-show="activeTab === 'backup'" class="mt-6 space-y-6">
+                <!-- Database Backup Section -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+                    <div class="p-6">
+                        <div class="flex items-start gap-3 mb-4">
+                            <span class="material-symbols-outlined text-amber-600 text-2xl">backup</span>
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-gray-900 dark:text-white text-lg">Backup Database</h3>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                    Download a complete backup of your database. Keep this file safe for recovery purposes.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <button id="btn-backup-db" 
+                                class="w-full px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium transition-colors flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined">download</span>
+                            Download Database Backup
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Database Restore Section -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+                    <div class="p-6">
+                        <div class="flex items-start gap-3 mb-4">
+                            <span class="material-symbols-outlined text-blue-600 text-2xl">upload_file</span>
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-gray-900 dark:text-white text-lg">Restore Database</h3>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                    Restore your database from a previously saved backup file.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-4">
+                            <div class="flex">
+                                <span class="material-symbols-outlined text-red-500 mr-2">warning</span>
+                                <div>
+                                    <h4 class="font-semibold text-red-900 dark:text-red-200">Warning</h4>
+                                    <p class="text-sm text-red-800 dark:text-red-300 mt-1">
+                                        Restoring a backup will replace your current database. This action cannot be undone.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
+                            <input type="file" id="restore-file-input" accept=".sqlite3" class="hidden">
+                            <label for="restore-file-input" class="cursor-pointer">
+                                <span class="material-symbols-outlined text-4xl text-gray-400 mb-2 block">cloud_upload</span>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                                    Click to select a backup file
+                                </p>
+                                <p class="text-xs text-gray-500">SQLite3 database files only</p>
+                            </label>
+                        </div>
+                        
+                        <p id="restore-file-name" class="text-sm text-gray-600 dark:text-gray-400 mt-2 text-center">
+                            No file selected
                         </p>
+                        
+                        <button id="btn-restore-db" disabled
+                                class="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span class="material-symbols-outlined">restore</span>
+                            Restore Database
+                        </button>
+                        
+                        <!-- Restore Preview (shown after restore) -->
+                        <div id="restore-preview" class="hidden mt-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                            <h4 class="font-semibold text-green-900 dark:text-green-200 mb-2">Restore Complete</h4>
+                            <p class="text-sm text-green-800 dark:text-green-300 mb-2">
+                                Family: <span id="restore-family-name" class="font-semibold"></span>
+                            </p>
+                            <p class="text-sm text-green-800 dark:text-green-300 mb-1">Users:</p>
+                            <ul id="restore-users-list" class="list-disc list-inside text-sm text-green-700 dark:text-green-400">
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <div class="flex justify-end gap-3 mt-6">
-                <form method="GET" action="{% url 'configuration' %}" class="inline">
-                    {% if selected_period %}
-                    <input type="hidden" name="period" value="{{ selected_period }}">
-                    {% endif %}
-                    <button type="submit" 
-                            class="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition-colors">
-                        Cancel
-                    </button>
-                </form>
+            <!-- Updates Tab -->
+            <div x-show="activeTab === 'updates'" class="mt-6 space-y-6">
+                <!-- Current Version Info -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+                    <div class="p-6">
+                        <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm text-blue-900 dark:text-blue-200 font-medium">Current System Version</p>
+                                    <p class="text-2xl font-mono text-blue-700 dark:text-blue-300 mt-1">
+                                        {{ VERSION }}
+                                    </p>
+                                </div>
+                                <span class="material-symbols-outlined text-4xl text-blue-500">info</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 
-                <form method="POST" action="{% url 'configuration' %}" class="inline">
-                    {% csrf_token %}
-                    {% if selected_period %}
-                    <input type="hidden" name="period" value="{{ selected_period }}">
-                    {% endif %}
-                    <input type="hidden" name="period_type" value="{{ pending_changes.period_type }}">
-                    <input type="hidden" name="starting_day" value="{{ pending_changes.starting_day }}">
-                    {% if pending_changes.base_date %}
-                    <input type="hidden" name="base_date" value="{{ pending_changes.base_date }}">
-                    {% endif %}
-                    <input type="hidden" name="confirmed" value="true">
-                    
-                    <button type="submit" 
-                            class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 font-medium transition-colors">
-                        Accept & Continue
-                    </button>
-                </form>
+                <!-- GitHub Update Check -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+                    <div class="p-6">
+                        <div class="flex items-start gap-3 mb-4">
+                            <span class="material-symbols-outlined text-green-600 text-2xl">cloud_download</span>
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-gray-900 dark:text-white text-lg">Check for Online Updates</h3>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                    Check GitHub repository for the latest available release.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <button id="btn-check-online-updates" 
+                                class="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined">refresh</span>
+                            Check for Updates
+                        </button>
+                        
+                        <!-- Update Info (hidden by default) -->
+                        <div id="online-update-info" class="hidden mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                            <div id="no-updates-found" class="hidden text-center text-gray-600 dark:text-gray-400">
+                                <span class="material-symbols-outlined text-4xl text-gray-400 mb-2">check_circle</span>
+                                <p class="font-medium">System is up to date!</p>
+                                <p class="text-sm mt-1">Latest version: <span id="github-latest-version" class="font-mono"></span></p>
+                            </div>
+                            
+                            <div id="updates-available" class="hidden">
+                                <div class="flex items-start gap-2 mb-3">
+                                    <span class="material-symbols-outlined text-green-600">new_releases</span>
+                                    <div class="flex-1">
+                                        <h4 class="font-semibold text-gray-900 dark:text-white">Update Available!</h4>
+                                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                            Version <span id="available-version" class="font-mono font-semibold"></span> is available
+                                        </p>
+                                    </div>
+                                </div>
+                                <a id="view-release-link" href="#" target="_blank" 
+                                   class="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400">
+                                    <span>View release on GitHub</span>
+                                    <span class="material-symbols-outlined text-sm">open_in_new</span>
+                                </a>
+                            </div>
+                            
+                            <div id="local-update-pending" class="hidden text-center text-orange-600 dark:text-orange-400">
+                                <span class="material-symbols-outlined text-4xl mb-2">construction</span>
+                                <p class="font-medium">Local updates pending</p>
+                                <p class="text-sm mt-1">Please apply local updates first before checking for online updates.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-    {% endif %}
-
 </main>
 
-
 <script>
-    // Show/hide fields based on period type selection
-    document.addEventListener('DOMContentLoaded', function() {
-        const periodTypeRadios = document.querySelectorAll('input[name="period_type"]');
-        const startingDayField = document.getElementById('starting-day-field');
-        const baseDateField = document.getElementById('base-date-field');
+document.addEventListener('DOMContentLoaded', function() {
+    // Configuration tab: Period type field visibility
+    const periodTypeRadios = document.querySelectorAll('input[name="period_type"]');
+    const startingDayField = document.getElementById('starting-day-field');
+    const baseDateField = document.getElementById('base-date-field');
+    
+    function updateFieldVisibility() {
+        const selectedPeriodType = document.querySelector('input[name="period_type"]:checked')?.value;
         
-        function updateFieldsVisibility() {
-            const selectedType = document.querySelector('input[name="period_type"]:checked');
-            if (!selectedType) return;
-            
-            const value = selectedType.value;
-            
-            if (value === 'M') {
-                // Monthly - show starting_day, hide base_date
-                if (startingDayField) startingDayField.style.display = 'flex';
-                if (baseDateField) baseDateField.style.display = 'none';
-            } else {
-                // Bi-weekly or Weekly - hide starting_day, show base_date
-                if (startingDayField) startingDayField.style.display = 'none';
-                if (baseDateField) baseDateField.style.display = 'flex';
-            }
+        if (selectedPeriodType === 'M') {
+            startingDayField.style.display = 'block';
+            baseDateField.style.display = 'none';
+        } else {
+            startingDayField.style.display = 'none';
+            baseDateField.style.display = 'block';
         }
-        
-        // Initial setup
-        updateFieldsVisibility();
-        
-        // Listen for changes
-        periodTypeRadios.forEach(radio => {
-            radio.addEventListener('change', updateFieldsVisibility);
-        });
+    }
+    
+    periodTypeRadios.forEach(radio => {
+        radio.addEventListener('change', updateFieldVisibility);
     });
     
-    // Intercept form submission to show warning if needed
-    document.querySelector('form').addEventListener('submit', function(e) {
-        const currentType = '{{ form.period_type.value }}';
-        const newType = document.querySelector('input[name="period_type"]:checked').value;
+    updateFieldVisibility();
+    
+    // Check for online updates
+    document.getElementById('btn-check-online-updates')?.addEventListener('click', async function() {
+        const btn = this;
+        const originalText = btn.innerHTML;
         
-        if (currentType !== newType) {
-            e.preventDefault();
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Checking...';
+        
+        try {
+            const response = await fetch('/check-updates/manual/', {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            });
             
-            const message = "Changing the period type will affect your current period boundaries. " +
-                          "Previous periods already closed will remain as they were, but the current period " +
-                          "may be adjusted. Are you sure you want to continue?";
+            const data = await response.json();
             
-            if (confirm(message)) {
-                // User confirmed, submit the form
-                e.target.submit();
+            const infoDiv = document.getElementById('online-update-info');
+            const noUpdates = document.getElementById('no-updates-found');
+            const hasUpdates = document.getElementById('updates-available');
+            const localPending = document.getElementById('local-update-pending');
+            
+            infoDiv.classList.remove('hidden');
+            noUpdates.classList.add('hidden');
+            hasUpdates.classList.add('hidden');
+            localPending.classList.add('hidden');
+            
+            if (data.local_update_available) {
+                localPending.classList.remove('hidden');
+            } else if (data.github_update_available) {
+                hasUpdates.classList.remove('hidden');
+                document.getElementById('available-version').textContent = data.github_version;
+                document.getElementById('view-release-link').href = data.github_release.html_url;
+            } else {
+                noUpdates.classList.remove('hidden');
+                document.getElementById('github-latest-version').textContent = data.current_version;
             }
+        } catch (error) {
+            alert('Error checking for updates: ' + error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
         }
     });
+    
+    // Backup database
+    document.getElementById('btn-backup-db')?.addEventListener('click', async function() {
+        const btn = this;
+        const originalText = btn.innerHTML;
+        
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Creating backup...';
+        
+        try {
+            const response = await fetch('/create-backup/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                window.location.href = data.download_url;
+                btn.innerHTML = '<span class="material-symbols-outlined">check_circle</span> Backup Downloaded!';
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }, 3000);
+            } else {
+                alert('Backup failed: ' + data.error);
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        } catch (error) {
+            alert('Error creating backup: ' + error.message);
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    });
+    
+    // Restore file selection
+    document.getElementById('restore-file-input')?.addEventListener('change', function(e) {
+        const fileName = document.getElementById('restore-file-name');
+        const btnRestore = document.getElementById('btn-restore-db');
+        const preview = document.getElementById('restore-preview');
+        
+        if (e.target.files.length > 0) {
+            fileName.textContent = e.target.files[0].name;
+            btnRestore.disabled = false;
+            preview.classList.add('hidden');
+        } else {
+            fileName.textContent = 'No file selected';
+            btnRestore.disabled = true;
+            preview.classList.add('hidden');
+        }
+    });
+    
+    // Restore database
+    document.getElementById('btn-restore-db')?.addEventListener('click', async function() {
+        const fileInput = document.getElementById('restore-file-input');
+        const file = fileInput.files[0];
+        
+        if (!file) return;
+        
+        if (!confirm('Are you sure you want to restore this backup? This will replace your current database!')) {
+            return;
+        }
+        
+        const btn = this;
+        const originalText = btn.innerHTML;
+        const preview = document.getElementById('restore-preview');
+        
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Restoring...';
+        
+        try {
+            const formData = new FormData();
+            formData.append('backup_file', file);
+            
+            const response = await fetch('/restore-backup/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                preview.classList.remove('hidden');
+                document.getElementById('restore-family-name').textContent = data.family.name;
+                
+                const usersList = document.getElementById('restore-users-list');
+                usersList.innerHTML = '';
+                data.users.forEach(user => {
+                    const li = document.createElement('li');
+                    li.textContent = `${user.username} (${user.role})`;
+                    usersList.appendChild(li);
+                });
+                
+                setTimeout(() => {
+                    if (confirm('Database restored successfully! You will be logged out. Click OK to go to login page.')) {
+                        window.location.href = '/login/';
+                    }
+                }, 1000);
+            } else {
+                alert('Restore failed: ' + data.error);
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        } catch (error) {
+            alert('Error restoring database: ' + error.message);
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    });
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
 </script>
 {% endblock %}

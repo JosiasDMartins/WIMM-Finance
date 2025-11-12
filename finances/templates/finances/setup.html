@@ -129,7 +129,7 @@
                         </div>
                     </div>
                 </div>
-
+                
                 {% if database_error %}
                 <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
                     <div class="flex">
@@ -139,226 +139,346 @@
                         <div class="ml-3">
                             <h3 class="text-sm font-medium text-red-800">Database Error</h3>
                             <div class="mt-2 text-sm text-red-700">
-                                {{ database_error }}
+                                <p>{{ database_error }}</p>
                             </div>
                         </div>
                     </div>
                 </div>
                 {% endif %}
 
-                {% if form.non_field_errors %}
-                <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
-                    <div class="flex">
-                        <div class="flex-shrink-0">
-                            <span class="material-symbols-outlined text-red-500">error</span>
-                        </div>
-                        <div class="ml-3">
-                            <h3 class="text-sm font-medium text-red-800">Error</h3>
-                            <div class="mt-2 text-sm text-red-700">
-                                {{ form.non_field_errors }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
 
-                <form method="POST" action="{% url 'initial_setup' %}" class="space-y-6">
-                    {% csrf_token %}
-                    
-                    <div class="border-b border-gray-200 pb-6">
-                        <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                            <span class="material-symbols-outlined mr-2 text-teal-600">family_restroom</span>
-                            Family Information
-                        </h2>
-                        
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.family_name.id_for_label }}">
-                                Family Name
-                                <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" 
-                                   name="{{ form.family_name.name }}" 
-                                   id="{{ form.family_name.id_for_label }}"
-                                   value="{{ form.family_name.value|default:'' }}"
-                                   placeholder="e.g., The Smiths, Johnson Family"
-                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                                   required>
-                            {% if form.family_name.errors %}
-                                <p class="mt-1 text-sm text-red-600">{{ form.family_name.errors.0 }}</p>
-                            {% endif %}
-                            <p class="mt-1 text-sm text-gray-500">This will be the name of your family's financial group</p>
-                        </div>
-                    </div>
 
-                    <div class="border-b border-gray-200 pb-6">
-                        <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                            <span class="material-symbols-outlined mr-2 text-teal-600">admin_panel_settings</span>
-                            Administrator Account
-                        </h2>
-                        
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.username.id_for_label }}">
-                                    Username
-                                    <span class="text-red-500">*</span>
-                                </label>
-                                <input type="text" 
-                                       name="{{ form.username.name }}" 
-                                       id="{{ form.username.id_for_label }}"
-                                       value="{{ form.username.value|default:'' }}"
-                                       placeholder="Choose a username"
-                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                                       required>
-                                {% if form.username.errors %}
-                                    <p class="mt-1 text-sm text-red-600">{{ form.username.errors.0 }}</p>
-                                {% endif %}
-                            </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.email.id_for_label }}">
-                                    Email (Optional)
-                                </label>
-                                <input type="email" 
-                                       name="{{ form.email.name }}" 
-                                       id="{{ form.email.id_for_label }}"
-                                       value="{{ form.email.value|default:'' }}"
-                                       placeholder="your.email@example.com"
-                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                                {% if form.email.errors %}
-                                    <p class="mt-1 text-sm text-red-600">{{ form.email.errors.0 }}</p>
-                                {% endif %}
-                            </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.password.id_for_label }}">
-                                    Password
-                                    <span class="text-red-500">*</span>
-                                </label>
-                                <input type="password" 
-                                       name="{{ form.password.name }}" 
-                                       id="{{ form.password.id_for_label }}"
-                                       placeholder="Minimum 6 characters"
-                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                                       required>
-                                {% if form.password.errors %}
-                                    <p class="mt-1 text-sm text-red-600">{{ form.password.errors.0 }}</p>
-                                {% endif %}
-                                <p class="mt-1 text-sm text-gray-500">Must be at least 6 characters long</p>
-                            </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.confirm_password.id_for_label }}">
-                                    Confirm Password
-                                    <span class="text-red-500">*</span>
-                                </label>
-                                <input type="password" 
-                                       name="{{ form.confirm_password.name }}" 
-                                       id="{{ form.confirm_password.id_for_label }}"
-                                       placeholder="Re-enter your password"
-                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                                       required>
-                                {% if form.confirm_password.errors %}
-                                    <p class="mt-1 text-sm text-red-600">{{ form.confirm_password.errors.0 }}</p>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
 
-                    <div class="border-b border-gray-200 pb-6">
-                        <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                            <span class="material-symbols-outlined mr-2 text-teal-600">calendar_month</span>
-                            Financial Cycle Settings
-                        </h2>
-                        
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">
-                                    Period Frequency
-                                    <span class="text-red-500">*</span>
-                                </label>
-                                <div class="space-y-3">
-                                    {% for radio in form.period_type %}
-                                    <label class="flex items-center gap-3 border border-gray-300 p-4 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                                        {{ radio.tag }}
-                                        <div class="flex grow flex-col">
-                                            <p class="text-gray-900 text-sm font-medium">{{ radio.choice_label }}</p>
-                                            {% if radio.choice_value == 'M' %}
-                                            <p class="text-xs text-gray-500">Budget resets monthly on a specific day</p>
-                                            {% elif radio.choice_value == 'B' %}
-                                            <p class="text-xs text-gray-500">Budget resets every 2 weeks</p>
-                                            {% elif radio.choice_value == 'W' %}
-                                            <p class="text-xs text-gray-500">Budget resets weekly</p>
-                                            {% endif %}
-                                        </div>
-                                    </label>
-                                    {% endfor %}
-                                </div>
-                                {% if form.period_type.errors %}
-                                    <p class="mt-1 text-sm text-red-600">{{ form.period_type.errors.0 }}</p>
-                                {% endif %}
-                            </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.starting_day.id_for_label }}">
-                                    Starting Day (for Monthly Cycle)
-                                </label>
-                                <input type="number" 
-                                       name="{{ form.starting_day.name }}" 
-                                       id="{{ form.starting_day.id_for_label }}"
-                                       value="{{ form.starting_day.value|default:'1' }}"
-                                       min="1" 
-                                       max="31"
-                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                                {% if form.starting_day.errors %}
-                                    <p class="mt-1 text-sm text-red-600">{{ form.starting_day.errors.0 }}</p>
-                                {% endif %}
-                                <p class="mt-1 text-sm text-gray-500">Day of the month (1-31) when your budget cycle starts</p>
-                            </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.base_date.id_for_label }}">
-                                    Base Date (for Bi-weekly/Weekly cycles)
-                                </label>
-                                <input type="date" 
-                                       name="{{ form.base_date.name }}" 
-                                       id="{{ form.base_date.id_for_label }}"
-                                       value="{{ form.base_date.value|default:'' }}"
-                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                                {% if form.base_date.errors %}
-                                    <p class="mt-1 text-sm text-red-600">{{ form.base_date.errors.0 }}</p>
-                                {% endif %}
-                                <p class="mt-1 text-sm text-gray-500">Reference date for calculating bi-weekly/weekly periods</p>
-                            </div>
-                        </div>
-                    </div>
 
-                    <div class="bg-teal-50 rounded-lg p-4">
-                        <div class="flex">
-                            <div class="flex-shrink-0">
-                                <span class="material-symbols-outlined text-teal-600">check_circle</span>
-                            </div>
-                            <div class="ml-3">
-                                <h3 class="text-sm font-medium text-teal-800">What happens next?</h3>
-                                <div class="mt-2 text-sm text-teal-700">
-                                    <ul class="list-disc list-inside space-y-1">
-                                        <li>Your family account will be created</li>
-                                        <li>You'll be logged in as the administrator</li>
-                                        <li>You can start managing your family's finances immediately</li>
-                                        <li>You can add other family members from the Settings page</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="pt-4">
-                        <button type="submit" 
-                                class="w-full bg-gradient-to-r from-teal-500 to-teal-600 text-white text-lg font-semibold py-4 px-6 rounded-lg hover:from-teal-600 hover:to-teal-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2">
-                            <span class="material-symbols-outlined">rocket_launch</span>
-                            Complete Setup & Get Started
+                <div class="mb-6">
+                    <div class="flex items-center justify-center gap-4">
+                        <button type="button" id="btn-show-restore" 
+                                class="px-6 py-3 border-2 border-teal-500 text-teal-600 rounded-lg hover:bg-teal-50 font-medium transition-colors flex items-center gap-2">
+                            <span class="material-symbols-outlined">restore</span>
+                            Restore from Backup
+                        </button>
+                        <span class="text-gray-400">or</span>
+                        <button type="button" id="btn-show-setup" 
+                                class="px-6 py-3 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium transition-colors flex items-center gap-2">
+                            <span class="material-symbols-outlined">add_circle</span>
+                            New Installation
                         </button>
                     </div>
-                </form>
+                </div>
+
+                <!-- Restore Backup Form (hidden by default) -->
+                <div id="restore-section" class="hidden">
+                    <div class="bg-amber-50 border-l-4 border-amber-500 p-4 mb-6">
+                        <div class="flex">
+                            <span class="material-symbols-outlined text-amber-500 mr-2">backup</span>
+                            <div>
+                                <h3 class="text-sm font-medium text-amber-800 mb-2">Restore Database from Backup</h3>
+                                <p class="text-sm text-amber-700">
+                                    Upload a previous database backup to restore your family's financial data.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form id="restore-form" enctype="multipart/form-data" class="space-y-6">
+                        {% csrf_token %}
+                        
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                            <span class="material-symbols-outlined text-6xl text-gray-400 mb-4">upload_file</span>
+                            <input type="file" 
+                                id="backup-file-input" 
+                                name="backup_file"
+                                accept=".sqlite3,.db"
+                                class="hidden">
+                            <label for="backup-file-input" 
+                                class="cursor-pointer inline-block px-6 py-3 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium transition-colors">
+                                Choose Backup File
+                            </label>
+                            <p class="mt-2 text-sm text-gray-600" id="file-name">No file selected</p>
+                        </div>
+                        
+                        <div id="restore-info" class="hidden bg-green-50 border-l-4 border-green-500 p-4">
+                            <h4 class="font-semibold text-green-800 mb-3">Backup Information:</h4>
+                            <div class="text-sm text-green-700 space-y-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-lg">family_restroom</span>
+                                    <span>Family: <strong id="family-name">-</strong></span>
+                                </div>
+                                <div>
+                                    <span class="font-semibold">Users:</span>
+                                    <ul id="users-list" class="ml-6 mt-1 list-disc"></ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-4">
+                            <button type="button" id="btn-cancel-restore" 
+                                    class="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors">
+                                Cancel
+                            </button>
+                            <button type="button" id="btn-upload-backup" 
+                                    class="flex-1 px-6 py-3 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled>
+                                Restore Backup
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Regular Setup Form (shown by default) -->
+                <div id="setup-section">
+
+
+
+
+
+                
+
+                
+                        <form method="post" class="space-y-6">
+                            {% csrf_token %}
+                            
+                            <div class="border-b border-gray-200 pb-6">
+                                <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                                    <span class="material-symbols-outlined mr-2 text-teal-600">person</span>
+                                    Administrator Account
+                                </h2>
+                                
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.username.id_for_label }}">
+                                            Username
+                                            <span class="text-red-500">*</span>
+                                        </label>
+                                        <input type="text" 
+                                            name="{{ form.username.name }}" 
+                                            id="{{ form.username.id_for_label }}"
+                                            placeholder="Choose a username"
+                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                                            required>
+                                        {% if form.username.errors %}
+                                            <p class="mt-1 text-sm text-red-600">{{ form.username.errors.0 }}</p>
+                                        {% endif %}
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.email.id_for_label }}">
+                                            Email (Optional)
+                                        </label>
+                                        <input type="email" 
+                                            name="{{ form.email.name }}" 
+                                            id="{{ form.email.id_for_label }}"
+                                            placeholder="your@email.com"
+                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                                        {% if form.email.errors %}
+                                            <p class="mt-1 text-sm text-red-600">{{ form.email.errors.0 }}</p>
+                                        {% endif %}
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.password.id_for_label }}">
+                                            Password
+                                            <span class="text-red-500">*</span>
+                                        </label>
+                                        <input type="password" 
+                                            name="{{ form.password.name }}" 
+                                            id="{{ form.password.id_for_label }}"
+                                            placeholder="Minimum 6 characters"
+                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                                            required>
+                                        {% if form.password.errors %}
+                                            <p class="mt-1 text-sm text-red-600">{{ form.password.errors.0 }}</p>
+                                        {% endif %}
+                                        <p class="mt-1 text-sm text-gray-500">Must be at least 6 characters long</p>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.confirm_password.id_for_label }}">
+                                            Confirm Password
+                                            <span class="text-red-500">*</span>
+                                        </label>
+                                        <input type="password" 
+                                            name="{{ form.confirm_password.name }}" 
+                                            id="{{ form.confirm_password.id_for_label }}"
+                                            placeholder="Re-enter your password"
+                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                                            required>
+                                        {% if form.confirm_password.errors %}
+                                            <p class="mt-1 text-sm text-red-600">{{ form.confirm_password.errors.0 }}</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="border-b border-gray-200 pb-6">
+                                <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                                    <span class="material-symbols-outlined mr-2 text-teal-600">home</span>
+                                    Family Information
+                                </h2>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.family_name.id_for_label }}">
+                                        Family Name
+                                        <span class="text-red-500">*</span>
+                                    </label>
+                                    <input type="text" 
+                                        name="{{ form.family_name.name }}" 
+                                        id="{{ form.family_name.id_for_label }}"
+                                        placeholder="e.g., Smith Family"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                                        required>
+                                    {% if form.family_name.errors %}
+                                        <p class="mt-1 text-sm text-red-600">{{ form.family_name.errors.0 }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="border-b border-gray-200 pb-6">
+                                <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                                    <span class="material-symbols-outlined mr-2 text-teal-600">payments</span>
+                                    Currency Settings
+                                </h2>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.base_currency.id_for_label }}">
+                                        Base Currency
+                                        <span class="text-red-500">*</span>
+                                    </label>
+                                    <select name="{{ form.base_currency.name }}" 
+                                            id="{{ form.base_currency.id_for_label }}"
+                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                                            required>
+                                        <option value="BRL">BRL - Brazilian Real (R$)</option>
+                                        <option value="USD">USD - US Dollar ($)</option>
+                                        <option value="EUR">EUR - Euro (€)</option>
+                                        <option value="GBP">GBP - British Pound (£)</option>
+                                        <option value="JPY">JPY - Japanese Yen (¥)</option>
+                                        <option value="CNY">CNY - Chinese Yuan (¥)</option>
+                                        <option value="INR">INR - Indian Rupee (₹)</option>
+                                        <option value="RUB">RUB - Russian Ruble (₽)</option>
+                                        <option value="ZAR">ZAR - South African Rand (R)</option>
+                                        <option value="CAD">CAD - Canadian Dollar ($)</option>
+                                        <option value="AUD">AUD - Australian Dollar ($)</option>
+                                        <option value="MXN">MXN - Mexican Peso ($)</option>
+                                        <option value="KRW">KRW - South Korean Won (₩)</option>
+                                        <option value="TRY">TRY - Turkish Lira (₺)</option>
+                                        <option value="IDR">IDR - Indonesian Rupiah (Rp)</option>
+                                        <option value="SAR">SAR - Saudi Riyal (﷼)</option>
+                                        <option value="ARS">ARS - Argentine Peso ($)</option>
+                                        <option value="EGP">EGP - Egyptian Pound (£)</option>
+                                        <option value="AED">AED - UAE Dirham (د.إ)</option>
+                                        <option value="ETB">ETB - Ethiopian Birr (Br)</option>
+                                    </select>
+                                    {% if form.base_currency.errors %}
+                                        <p class="mt-1 text-sm text-red-600">{{ form.base_currency.errors.0 }}</p>
+                                    {% endif %}
+                                    <p class="mt-1 text-sm text-gray-500">All financial values will be stored and displayed in this currency</p>
+                                </div>
+                            </div>
+
+                            <div class="border-b border-gray-200 pb-6">
+                                <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                                    <span class="material-symbols-outlined mr-2 text-teal-600">calendar_month</span>
+                                    Financial Cycle Settings
+                                </h2>
+                                
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            Period Frequency
+                                            <span class="text-red-500">*</span>
+                                        </label>
+                                        <div class="space-y-3">
+                                            {% for radio in form.period_type %}
+                                            <label class="flex items-center gap-3 border border-gray-300 p-4 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                                                {{ radio.tag }}
+                                                <div class="flex grow flex-col">
+                                                    <p class="text-gray-900 text-sm font-medium">{{ radio.choice_label }}</p>
+                                                    {% if radio.choice_value == 'M' %}
+                                                    <p class="text-xs text-gray-500">Budget resets monthly on a specific day</p>
+                                                    {% elif radio.choice_value == 'B' %}
+                                                    <p class="text-xs text-gray-500">Budget resets every 2 weeks</p>
+                                                    {% elif radio.choice_value == 'W' %}
+                                                    <p class="text-xs text-gray-500">Budget resets weekly</p>
+                                                    {% endif %}
+                                                </div>
+                                            </label>
+                                            {% endfor %}
+                                        </div>
+                                        {% if form.period_type.errors %}
+                                            <p class="mt-1 text-sm text-red-600">{{ form.period_type.errors.0 }}</p>
+                                        {% endif %}
+                                    </div>
+
+                                    <div id="starting-day-field">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.starting_day.id_for_label }}">
+                                            Starting Day of Month
+                                            <span class="text-red-500">*</span>
+                                        </label>
+                                        <input type="number" 
+                                            name="{{ form.starting_day.name }}" 
+                                            id="{{ form.starting_day.id_for_label }}"
+                                            value="{{ form.starting_day.value|default:'1' }}"
+                                            min="1" 
+                                            max="31"
+                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                                        {% if form.starting_day.errors %}
+                                            <p class="mt-1 text-sm text-red-600">{{ form.starting_day.errors.0 }}</p>
+                                        {% endif %}
+                                        <p class="mt-1 text-sm text-gray-500">Day of the month (1-31) when your budget cycle starts</p>
+                                    </div>
+
+                                    <div id="base-date-field" style="display: none;">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.base_date.id_for_label }}">
+                                            Base Date for Cycle
+                                            <span class="text-red-500">*</span>
+                                        </label>
+                                        <input type="date" 
+                                            name="{{ form.base_date.name }}" 
+                                            id="{{ form.base_date.id_for_label }}"
+                                            value="{{ form.base_date.value|default:'' }}"
+                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                                        {% if form.base_date.errors %}
+                                            <p class="mt-1 text-sm text-red-600">{{ form.base_date.errors.0 }}</p>
+                                        {% endif %}
+                                        <p class="mt-1 text-sm text-gray-500">Reference date for calculating bi-weekly/weekly periods</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-teal-50 rounded-lg p-4">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <span class="material-symbols-outlined text-teal-600">check_circle</span>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h3 class="text-sm font-medium text-teal-800">What happens next?</h3>
+                                        <div class="mt-2 text-sm text-teal-700">
+                                            <ul class="list-disc list-inside space-y-1">
+                                                <li>Your family account will be created</li>
+                                                <li>You'll be logged in as the administrator</li>
+                                                <li>You can start managing your family's finances immediately</li>
+                                                <li>You can add other family members from the Settings page</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pt-4">
+                                <button type="submit" 
+                                        class="w-full bg-gradient-to-r from-teal-500 to-teal-600 text-white text-lg font-semibold py-4 px-6 rounded-lg hover:from-teal-600 hover:to-teal-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2">
+                                    <span class="material-symbols-outlined">rocket_launch</span>
+                                    Complete Setup & Get Started
+                                </button>
+                            </div>
+                        </form>
+                </div>
             </div>
         </div>
         
@@ -368,5 +488,161 @@
             <p>© 2025 SweetMoney - Family Financial Flow Management</p>
         </div>
     </div>
+
+    <script>
+        // Show/hide fields based on period type selection
+        document.addEventListener('DOMContentLoaded', function() {
+            const periodTypeRadios = document.querySelectorAll('input[name="period_type"]');
+            const startingDayField = document.getElementById('starting-day-field');
+            const baseDateField = document.getElementById('base-date-field');
+            
+            function updateFieldsVisibility() {
+                const selectedType = document.querySelector('input[name="period_type"]:checked');
+                if (!selectedType) return;
+                
+                const value = selectedType.value;
+                
+                if (value === 'M') {
+                    // Monthly - show starting_day, hide base_date
+                    if (startingDayField) startingDayField.style.display = 'block';
+                    if (baseDateField) baseDateField.style.display = 'none';
+                    
+                    // Remove required from base_date when hidden
+                    const baseDateInput = document.getElementById('{{ form.base_date.id_for_label }}');
+                    if (baseDateInput) baseDateInput.removeAttribute('required');
+                } else {
+                    // Bi-weekly or Weekly - hide starting_day, show base_date
+                    if (startingDayField) startingDayField.style.display = 'none';
+                    if (baseDateField) baseDateField.style.display = 'block';
+                    
+                    // Add required to base_date when visible
+                    const baseDateInput = document.getElementById('{{ form.base_date.id_for_label }}');
+                    if (baseDateInput) baseDateInput.setAttribute('required', 'required');
+                }
+            }
+            
+            // Initial setup
+            updateFieldsVisibility();
+            
+            // Listen for changes
+            periodTypeRadios.forEach(radio => {
+                radio.addEventListener('change', updateFieldsVisibility);
+            });
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+        const btnShowRestore = document.getElementById('btn-show-restore');
+        const btnShowSetup = document.getElementById('btn-show-setup');
+        const restoreSection = document.getElementById('restore-section');
+        const setupSection = document.getElementById('setup-section');
+        const backupFileInput = document.getElementById('backup-file-input');
+        const fileNameDisplay = document.getElementById('file-name');
+        const btnUploadBackup = document.getElementById('btn-upload-backup');
+        const btnCancelRestore = document.getElementById('btn-cancel-restore');
+        const restoreInfo = document.getElementById('restore-info');
+        
+        // Toggle between restore and setup
+        btnShowRestore?.addEventListener('click', function() {
+            restoreSection.classList.remove('hidden');
+            setupSection.classList.add('hidden');
+            btnShowRestore.classList.add('bg-teal-50');
+            btnShowSetup.classList.remove('bg-teal-500');
+            btnShowSetup.classList.add('border-2', 'border-teal-500', 'text-teal-600');
+        });
+        
+        btnShowSetup?.addEventListener('click', function() {
+            setupSection.classList.remove('hidden');
+            restoreSection.classList.add('hidden');
+            btnShowSetup.classList.add('bg-teal-500');
+            btnShowRestore.classList.remove('bg-teal-50');
+        });
+        
+        btnCancelRestore?.addEventListener('click', function() {
+            btnShowSetup.click();
+        });
+        
+        // Handle file selection
+        backupFileInput?.addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                const file = e.target.files[0];
+                fileNameDisplay.textContent = file.name;
+                btnUploadBackup.disabled = false;
+            } else {
+                fileNameDisplay.textContent = 'No file selected';
+                btnUploadBackup.disabled = true;
+                restoreInfo.classList.add('hidden');
+            }
+        });
+        
+        // Handle backup upload
+        btnUploadBackup?.addEventListener('click', async function() {
+            const file = backupFileInput.files[0];
+            if (!file) return;
+            
+            const formData = new FormData();
+            formData.append('backup_file', file);
+            
+            btnUploadBackup.disabled = true;
+            btnUploadBackup.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Restoring...';
+            
+            try {
+                const response = await fetch('/restore-backup/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Show backup info
+                    restoreInfo.classList.remove('hidden');
+                    document.getElementById('family-name').textContent = data.family.name;
+                    
+                    const usersList = document.getElementById('users-list');
+                    usersList.innerHTML = '';
+                    data.users.forEach(user => {
+                        const li = document.createElement('li');
+                        li.textContent = `${user.username} (${user.role})${user.email ? ' - ' + user.email : ''}`;
+                        usersList.appendChild(li);
+                    });
+                    
+                    // Show success and redirect option
+                    setTimeout(() => {
+                        if (confirm('Database restored successfully! Click OK to go to login page.')) {
+                            window.location.href = '/login/';
+                        }
+                    }, 1000);
+                    
+                } else {
+                    alert('Restore failed: ' + data.error);
+                    btnUploadBackup.disabled = false;
+                    btnUploadBackup.innerHTML = 'Restore Backup';
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+                btnUploadBackup.disabled = false;
+                btnUploadBackup.innerHTML = 'Restore Backup';
+            }
+        });
+        
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
+    </script>
 </body>
 </html>

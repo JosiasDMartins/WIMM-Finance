@@ -1,0 +1,344 @@
+<!-- finances/templates/finances/update_modal.html -->
+<!-- Este modal deve ser incluído no base.html -->
+
+<div id="update-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full mx-4 p-6">
+        <div class="flex items-start mb-4">
+            <div class="flex-shrink-0">
+                <span class="material-symbols-outlined text-4xl text-blue-500">system_update</span>
+            </div>
+            <div class="ml-4 flex-1">
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                    System Update Available
+                </h3>
+                <div class="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+                    <p>A new version of SweetMoney is available!</p>
+                    
+                    <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 my-4">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-sm font-semibold text-blue-900 dark:text-blue-200">Current Version:</p>
+                                <p class="text-lg font-mono text-blue-700 dark:text-blue-300" id="current-version">-</p>
+                            </div>
+                            <div>
+                                <span class="material-symbols-outlined text-3xl text-blue-500">arrow_forward</span>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-blue-900 dark:text-blue-200">New Version:</p>
+                                <p class="text-lg font-mono text-blue-700 dark:text-blue-300" id="target-version">-</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="scripts-info" class="hidden">
+                        <p class="font-semibold text-gray-900 dark:text-gray-200 mb-2">Update Scripts to Apply:</p>
+                        <ul id="scripts-list" class="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-400 max-h-40 overflow-y-auto">
+                            <!-- Scripts will be populated here -->
+                        </ul>
+                    </div>
+                    
+                    <!-- Progress Section (hidden initially) -->
+                    <div id="update-progress" class="hidden mt-4">
+                        <p class="font-semibold mb-2">Applying Updates...</p>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mb-2">
+                            <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                        <p id="progress-text" class="text-sm text-gray-600 dark:text-gray-400">Preparing...</p>
+                    </div>
+                    
+                    <!-- Results Section (hidden initially) -->
+                    <div id="update-results" class="hidden mt-4">
+                        <div id="success-message" class="hidden bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <span class="material-symbols-outlined text-green-500">check_circle</span>
+                                </div>
+                                <div class="ml-3">
+                                    <h3 class="text-sm font-medium text-green-800 dark:text-green-200">Update Successful!</h3>
+                                    <div class="mt-2 text-sm text-green-700 dark:text-green-300">
+                                        <p>Your system has been successfully updated.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="error-message" class="hidden bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <span class="material-symbols-outlined text-red-500">error</span>
+                                </div>
+                                <div class="ml-3">
+                                    <h3 class="text-sm font-medium text-red-800 dark:text-red-200">Update Failed</h3>
+                                    <div class="mt-2 text-sm text-red-700 dark:text-red-300">
+                                        <p id="error-details">An error occurred during the update process.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="results-details" class="mt-4 max-h-60 overflow-y-auto">
+                            <!-- Detailed results will be shown here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex justify-end gap-3 mt-6">
+            <button id="btn-continue" 
+                    class="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition-colors">
+                Continue Without Updating
+            </button>
+            
+            <button id="btn-apply-updates" 
+                    class="hidden px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors">
+                Apply Updates
+            </button>
+            
+            <button id="btn-close" 
+                    class="hidden px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 font-medium transition-colors">
+                Close
+            </button>
+            
+            <button id="btn-view-logs" 
+                    class="hidden px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium transition-colors">
+                View Logs
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Logs Modal -->
+<div id="logs-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-4xl w-full mx-4 p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white">Update Logs</h3>
+            <button id="close-logs" class="text-gray-500 hover:text-gray-700">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div class="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm max-h-96 overflow-y-auto">
+            <pre id="logs-content">Loading logs...</pre>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let updateData = null;
+    
+    // Check for updates on page load
+    checkForUpdates();
+    
+    function checkForUpdates() {
+        fetch('/check-updates/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.needs_update) {
+                    updateData = data;
+                    showUpdateModal(data);
+                }
+            })
+            .catch(error => {
+                console.error('Error checking for updates:', error);
+            });
+    }
+    
+    function showUpdateModal(data) {
+        const modal = document.getElementById('update-modal');
+        const currentVersionEl = document.getElementById('current-version');
+        const targetVersionEl = document.getElementById('target-version');
+        const scriptsInfo = document.getElementById('scripts-info');
+        const scriptsList = document.getElementById('scripts-list');
+        const btnApplyUpdates = document.getElementById('btn-apply-updates');
+        
+        // Set version info
+        currentVersionEl.textContent = data.current_version;
+        targetVersionEl.textContent = data.target_version;
+        
+        // Show scripts if any
+        if (data.has_scripts) {
+            scriptsInfo.classList.remove('hidden');
+            scriptsList.innerHTML = '';
+            data.update_scripts.forEach(script => {
+                const li = document.createElement('li');
+                li.textContent = `v${script.version}: ${script.description}`;
+                scriptsList.appendChild(li);
+            });
+            btnApplyUpdates.classList.remove('hidden');
+        }
+        
+        modal.classList.remove('hidden');
+    }
+    
+    // Continue without updating
+    document.getElementById('btn-continue').addEventListener('click', function() {
+        if (confirm('Are you sure you want to continue without updating? This may cause compatibility issues.')) {
+            skipUpdates();
+        }
+    });
+    
+    // Apply updates
+    document.getElementById('btn-apply-updates').addEventListener('click', function() {
+        applyUpdates();
+    });
+    
+    // Close modal after successful update
+    document.getElementById('btn-close').addEventListener('click', function() {
+        document.getElementById('update-modal').classList.add('hidden');
+        location.reload(); // Reload page to use new version
+    });
+    
+    // View logs
+    document.getElementById('btn-view-logs').addEventListener('click', function() {
+        document.getElementById('logs-modal').classList.remove('hidden');
+    });
+    
+    document.getElementById('close-logs').addEventListener('click', function() {
+        document.getElementById('logs-modal').classList.add('hidden');
+    });
+    
+    function applyUpdates() {
+        const progressSection = document.getElementById('update-progress');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const btnApplyUpdates = document.getElementById('btn-apply-updates');
+        const btnContinue = document.getElementById('btn-continue');
+        
+        // Hide buttons, show progress
+        btnApplyUpdates.classList.add('hidden');
+        btnContinue.classList.add('hidden');
+        progressSection.classList.remove('hidden');
+        
+        // Apply updates
+        fetch('/apply-updates/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                scripts: updateData.update_scripts
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            progressBar.style.width = '100%';
+            showResults(data);
+        })
+        .catch(error => {
+            showError('Network error: ' + error.message);
+        });
+        
+        // Simulate progress (since we don't have real-time updates)
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            progress += 10;
+            if (progress <= 90) {
+                progressBar.style.width = progress + '%';
+                progressText.textContent = `Processing... ${progress}%`;
+            } else {
+                clearInterval(progressInterval);
+            }
+        }, 500);
+    }
+    
+    function showResults(data) {
+        const progressSection = document.getElementById('update-progress');
+        const resultsSection = document.getElementById('update-results');
+        const successMsg = document.getElementById('success-message');
+        const errorMsg = document.getElementById('error-message');
+        const resultsDetails = document.getElementById('results-details');
+        const btnClose = document.getElementById('btn-close');
+        const btnViewLogs = document.getElementById('btn-view-logs');
+        
+        progressSection.classList.add('hidden');
+        resultsSection.classList.remove('hidden');
+        
+        if (data.success) {
+            successMsg.classList.remove('hidden');
+            btnClose.classList.remove('hidden');
+            
+            // Show success details
+            let html = '<div class="space-y-2">';
+            data.results.forEach(result => {
+                html += `
+                    <div class="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
+                        <span class="material-symbols-outlined text-green-500">check_circle</span>
+                        <span>${result.script}: ${result.output}</span>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            resultsDetails.innerHTML = html;
+        } else {
+            errorMsg.classList.remove('hidden');
+            btnViewLogs.classList.remove('hidden');
+            
+            // Show error details
+            const errorDetail = document.getElementById('error-details');
+            errorDetail.textContent = data.error || 'An unknown error occurred';
+            
+            // Populate logs
+            const logsContent = document.getElementById('logs-content');
+            let logsHtml = '';
+            if (data.results) {
+                data.results.forEach(result => {
+                    logsHtml += `\n=== ${result.script} ===\n`;
+                    logsHtml += `Status: ${result.status}\n`;
+                    if (result.error) {
+                        logsHtml += `Error: ${result.error}\n`;
+                        logsHtml += `\nTraceback:\n${result.traceback}\n`;
+                    }
+                });
+            }
+            if (data.traceback) {
+                logsHtml += `\n=== Full Traceback ===\n${data.traceback}`;
+            }
+            logsContent.textContent = logsHtml || 'No detailed logs available';
+        }
+    }
+    
+    function showError(message) {
+        showResults({
+            success: false,
+            error: message,
+            results: []
+        });
+    }
+    
+    function skipUpdates() {
+        fetch('/skip-updates/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('update-modal').classList.add('hidden');
+            }
+        })
+        .catch(error => {
+            console.error('Error skipping updates:', error);
+        });
+    }
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
