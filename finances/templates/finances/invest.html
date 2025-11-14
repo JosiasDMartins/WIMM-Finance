@@ -12,7 +12,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <h2 class="text-lg font-semibold opacity-90 mb-2">Available Investment Balance</h2>
-                    <p class="text-4xl font-bold">$ {{ available_balance|intcomma|default:"0.00" }}</p>
+                    <p class="text-4xl font-bold">{{ currency_symbol }} {{ available_balance|intcomma|default:"0.00" }}</p>
                     <p class="text-sm opacity-80 mt-2">From investment Flow Groups (realized transactions)</p>
                 </div>
                 <div class="text-6xl opacity-20">
@@ -33,63 +33,6 @@
                 For now, mark Flow Groups as "Investment" in the dashboard to track money set aside for investing.
             </p>
         </div>
-
-        <!-- Legacy Investment List (if you want to keep) -->
-        <!--
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
-            <div class="lg:col-span-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden h-fit">
-                <h2 class="text-lg font-semibold text-[#0d171b] dark:text-white p-6 border-b dark:border-slate-700">Add New Investment</h2>
-                <form method="post" action="{% url 'investment_add' %}">
-                    {% csrf_token %}
-                    <div class="p-6 space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="{{ investment_form.name.id_for_label }}">Investment Name</label>
-                            {{ investment_form.name }}
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="{{ investment_form.amount.id_for_label }}">Value ($)</label>
-                            {{ investment_form.amount }}
-                        </div>
-                    </div>
-                    <div class="p-6 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3 rounded-b-xl">
-                        <button type="submit" class="rounded-lg bg-primary text-white text-sm font-medium leading-normal p-3 hover:bg-primary/90">
-                            Add Investment
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
-                <h2 class="text-lg font-semibold text-[#0d171b] dark:text-white p-6 border-b dark:border-slate-700">Existing Investments</h2>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead class="bg-gray-50 dark:bg-gray-700/50">
-                            <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
-                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Amount</th>
-                                <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                            {% for inv in family_investments %}
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-[#0d171b] dark:text-white">{{ inv.name }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-right">$ {{ inv.amount|intcomma }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-center">
-                                    <a href="#" class="text-primary hover:text-primary/80">Edit</a>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="3" class="px-6 py-8 text-center text-gray-500">No investments recorded yet.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        -->
     </div>
 </main>
 {% endblock %}

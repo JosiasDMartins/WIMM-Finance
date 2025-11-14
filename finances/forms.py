@@ -14,23 +14,23 @@ from djmoney.forms.fields import MoneyField as MoneyFormField
 CURRENCY_CHOICES = [
     ('BRL', 'BRL - Brazilian Real (R$)'),
     ('USD', 'USD - US Dollar ($)'),
-    ('EUR', 'EUR - Euro (€)'),
-    ('GBP', 'GBP - British Pound (£)'),
-    ('JPY', 'JPY - Japanese Yen (¥)'),
-    ('CNY', 'CNY - Chinese Yuan (¥)'),
-    ('INR', 'INR - Indian Rupee (₹)'),
-    ('RUB', 'RUB - Russian Ruble (₽)'),
+    ('EUR', 'EUR - Euro (â‚¬)'),
+    ('GBP', 'GBP - British Pound (Â£)'),
+    ('JPY', 'JPY - Japanese Yen (Â¥)'),
+    ('CNY', 'CNY - Chinese Yuan (Â¥)'),
+    ('INR', 'INR - Indian Rupee (â‚¹)'),
+    ('RUB', 'RUB - Russian Ruble (â‚½)'),
     ('ZAR', 'ZAR - South African Rand (R)'),
     ('CAD', 'CAD - Canadian Dollar ($)'),
     ('AUD', 'AUD - Australian Dollar ($)'),
     ('MXN', 'MXN - Mexican Peso ($)'),
-    ('KRW', 'KRW - South Korean Won (₩)'),
-    ('TRY', 'TRY - Turkish Lira (₺)'),
+    ('KRW', 'KRW - South Korean Won (â‚©)'),
+    ('TRY', 'TRY - Turkish Lira (â‚º)'),
     ('IDR', 'IDR - Indonesian Rupiah (Rp)'),
-    ('SAR', 'SAR - Saudi Riyal (﷼)'),
+    ('SAR', 'SAR - Saudi Riyal (ï·¼)'),
     ('ARS', 'ARS - Argentine Peso ($)'),
-    ('EGP', 'EGP - Egyptian Pound (£)'),
-    ('AED', 'AED - UAE Dirham (د.إ)'),
+    ('EGP', 'EGP - Egyptian Pound (Â£)'),
+    ('AED', 'AED - UAE Dirham (Ø¯.Ø¥)'),
     ('ETB', 'ETB - Ethiopian Birr (Br)'),
 ]
 
@@ -115,7 +115,7 @@ class InitialSetupForm(forms.Form):
         })
     )
     
-    # Seleção de moeda base
+    # SeleÃ§Ã£o de moeda base
     base_currency = forms.ChoiceField(
         choices=CURRENCY_CHOICES,
         initial='BRL',
@@ -173,6 +173,20 @@ class FamilyConfigurationForm(forms.ModelForm):
 
 # --- FlowGroup Form ---
 class FlowGroupForm(forms.ModelForm):
+    # Override budgeted_amount to use only number input (no currency selector)
+    budgeted_amount = forms.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        required=True,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-input',
+            'step': '0.01',
+            'min': '0',
+            'placeholder': '0.00'
+        }),
+        label='Budgeted Amount'
+    )
+    
     # Add field for selecting ONLY PARENTS for Shared groups (exclude ADMIN)
     assigned_members = forms.ModelMultipleChoiceField(
         queryset=FamilyMember.objects.none(),  # Will be set in __init__
@@ -194,8 +208,6 @@ class FlowGroupForm(forms.ModelForm):
         fields = ['name', 'budgeted_amount', 'is_shared', 'is_kids_group', 'is_investment', 'assigned_members', 'assigned_children']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-input'}),
-            # budgeted_amount é MoneyField - widget automático do django-money
-            'budgeted_amount': forms.NumberInput(attrs={'class': 'form-input'}),
             'is_shared': forms.CheckboxInput(attrs={'class': 'shared-checkbox'}),
             'is_kids_group': forms.CheckboxInput(attrs={'class': 'kids-checkbox'}),
             'is_investment': forms.CheckboxInput(attrs={'class': 'investment-checkbox'}),
@@ -204,6 +216,23 @@ class FlowGroupForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         family = kwargs.pop('family', None)
         super().__init__(*args, **kwargs)
+        
+        # If editing existing FlowGroup, populate with current amount value (extract from Money)
+        # CRITICAL: This must happen AFTER super().__init__ to override Django's automatic population
+        if self.instance and self.instance.pk:
+            budgeted = self.instance.budgeted_amount
+            if budgeted is not None:
+                if hasattr(budgeted, 'amount'):
+                    # Extract numeric value from Money object
+                    amount_value = budgeted.amount
+                else:
+                    amount_value = budgeted
+                
+                # Force the value into the field's widget
+                self.fields['budgeted_amount'].initial = amount_value
+                # Also set it in the form's data if it's bound
+                if self.data.get('budgeted_amount') is None and not self.is_bound:
+                    self.initial['budgeted_amount'] = amount_value
         
         # Populate members (ONLY PARENTS, exclude ADMIN) queryset if family is provided
         # Admins don't need to be in assigned_members since they have access to everything
@@ -226,7 +255,7 @@ class TransactionForm(forms.ModelForm):
         fields = ['description', 'amount', 'date']
         widgets = {
             'description': forms.TextInput(attrs={'class': 'editable-cell', 'placeholder': 'Description'}),
-            # amount é MoneyField - widget automático
+            # amount Ã© MoneyField - widget automÃ¡tico
             'amount': forms.NumberInput(attrs={'class': 'editable-cell', 'placeholder': 'Amount'}),
             'date': forms.DateInput(attrs={'class': 'editable-cell', 'type': 'date'}),
         }
@@ -245,7 +274,7 @@ class InvestmentForm(forms.ModelForm):
         fields = ['name', 'amount']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'e.g., Stocks, Savings Account'}),
-            # amount é MoneyField - widget automático
+            # amount Ã© MoneyField - widget automÃ¡tico
             'amount': forms.NumberInput(attrs={'class': 'form-input', 'placeholder': '0.00'}),
         }
 

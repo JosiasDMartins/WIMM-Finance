@@ -6,10 +6,17 @@ class UpdateManager {
     }
     
     init() {
-        document.addEventListener('DOMContentLoaded', () => {
+        // Check immediately if DOM is already loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                this.checkForUpdates();
+                this.setupEventListeners();
+            });
+        } else {
+            // DOM already loaded, run immediately
             this.checkForUpdates();
             this.setupEventListeners();
-        });
+        }
     }
     
     setupEventListeners() {
@@ -102,29 +109,26 @@ class UpdateManager {
         modalIcon.className = 'material-symbols-outlined text-4xl text-green-500';
         modalIcon.textContent = 'cloud_download';
         
-        updateDesc.textContent = 'A new version is available on GitHub!';
+        updateDesc.textContent = 'A new version is available from GitHub!';
         
+        // Show GitHub info
         githubInfo.classList.remove('hidden');
-        releaseName.textContent = data.github_release.name || `Version ${data.target_version}`;
+        releaseName.textContent = data.github_release.name;
+        releaseNotes.innerHTML = this.formatMarkdown(data.github_release.body);
+        releaseDate.textContent = new Date(data.github_release.published_at).toLocaleDateString();
         
-        const notes = data.github_release.body || 'No release notes available.';
-        releaseNotes.innerHTML = this.formatMarkdown(notes);
-        
-        const date = new Date(data.github_release.published_at);
-        releaseDate.textContent = date.toLocaleDateString();
-        
-        btnViewRelease.classList.remove('hidden');
-        btnSkip.classList.remove('hidden');
-        
+        // Show container warning if needed
         if (data.requires_container) {
             containerWarning.classList.remove('hidden');
             btnInstall.classList.add('hidden');
-            backupSection.classList.add('hidden');
         } else {
-            backupSection.classList.remove('hidden');
             btnInstall.classList.remove('hidden');
-            btnInstall.disabled = true;
+            backupSection.classList.remove('hidden');
         }
+        
+        btnSkip.classList.remove('hidden');
+        btnViewRelease.classList.remove('hidden');
+        btnViewRelease.onclick = () => window.open(data.github_release.html_url, '_blank');
     }
     
     formatMarkdown(text) {
@@ -257,27 +261,35 @@ class UpdateManager {
             const data = await response.json();
             
             if (data.success) {
-                window.location.href = data.download_url;
+                // Download the backup file
+                const downloadLink = document.createElement('a');
+                downloadLink.href = `/download-backup/?filename=${data.filename}`;
+                downloadLink.download = data.filename;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
                 
                 btn.innerHTML = '<span class="material-symbols-outlined">check_circle</span> Backup Downloaded';
                 btn.classList.remove('bg-amber-600', 'hover:bg-amber-700');
                 btn.classList.add('bg-green-600');
                 
-                document.getElementById('backup-confirmed').disabled = false;
+                // Enable the update button after 1 second
+                setTimeout(() => {
+                    document.getElementById('backup-confirmed').checked = true;
+                    document.getElementById('btn-install-github').disabled = false;
+                }, 1000);
             } else {
-                alert('Backup failed: ' + data.error);
-                btn.disabled = false;
-                btn.innerHTML = originalText;
+                throw new Error(data.error);
             }
         } catch (error) {
-            alert('Error creating backup: ' + error.message);
-            btn.disabled = false;
             btn.innerHTML = originalText;
+            btn.disabled = false;
+            alert('Failed to create backup: ' + error.message);
         }
     }
     
     async skipUpdate() {
-        if (!confirm('Are you sure you want to skip this update? You can update later from settings.')) {
+        if (!confirm('Are you sure you want to skip this update?')) {
             return;
         }
         
@@ -296,112 +308,122 @@ class UpdateManager {
             const data = await response.json();
             
             if (data.success) {
-                document.getElementById('update-modal').classList.add('hidden');
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
             }
         } catch (error) {
-            console.error('Error skipping update:', error);
+            alert('Network error: ' + error.message);
         }
     }
     
     showResults(data) {
+        const mainContent = document.getElementById('main-content');
         const progressSection = document.getElementById('update-progress');
-        const resultsSection = document.getElementById('update-results');
-        const successMsg = document.getElementById('success-message');
-        const successDetails = document.getElementById('success-details');
-        const errorMsg = document.getElementById('error-message');
-        const errorDetails = document.getElementById('error-details');
-        const resultsDetailsDiv = document.getElementById('results-details');
+        const modalIcon = document.getElementById('modal-icon');
+        const modalTitle = document.getElementById('modal-title');
         const btnClose = document.getElementById('btn-close');
         const btnViewLogs = document.getElementById('btn-view-logs');
         
         progressSection.classList.add('hidden');
-        resultsSection.classList.remove('hidden');
         
         if (data.success) {
-            successMsg.classList.remove('hidden');
-            btnClose.classList.remove('hidden');
+            modalIcon.className = 'material-symbols-outlined text-4xl text-green-500';
+            modalIcon.textContent = 'check_circle';
+            modalTitle.textContent = 'Update Complete!';
             
-            let html = '<div class="space-y-2">';
-            if (data.results) {
-                data.results.forEach(result => {
-                    if (result.status === 'success') {
-                        html += `
-                            <div class="flex items-start gap-2 text-sm text-green-700 dark:text-green-300">
-                                <span class="material-symbols-outlined text-green-500">check_circle</span>
-                                <div>
-                                    <div class="font-medium">${result.script}</div>
-                                    <div class="text-xs mt-1">${result.output || 'Completed successfully'}</div>
-                                </div>
-                            </div>
-                        `;
-                    }
-                });
-            }
-            html += '</div>';
-            resultsDetailsDiv.innerHTML = html;
-        } else {
-            errorMsg.classList.remove('hidden');
-            errorDetails.textContent = data.error || 'An unknown error occurred';
+            mainContent.innerHTML = `
+                <div class="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4 mb-4">
+                    <p class="text-green-800 dark:text-green-300 font-medium">
+                        System successfully updated to version ${data.new_version}
+                    </p>
+                </div>
+                <div class="space-y-2">
+                    <p class="font-semibold text-gray-900 dark:text-gray-200">Applied Updates:</p>
+                    <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 dark:text-gray-400">
+                        ${data.results.map(r => `
+                            <li>
+                                ${r.script}: 
+                                <span class="font-medium ${r.status === 'success' ? 'text-green-600' : 'text-red-600'}">
+                                    ${r.status}
+                                </span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `;
+            
+            this.logsData = data.results;
             btnViewLogs.classList.remove('hidden');
-            
-            this.logsContent = this.formatLogs(data);
+            btnClose.classList.remove('hidden');
+        } else {
+            this.showError('Update failed: ' + data.error);
         }
     }
     
     showSuccess(message) {
+        const mainContent = document.getElementById('main-content');
         const progressSection = document.getElementById('update-progress');
-        const resultsSection = document.getElementById('update-results');
-        const successMsg = document.getElementById('success-message');
-        const successDetails = document.getElementById('success-details');
-        const btnClose = document.getElementById('btn-close');
+        const modalIcon = document.getElementById('modal-icon');
+        const modalTitle = document.getElementById('modal-title');
         
         progressSection.classList.add('hidden');
-        resultsSection.classList.remove('hidden');
-        successMsg.classList.remove('hidden');
-        successDetails.textContent = message;
-        btnClose.classList.remove('hidden');
+        modalIcon.className = 'material-symbols-outlined text-4xl text-green-500';
+        modalIcon.textContent = 'check_circle';
+        modalTitle.textContent = 'Success!';
+        
+        mainContent.innerHTML = `
+            <div class="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4">
+                <p class="text-green-800 dark:text-green-300">${message}</p>
+            </div>
+        `;
     }
     
     showError(message) {
+        const mainContent = document.getElementById('main-content');
         const progressSection = document.getElementById('update-progress');
-        const resultsSection = document.getElementById('update-results');
-        const errorMsg = document.getElementById('error-message');
-        const errorDetails = document.getElementById('error-details');
-        const btnViewLogs = document.getElementById('btn-view-logs');
+        const modalIcon = document.getElementById('modal-icon');
+        const modalTitle = document.getElementById('modal-title');
+        const btnClose = document.getElementById('btn-close');
         
         progressSection.classList.add('hidden');
-        resultsSection.classList.remove('hidden');
-        errorMsg.classList.remove('hidden');
-        errorDetails.textContent = message;
-        btnViewLogs.classList.remove('hidden');
-    }
-    
-    formatLogs(data) {
-        let logs = '';
-        if (data.results) {
-            data.results.forEach(result => {
-                logs += `\n=== ${result.script} ===\n`;
-                logs += `Status: ${result.status}\n`;
-                if (result.output) {
-                    logs += `Output:\n${result.output}\n`;
-                }
-                if (result.error) {
-                    logs += `Error: ${result.error}\n`;
-                    if (result.traceback) {
-                        logs += `\nTraceback:\n${result.traceback}\n`;
-                    }
-                }
-            });
-        }
-        if (data.traceback) {
-            logs += `\n=== Full Traceback ===\n${data.traceback}`;
-        }
-        return logs || 'No detailed logs available';
+        modalIcon.className = 'material-symbols-outlined text-4xl text-red-500';
+        modalIcon.textContent = 'error';
+        modalTitle.textContent = 'Update Failed';
+        
+        mainContent.innerHTML = `
+            <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4">
+                <p class="text-red-800 dark:text-red-300 font-medium">${message}</p>
+            </div>
+        `;
+        
+        btnClose.classList.remove('hidden');
     }
     
     showLogs() {
-        document.getElementById('logs-modal').classList.remove('hidden');
-        document.getElementById('logs-content').textContent = this.logsContent;
+        if (!this.logsData) return;
+        
+        const logsModal = document.getElementById('logs-modal');
+        const logsContent = document.getElementById('logs-content');
+        
+        let logsText = '';
+        this.logsData.forEach(result => {
+            logsText += `\n=== ${result.script} (v${result.version}) ===\n`;
+            logsText += `Status: ${result.status}\n`;
+            if (result.output) {
+                logsText += `Output:\n${result.output}\n`;
+            }
+            if (result.error) {
+                logsText += `Error:\n${result.error}\n`;
+            }
+            if (result.traceback) {
+                logsText += `Traceback:\n${result.traceback}\n`;
+            }
+            logsText += '\n';
+        });
+        
+        logsContent.textContent = logsText;
+        logsModal.classList.remove('hidden');
     }
     
     closeLogs() {
@@ -434,14 +456,5 @@ class UpdateManager {
     }
 }
 
-new UpdateManager();
-
-
-
-
-
-
-
-
-
-
+// Initialize UpdateManager
+const updateManager = new UpdateManager();

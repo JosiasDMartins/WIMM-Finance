@@ -5,7 +5,60 @@ from django.utils import timezone
 from django.db import models
 from dateutil.relativedelta import relativedelta
 from calendar import monthrange
-from .models import Transaction, FlowGroup, FamilyMemberRoleHistory, ClosedPeriod
+from .models import Transaction, FlowGroup, FamilyMemberRoleHistory, Period
+
+
+def get_period_currency(family, period_start_date):
+    """
+    Retorna a moeda para um período específico.
+    Consulta primeiro a tabela Period. Se não existir entrada, usa base_currency da família.
+    """
+    period = Period.objects.filter(
+        family=family,
+        start_date=period_start_date
+    ).first()
+    
+    if period:
+        return period.currency
+    
+    # Se não existe período registrado, usa moeda padrão da família
+    config = getattr(family, 'configuration', None)
+    if config:
+        return config.base_currency
+    
+    return 'USD'  # Fallback padrão
+
+
+def ensure_period_exists(family, start_date, end_date, period_type):
+    """
+    Garante que existe uma entrada de Period para o período especificado.
+    Se não existir, cria uma nova com a moeda padrão da família.
+    
+    Returns: Period object
+    """
+    period, created = Period.objects.get_or_create(
+        family=family,
+        start_date=start_date,
+        defaults={
+            'end_date': end_date,
+            'period_type': period_type,
+            'currency': family.configuration.base_currency if hasattr(family, 'configuration') else 'USD'
+        }
+    )
+    
+    # Se já existe mas precisa atualizar end_date ou period_type
+    if not created:
+        updated = False
+        if period.end_date != end_date:
+            period.end_date = end_date
+            updated = True
+        if period.period_type != period_type:
+            period.period_type = period_type
+            updated = True
+        if updated:
+            period.save()
+    
+    return period
 
 
 def get_current_period_dates(family, query_period=None):
@@ -28,17 +81,17 @@ def get_current_period_dates(family, query_period=None):
     else:
         reference_date = timezone.localdate()
 
-    # Check if this date falls within a closed period
-    closed_period = ClosedPeriod.objects.filter(
+    # Check if this date falls within a Period entry
+    period = Period.objects.filter(
         family=family,
         start_date__lte=reference_date,
         end_date__gte=reference_date
     ).first()
     
-    if closed_period:
-        # Return the closed period boundaries
-        period_label = f"{closed_period.start_date.strftime('%b %d')} - {closed_period.end_date.strftime('%b %d, %Y')}"
-        return closed_period.start_date, closed_period.end_date, period_label
+    if period:
+        # Return the period boundaries from Period table
+        period_label = f"{period.start_date.strftime('%b %d')} - {period.end_date.strftime('%b %d, %Y')}"
+        return period.start_date, period.end_date, period_label
     
     if not config:
         # Default to standard calendar month if no config
@@ -259,7 +312,7 @@ def check_period_change_impact(family, new_period_type, new_starting_day=None, n
 
 def apply_period_configuration_change(family, old_config, new_config, adjustment_period=None):
     """
-    Applies period configuration changes by creating closed periods and copying FlowGroups.
+    Applies period configuration changes by creating Period entries and copying FlowGroups.
     Also adjusts future transactions to the start of the new current period.
     
     Args:
@@ -282,7 +335,7 @@ def apply_period_configuration_change(family, old_config, new_config, adjustment
     new_end = new_config['new_end']
     
     results = {
-        'closed_periods_created': [],
+        'periods_created': [],
         'flow_groups_copied': 0,
         'transactions_moved': 0,
         'future_transactions_adjusted': 0
@@ -299,53 +352,43 @@ def apply_period_configuration_change(family, old_config, new_config, adjustment
         future_transactions.update(date=new_start)
         results['future_transactions_adjusted'] = future_count
     
+    # Get current currency from family configuration
+    current_currency = family.configuration.base_currency if hasattr(family, 'configuration') else 'USD'
+    
     if adjustment_period:
         # Create an adjustment period
         adj_start, adj_end = adjustment_period
         
-        # Check if already exists
-        existing = ClosedPeriod.objects.filter(
-            family=family,
-            start_date=adj_start
-        ).first()
+        # Ensure Period exists for adjustment period
+        period = ensure_period_exists(family, adj_start, adj_end, old_config['period_type'])
+        period.currency = current_currency
+        period.save()
+        results['periods_created'].append(period)
         
-        if not existing:
-            closed_period = ClosedPeriod.objects.create(
-                family=family,
-                start_date=adj_start,
-                end_date=adj_end,
-                period_type=old_config['period_type']
-            )
-            results['closed_periods_created'].append(closed_period)
-            
-            # Copy FlowGroups from current period to adjustment period
-            copied = copy_flow_groups_to_new_period(
-                family,
-                current_start,  # Source period
-                adj_start,      # Target period start
-                adj_end         # Target period end
-            )
-            results['flow_groups_copied'] += copied
+        # Copy FlowGroups from current period to adjustment period
+        copied = copy_flow_groups_to_new_period(
+            family,
+            current_start,  # Source period
+            adj_start,      # Target period start
+            adj_end         # Target period end
+        )
+        results['flow_groups_copied'] += copied
     
     else:
         # No adjustment period, but current period boundaries changed
         if new_start != current_start:
-            # Close the old current period with its original boundaries
+            # Create Period for the old current period with its original boundaries
             adj_end = new_start - datetime.timedelta(days=1)
             
-            existing = ClosedPeriod.objects.filter(
-                family=family,
-                start_date=current_start
-            ).first()
-            
-            if not existing:
-                closed_period = ClosedPeriod.objects.create(
-                    family=family,
-                    start_date=current_start,
-                    end_date=adj_end,
-                    period_type=old_config['period_type']
-                )
-                results['closed_periods_created'].append(closed_period)
+            period = ensure_period_exists(family, current_start, adj_end, old_config['period_type'])
+            period.currency = current_currency
+            period.save()
+            results['periods_created'].append(period)
+    
+    # Ensure Period exists for the NEW current period
+    new_period = ensure_period_exists(family, new_start, new_end, new_config['period_type'])
+    new_period.currency = current_currency
+    new_period.save()
     
     # Copy FlowGroups to the NEW current period
     copied = copy_flow_groups_to_new_period(
@@ -418,8 +461,8 @@ def copy_flow_groups_to_new_period(family, old_period_start, new_period_start, n
 
 def get_available_periods(family):
     """
-    Returns list of available periods for selection based on FlowGroups.
-    Shows periods where FlowGroups exist + one empty period before.
+    Returns list of available periods for selection.
+    Uses Period table to show all existing periods + current period + one empty period before.
     """
     config = getattr(family, 'configuration', None)
     if not config:
@@ -428,10 +471,8 @@ def get_available_periods(family):
     today = timezone.localdate()
     periods = []
     
-    # Get all unique period_start_dates from FlowGroups
-    flow_group_periods = FlowGroup.objects.filter(
-        family=family
-    ).values_list('period_start_date', flat=True).distinct().order_by('-period_start_date')
+    # Get all Period entries
+    period_entries = Period.objects.filter(family=family).order_by('-start_date')
     
     # Get current period
     current_start, current_end, current_label = get_current_period_dates(family, None)
@@ -446,25 +487,24 @@ def get_available_periods(family):
         'has_data': FlowGroup.objects.filter(family=family, period_start_date=current_start).exists()
     })
     
-    # Add periods with FlowGroups
-    for period_start in flow_group_periods:
-        if period_start != current_start:
-            _, period_end, period_label = get_current_period_dates(family, period_start.strftime('%Y-%m-%d'))
+    # Add periods from Period table
+    for period in period_entries:
+        if period.start_date != current_start:
+            _, period_end, period_label = get_current_period_dates(family, period.start_date.strftime('%Y-%m-%d'))
             periods.append({
                 'label': period_label,
-                'value': period_start.strftime('%Y-%m-%d'),
-                'start_date': period_start,
+                'value': period.start_date.strftime('%Y-%m-%d'),
+                'start_date': period.start_date,
                 'end_date': period_end,
                 'is_current': False,
-                'has_data': True
+                'has_data': FlowGroup.objects.filter(family=family, period_start_date=period.start_date).exists()
             })
     
-    # Add one empty period before the oldest period with data
-    if flow_group_periods:
+    # Add one empty period before the oldest period
+    if period_entries:
         import datetime
-        from calendar import monthrange
         
-        oldest_period = min(flow_group_periods)
+        oldest_period = min([p.start_date for p in period_entries] + [current_start])
         
         # Calculate previous period based on period_type
         if config.period_type == 'M':
@@ -490,7 +530,7 @@ def get_available_periods(family):
                 'has_data': False
             })
     else:
-        # No FlowGroups exist yet - add one previous empty period
+        # No periods exist yet - add one previous empty period
         import datetime
         
         if config.period_type == 'M':
@@ -596,26 +636,23 @@ def current_period_has_data(family):
 
 def close_current_period(family):
     """
-    Closes the current period by creating a ClosedPeriod record.
+    Creates/updates a Period record for the current period.
     Should be called when period settings are about to change.
-    Returns the closed period object.
+    Returns the Period object.
     """
     config = family.configuration
     current_start, current_end, _ = get_current_period_dates(family, None)
     
-    existing = ClosedPeriod.objects.filter(
-        family=family,
-        start_date=current_start
-    ).first()
-    
-    if existing:
-        return existing
-    
-    closed = ClosedPeriod.objects.create(
+    period = ensure_period_exists(
         family=family,
         start_date=current_start,
         end_date=current_end,
         period_type=config.period_type
     )
     
-    return closed
+    # Ensure currency is set
+    if not period.currency or period.currency != config.base_currency:
+        period.currency = config.base_currency
+        period.save()
+    
+    return period

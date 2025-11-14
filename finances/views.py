@@ -1,4 +1,4 @@
-VERSION = "1.0.0-alpha4"
+VERSION = "1.0.0-alpha5"
 
 from django.core.management import call_command
 import io
@@ -16,13 +16,16 @@ from django.utils import timezone
 import json
 from datetime import datetime as dt_datetime 
 from decimal import Decimal
+import decimal
 from .forms import InitialSetupForm  
 from django.db.utils import OperationalError, ProgrammingError
 from pathlib import Path
 from django.conf import settings
+from django.utils import translation
 
 import os
 import traceback
+
 
 from .version_utils import Version, needs_update
 
@@ -38,7 +41,7 @@ from moneyed import Money
 
 # Import Models
 from .models import (
-    Family, FamilyMember, FlowGroup, Transaction, Investment, FamilyConfiguration, ClosedPeriod, BankBalance, SystemVersion,
+    Family, FamilyMember, FlowGroup, Transaction, Investment, FamilyConfiguration, Period, BankBalance, SystemVersion,
     FLOW_TYPE_INCOME, EXPENSE_MAIN, EXPENSE_SECONDARY, FLOW_TYPE_EXPENSE 
 )
 from .utils import (
@@ -48,13 +51,15 @@ from .utils import (
     close_current_period,
     copy_flow_groups_to_new_period,
     copy_previous_period_data,
-    current_period_has_data
+    current_period_has_data,
+    ensure_period_exists,
+    get_period_currency
 )
 
 # Import Forms
 from .forms import (
     FamilyConfigurationForm, FlowGroupForm, InvestmentForm, 
-    AddMemberForm, NewUserAndMemberForm
+    AddMemberForm, NewUserAndMemberForm, CURRENCY_CHOICES
 )
 
 
@@ -653,9 +658,42 @@ def initial_setup_view(request):
     return render(request, 'finances/setup.html', {'form': form, 'version': VERSION})
 
 
+def get_thousand_separator():
+    """
+    Returns the decimal separator character for a given language code.
+    """
+    from babel.numbers import get_group_symbol
+    from django.utils import translation
+
+    lang = translation.get_language()
+
+    locale_para_babel = translation.to_locale(lang)
+        
+    return get_group_symbol(locale_para_babel)
+
+
+def get_currency_symbol(currency_code):
+    from babel.numbers import get_currency_symbol as get_currency_symbol_babel
+    """
+    Obtém o símbolo da moeda correto, usando o locale ativo do Django.
+    """
+    # Pega o locale ativo do Django (ex: 'en-us' ou 'pt-br')
+    lang = translation.get_language()
+
+    # Converte o locale do Django para o formato que o Babel espera
+    # 'en-us' -> 'en_US'
+    # 'pt-br' -> 'pt_BR'
+    locale_para_babel = translation.to_locale(lang)
+
+    # 1. Passa a *variável* currency_code (sem aspas)
+    # 2. Passa o *locale formatado*
+    return get_currency_symbol_babel(currency_code, locale=locale_para_babel)
+
+
 @login_required
 def configuration_view(request):
     """View for family configuration settings."""
+    
     try:
         member = FamilyMember.objects.select_related('family', 'family__configuration').get(user=request.user)
     except FamilyMember.DoesNotExist:
@@ -668,6 +706,13 @@ def configuration_view(request):
     
     family = member.family
     config = family.configuration
+
+    old_config = {
+        'period_type': config.period_type,
+        'starting_day': config.starting_day,
+        'base_date': config.base_date,
+        'base_currency': config.base_currency
+    }
     
     # Get period info for navigation
     selected_period = request.GET.get('period')
@@ -675,24 +720,30 @@ def configuration_view(request):
     available_periods = get_available_periods(family)
     current_period_label = period_label
     
+    # Ensure Period entry exists when viewing a period
+    config_obj = getattr(family, 'configuration', None)
+    if config_obj:
+        ensure_period_exists(family, start_date, end_date, config_obj.period_type)
+    
+    # Check if selected period is the current period
+    current_start, current_end, _ = get_current_period_dates(family, None)
+    is_current_period = (start_date == current_start)
+    
     if request.method == 'POST':
         form = FamilyConfigurationForm(request.POST, instance=config)
         if form.is_valid():
-            old_config = {
-                'period_type': config.period_type,
-                'starting_day': config.starting_day,
-                'base_date': config.base_date
-            }
-            
             new_config = form.cleaned_data
-            
+
             # Check if period configuration changed
             config_changed = (
                 old_config['period_type'] != new_config['period_type'] or
                 old_config['starting_day'] != new_config['starting_day'] or
                 old_config['base_date'] != new_config['base_date']
             )
-            
+
+            # Check if currency changed
+            currency_changed = old_config['base_currency'] != new_config['base_currency']
+
             if config_changed:
                 # Check for data in current period
                 has_data, data_count = check_period_change_impact(family, start_date, end_date)
@@ -704,15 +755,142 @@ def configuration_view(request):
                         f"This period will be preserved as-is, and the new configuration will apply to future periods."
                     )
                     # Close current period before changing config
-                    close_current_period(family, start_date, end_date, old_config['period_type'])
+                    close_current_period(family)
                 else:
                     messages.info(request, "Period configuration updated. Changes will apply to the current and future periods.")
-            
+
+            # Handle currency change
+            if currency_changed:
+                new_currency = new_config['base_currency']
+                
+                # Ensure Period exists for selected period
+                period = ensure_period_exists(family, start_date, end_date, config.period_type)
+                
+                if is_current_period:
+                    # Current period: Update both FamilyConfiguration AND Period
+                    config.base_currency = new_currency
+                    period.currency = new_currency
+                    period.save()
+                    
+                    # Update all data in current period
+                    current_flow_groups = FlowGroup.objects.filter(
+                        family=family,
+                        period_start_date=start_date
+                    )
+                    
+                    updated_groups = 0
+                    for fg in current_flow_groups:
+                        if fg.budgeted_amount:
+                            numeric_value = fg.budgeted_amount.amount if hasattr(fg.budgeted_amount, 'amount') else Decimal(str(fg.budgeted_amount))
+                            fg.budgeted_amount = Money(numeric_value, new_currency)
+                            fg.save()
+                            updated_groups += 1
+                    
+                    current_transactions = Transaction.objects.filter(
+                        flow_group__family=family,
+                        flow_group__period_start_date=start_date
+                    )
+                    
+                    updated_transactions = 0
+                    for trans in current_transactions:
+                        if trans.amount:
+                            numeric_value = trans.amount.amount if hasattr(trans.amount, 'amount') else Decimal(str(trans.amount))
+                            trans.amount = Money(numeric_value, new_currency)
+                            trans.save()
+                            updated_transactions += 1
+                    
+                    current_balances = BankBalance.objects.filter(
+                        family=family,
+                        period_start_date=start_date
+                    )
+                    
+                    updated_balances = 0
+                    for balance in current_balances:
+                        if balance.amount:
+                            numeric_value = balance.amount.amount if hasattr(balance.amount, 'amount') else Decimal(str(balance.amount))
+                            balance.amount = Money(numeric_value, new_currency)
+                            balance.save()
+                            updated_balances += 1
+                    
+                    # Update Investments (not period-specific, always updated)
+                    investments = Investment.objects.filter(family=family)
+                    updated_investments = 0
+                    for inv in investments:
+                        if inv.amount:
+                            numeric_value = inv.amount.amount if hasattr(inv.amount, 'amount') else Decimal(str(inv.amount))
+                            inv.amount = Money(numeric_value, new_currency)
+                            inv.save()
+                            updated_investments += 1
+                    
+                    messages.success(
+                        request,
+                        f"Currency updated to {new_currency} for current period. "
+                        f"Updated {updated_groups} groups, {updated_transactions} transactions, "
+                        f"{updated_balances} bank balances, and {updated_investments} investments."
+                    )
+                else:
+                    # Past period: Update ONLY Period table (not FamilyConfiguration)
+                    period.currency = new_currency
+                    period.save()
+                    
+                    # Update data for this specific period
+                    period_flow_groups = FlowGroup.objects.filter(
+                        family=family,
+                        period_start_date=start_date
+                    )
+                    
+                    updated_groups = 0
+                    for fg in period_flow_groups:
+                        if fg.budgeted_amount:
+                            numeric_value = fg.budgeted_amount.amount if hasattr(fg.budgeted_amount, 'amount') else Decimal(str(fg.budgeted_amount))
+                            fg.budgeted_amount = Money(numeric_value, new_currency)
+                            fg.save()
+                            updated_groups += 1
+                    
+                    period_transactions = Transaction.objects.filter(
+                        flow_group__family=family,
+                        flow_group__period_start_date=start_date
+                    )
+                    
+                    updated_transactions = 0
+                    for trans in period_transactions:
+                        if trans.amount:
+                            numeric_value = trans.amount.amount if hasattr(trans.amount, 'amount') else Decimal(str(trans.amount))
+                            trans.amount = Money(numeric_value, new_currency)
+                            trans.save()
+                            updated_transactions += 1
+                    
+                    period_balances = BankBalance.objects.filter(
+                        family=family,
+                        period_start_date=start_date
+                    )
+                    
+                    updated_balances = 0
+                    for balance in period_balances:
+                        if balance.amount:
+                            numeric_value = balance.amount.amount if hasattr(balance.amount, 'amount') else Decimal(str(balance.amount))
+                            balance.amount = Money(numeric_value, new_currency)
+                            balance.save()
+                            updated_balances += 1
+                    
+                    messages.success(
+                        request,
+                        f"Currency updated to {new_currency} for selected period only. "
+                        f"Updated {updated_groups} groups, {updated_transactions} transactions, "
+                        f"and {updated_balances} bank balances."
+                    )
+
             form.save()
             messages.success(request, "Configuration updated successfully!")
-            return redirect('configuration')
+            # Correct redirect with query parameter
+            return redirect(f'/settings/?period={start_date.strftime("%Y-%m-%d")}')
     else:
-        form = FamilyConfigurationForm(instance=config)
+        # Load form with period-specific currency if not current period
+        if not is_current_period:
+            period_currency = get_period_currency(family, start_date)
+            form = FamilyConfigurationForm(instance=config, initial={'base_currency': period_currency})
+        else:
+            form = FamilyConfigurationForm(instance=config)
     
     context = {
         'form': form,
@@ -723,6 +901,7 @@ def configuration_view(request):
         'period_label': period_label,
         'available_periods': available_periods,
         'current_period_label': current_period_label,
+        'is_current_period': is_current_period,
         'VERSION': VERSION,
         'app_version': VERSION,
     }
@@ -743,8 +922,8 @@ def get_family_context(user):
 # === Utility Function for default Income Group ===
 def get_default_income_flow_group(family, user, period_start_date):
     """Retrieves or creates the default income FlowGroup for the family and period."""
-    # AJUSTE DJANGO-MONEY: Usar Money object ou deixar Django-money converter
-    currency = family.configuration.base_currency if hasattr(family, 'configuration') else 'BRL'
+    # Get currency for this period from Period table or family configuration
+    currency = get_period_currency(family, period_start_date)
     
     income_group, created = FlowGroup.objects.get_or_create(
         family=family,
@@ -752,10 +931,19 @@ def get_default_income_flow_group(family, user, period_start_date):
         period_start_date=period_start_date,
         defaults={
             'name': 'Income (Default)', 
-            'budgeted_amount': Money(0, currency),  # AJUSTADO
+            'budgeted_amount': Money(0, currency),
             'owner': user
         }
     )
+    
+    # If group was just created, ensure Period entry exists
+    if created:
+        config = getattr(family, 'configuration', None)
+        if config:
+            from .utils import get_current_period_dates
+            _, end_date, _ = get_current_period_dates(family, period_start_date.strftime('%Y-%m-%d'))
+            ensure_period_exists(family, period_start_date, end_date, config.period_type)
+    
     return income_group
 
 # === Utility function to check FlowGroup access ===
@@ -766,7 +954,7 @@ def can_access_flow_group(flow_group, family_member):
     if family_member.role == 'ADMIN':
         return True
     
-    # CRÍTICO: TODOS podem acessar Income (movido para cima)
+    # CRÃƒÂTICO: TODOS podem acessar Income (movido para cima)
     if flow_group.group_type == FLOW_TYPE_INCOME:
         return True
     
@@ -970,7 +1158,7 @@ def get_periods_history(family, current_period_start):
         
         total_expenses += kids_realized
         
-        # AJUSTE DJANGO-MONEY: Converter Money para float para cálculos
+        # AJUSTE DJANGO-MONEY: Converter Money para float para cÃƒÂ¡lculos
         if hasattr(total_expenses, 'amount'):
             total_expenses_float = float(total_expenses.amount)
         else:
@@ -1050,6 +1238,11 @@ def dashboard_view(request):
     query_period = request.GET.get('period')
     start_date, end_date, current_period_label = get_current_period_dates(family, query_period)
     
+    # Ensure Period entry exists when viewing a period
+    config = getattr(family, 'configuration', None)
+    if config:
+        ensure_period_exists(family, start_date, end_date, config.period_type)
+    
     # Get historical role for this period
     from .utils import get_member_role_for_period
     member_role_for_period = get_member_role_for_period(current_member, start_date)
@@ -1091,7 +1284,7 @@ def dashboard_view(request):
     # Process accessible groups
     budgeted_expense = Decimal(0.00)
     for group in accessible_expense_groups:
-        # AJUSTE DJANGO-MONEY: Extrair valor numérico de Money object
+        # AJUSTE DJANGO-MONEY: Extrair valor numÃƒÂ©rico de Money object
         if hasattr(group.total_estimated, 'amount'):
             group.total_estimated = Decimal(str(group.total_estimated.amount))
         else:
@@ -1151,7 +1344,7 @@ def dashboard_view(request):
     
     # Process display-only groups (for Parents/Admins)
     for group in display_only_expense_groups:
-        # AJUSTE DJANGO-MONEY: Extrair valor numérico
+        # AJUSTE DJANGO-MONEY: Extrair valor numÃƒÂ©rico
         if hasattr(group.total_estimated, 'amount'):
             group.total_estimated = Decimal(str(group.total_estimated.amount))
         else:
@@ -1399,6 +1592,13 @@ def dashboard_view(request):
         'children_manual_income': children_manual_income if member_role_for_period in ['ADMIN', 'PARENT'] else {},
         'periods_history_json': json.dumps(periods_history),
     }
+        
+    
+    
+
+    # Get currency for the period being viewed
+    period_currency = get_period_currency(family, start_date)
+    context['currency_symbol'] = get_currency_symbol(period_currency)
     
     context.update(get_base_template_context(family, query_period, start_date))
     
@@ -1642,18 +1842,44 @@ def save_flow_item_ajax(request):
         # Basic validation
         if not all([flow_group_id, description, amount_str, date_str]):
             return JsonResponse({'error': 'Missing required fields.'}, status=400)
+        
+        flow_group = get_object_or_404(FlowGroup, id=flow_group_id, family=family)
+        currency = get_period_currency(family, flow_group.period_start_date)
+        
+        # Validate and convert amount
+        try:
+            # Clean amount_str: remove currency symbols, spaces, and thousand separators
+            amount_clean = str(amount_str).strip()
+
+            # Remove common currency symbols
+            print(amount_str)
+            print(amount_clean)
+
+            amount_clean = amount_clean.replace(get_currency_symbol(currency), '')
+
+            # Remove thousand separators (commas) but keep decimal point
+            print(get_thousand_separator())
+            print("TEST")
+            amount_clean = amount_clean.replace(get_thousand_separator(), '')  # It'll need a fix once we apply localization
+            print(amount_clean)
             
-        amount = Decimal(amount_str)
+            if not amount_clean or amount_clean == '':
+                return JsonResponse({'error': 'Amount cannot be empty.'}, status=400)
+            amount = Decimal(amount_clean)
+        except (ValueError, decimal.InvalidOperation) as e:
+            return JsonResponse({'error': f'Invalid amount format: {amount_str}'}, status=400)
+            
         date = dt_datetime.strptime(date_str, '%Y-%m-%d').date()
 
-        flow_group = get_object_or_404(FlowGroup, id=flow_group_id, family=family)
+        
         
         # Check access permissions
         if not can_access_flow_group(flow_group, current_member):
             return HttpResponseForbidden("You don't have permission to edit this group.")
 
-        # AJUSTE DJANGO-MONEY: Pegar moeda da família
-        currency = family.configuration.base_currency
+        # Get the currency for this transaction based on the Period
+        # This ensures we use the correct currency for the period
+        
 
         if transaction_id and transaction_id != '0' and transaction_id is not None:
             transaction = get_object_or_404(Transaction, id=transaction_id, flow_group=flow_group)
@@ -1676,7 +1902,7 @@ def save_flow_item_ajax(request):
             transaction.member = member
 
         transaction.description = description
-        # AJUSTE DJANGO-MONEY: Criar Money object com moeda correta
+        # Use the currency from the FlowGroup to maintain consistency across periods
         transaction.amount = Money(abs(amount), currency)
         transaction.date = date
         transaction.realized = realized
@@ -1689,22 +1915,39 @@ def save_flow_item_ajax(request):
             transaction.is_child_expense = True
         
         transaction.save()
+        
+        # Ensure Period exists for this transaction's period
+        config = getattr(family, 'configuration', None)
+        if config:
+            start_date, end_date, _ = get_current_period_dates(family, flow_group.period_start_date.strftime('%Y-%m-%d'))
+            ensure_period_exists(family, start_date, end_date, config.period_type)
 
-        # AJUSTE DJANGO-MONEY: Retornar só o valor numérico
+        # AJUSTE DJANGO-MONEY: Retornar sÃƒÂ³ o valor numÃƒÂ©rico
         amount_value = str(transaction.amount.amount) if hasattr(transaction.amount, 'amount') else str(transaction.amount)
+        
+        # Get currency code and symbol for frontend formatting
+        currency_code = transaction.amount.currency.code if hasattr(transaction.amount, 'currency') else currency
+        currency_symbol = get_currency_symbol(currency_code)
 
         return JsonResponse({
             'status': 'success',
             'transaction_id': transaction.id,
             'description': transaction.description,
             'amount': amount_value,
+            'currency': currency_code,
+            'currency_symbol': currency_symbol,
             'date': transaction.date.strftime('%Y-%m-%d'),
             'member_id': transaction.member.id,
             'member_name': transaction.member.user.username,
             'realized': transaction.realized,
         })
 
+    except ValueError as e:
+        return JsonResponse({'error': f'Invalid data format: {str(e)}'}, status=400)
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Error in save_flow_item_ajax: {error_trace}")
         return JsonResponse({'error': f'A server error occurred: {str(e)}'}, status=500)
 
 
@@ -1778,7 +2021,7 @@ def toggle_kids_group_realized_ajax(request):
         flow_group.realized = new_realized_status
         flow_group.save()
         
-        # AJUSTE DJANGO-MONEY: Extrair valor numérico
+        # AJUSTE DJANGO-MONEY: Extrair valor numÃƒÂ©rico
         budget_value = str(flow_group.budgeted_amount.amount) if hasattr(flow_group.budgeted_amount, 'amount') else str(flow_group.budgeted_amount)
         
         return JsonResponse({
@@ -2041,6 +2284,13 @@ def create_flow_group_view(request):
             # CRITICAL: Use the period from query/POST parameter, not current date
             flow_group.period_start_date = start_date
             
+            # Get currency for this period
+            currency = get_period_currency(family, start_date)
+            
+            # Convert budgeted_amount from Decimal (form) to Money with period currency
+            budget_decimal = form.cleaned_data.get('budgeted_amount')
+            flow_group.budgeted_amount = Money(budget_decimal, currency)
+            
             # Validation for CHILD users: budget cannot exceed manual income
             if current_member.role == 'CHILD':
                 # Calculate child's manual income total for this period
@@ -2058,14 +2308,10 @@ def create_flow_group_view(request):
                 else:
                     child_manual_income_total = child_manual_sum
                 
-                # AJUSTE DJANGO-MONEY: Extrair budgeted_amount
-                budg_amt = flow_group.budgeted_amount
-                if hasattr(budg_amt, 'amount'):
-                    budg_amt_val = Decimal(str(budg_amt.amount))
-                else:
-                    budg_amt_val = Decimal(str(budg_amt))
+                # budgeted_amount is now Money object, extract amount
+                budget_value = flow_group.budgeted_amount.amount if hasattr(flow_group.budgeted_amount, 'amount') else flow_group.budgeted_amount
                 
-                if budg_amt_val > child_manual_income_total:
+                if budget_value > child_manual_income_total:
                     messages.error(request, f"Budget cannot exceed your available balance (${child_manual_income_total}). Please enter a budget of ${child_manual_income_total} or less.")
                     context = {
                         'form': form,
@@ -2085,6 +2331,11 @@ def create_flow_group_view(request):
                 flow_group.is_shared = True
             
             flow_group.save()
+            
+            # Ensure Period entry exists for this period
+            config = getattr(family, 'configuration', None)
+            if config:
+                ensure_period_exists(family, start_date, end_date, config.period_type)
             
             # If CHILD created the group, auto-assign all Parents/Admins
             if current_member.role == 'CHILD':
@@ -2179,6 +2430,13 @@ def edit_flow_group_view(request, group_id):
         if form.is_valid():
             flow_group = form.save(commit=False)
             
+            # Get currency for this period
+            currency = get_period_currency(family, start_date)
+            
+            # Convert budgeted_amount from Decimal (form) to Money with period currency
+            budget_decimal = form.cleaned_data.get('budgeted_amount')
+            flow_group.budgeted_amount = Money(budget_decimal, currency)
+            
             # If Kids group is checked, automatically enable shared
             if flow_group.is_kids_group:
                 flow_group.is_shared = True
@@ -2193,7 +2451,20 @@ def edit_flow_group_view(request, group_id):
             redirect_url = f"?period={query_period}" if query_period else ""
             return redirect(f"/flow-group/{group_id}/edit/{redirect_url}")
     else:
-        form = FlowGroupForm(instance=group, family=family)
+        # Extract the budget amount value before creating form
+        budget_initial = None
+        if group.budgeted_amount:
+            if hasattr(group.budgeted_amount, 'amount'):
+                budget_initial = group.budgeted_amount.amount
+            else:
+                budget_initial = group.budgeted_amount
+        
+        # Create form with initial value for budgeted_amount
+        form = FlowGroupForm(
+            instance=group, 
+            family=family,
+            initial={'budgeted_amount': budget_initial} if budget_initial is not None else None
+        )
 
     transactions = Transaction.objects.filter(flow_group=group).select_related('member__user').order_by('order', '-date')
     
@@ -2218,7 +2489,9 @@ def edit_flow_group_view(request, group_id):
 
     # Get default date for this period
     default_date = get_default_date_for_period(start_date, end_date)
-
+    period_currency = get_period_currency(family, start_date)
+    currency_symbol= get_currency_symbol(period_currency)
+    
     context = {
         'form': form,
         'is_new': False,
@@ -2234,6 +2507,7 @@ def edit_flow_group_view(request, group_id):
         'can_edit_group': can_edit_group,
         'can_edit_budget': can_edit_budget,
         'member_role_for_period' : member_role_for_period,
+        'currency_symbol': currency_symbol
     }
     context.update(get_base_template_context(family, query_period, start_date))
     return render(request, 'finances/FlowGroup.html', context)
@@ -2420,6 +2694,7 @@ def investments_view(request):
         'family_investments': investments,
         'start_date': start_date,
         'end_date': end_date,
+        'currency_symbol': get_currency_symbol(family.configuration.base_currency),
     }
     context.update(get_base_template_context(family, query_period, start_date))
     return render(request, 'finances/invest.html', context)
@@ -2550,8 +2825,19 @@ def save_bank_balance_ajax(request):
         if member_id and member_id != 'null':
             member = FamilyMember.objects.get(id=member_id, family=family)
         
-        # AJUSTE DJANGO-MONEY: Criar Money object
-        currency = family.configuration.base_currency
+        # Get currency for this period - use the period_start_date to find the correct currency
+        # Get FlowGroups for this period to determine the currency used
+        period_flow_groups = FlowGroup.objects.filter(
+            family=family,
+            period_start_date=period_start_date
+        ).first()
+        
+        if period_flow_groups and hasattr(period_flow_groups.budgeted_amount, 'currency'):
+            currency = period_flow_groups.budgeted_amount.currency.code
+        else:
+            # Fallback to current base currency
+            currency = family.configuration.base_currency
+        
         money_amount = Money(amount, currency)
         
         # Create or update
@@ -2574,7 +2860,7 @@ def save_bank_balance_ajax(request):
                 period_start_date=period_start_date
             )
         
-        # AJUSTE DJANGO-MONEY: Retornar valor numérico
+        # AJUSTE DJANGO-MONEY: Retornar valor numÃƒÂ©rico
         amount_value = str(bank_balance.amount.amount) if hasattr(bank_balance.amount, 'amount') else str(bank_balance.amount)
         
         return JsonResponse({

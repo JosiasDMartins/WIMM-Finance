@@ -31,7 +31,7 @@ class SystemVersion(models.Model):
     """
     version = models.CharField(
         max_length=50,
-        help_text="Current system version (e.g., 1.0.0, 1.0.0-alpha1, 1.0.0-beta1)"
+        help_text="Current system version (e.g., 1.0.0, 1.0.0-alpha1, 1.0.0-beta1, 2.0.0)"
     )
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -100,33 +100,39 @@ class FamilyConfiguration(models.Model):
     # Base date used for calculating bi-weekly or weekly cycles
     base_date = models.DateField(default=timezone.localdate)
     
-    # NOVO: Moeda base da família
+    # Moeda base da família (usada quando período não tem entrada em Period)
     base_currency = models.CharField(
         max_length=3,
-        default='BRL',
-        help_text="Base currency for the family (e.g., BRL, USD, EUR)"
+        default='USD',
+        help_text="Base currency for the family (e.g., USD, BRL, EUR)"
     )
 
     def __str__(self):
         return f"Config for {self.family.name}"
 
-class ClosedPeriod(models.Model):
+class Period(models.Model):
     """
-    Stores closed periods to maintain historical period boundaries.
-    When period settings change, previous periods remain as they were.
+    Stores period information to maintain historical period boundaries and currency.
+    Each period with transactions should have an entry here.
     """
-    family = models.ForeignKey(Family, on_delete=models.CASCADE, related_name='closed_periods')
-    start_date = models.DateField(help_text="Start date of the closed period")
-    end_date = models.DateField(help_text="End date of the closed period")
-    period_type = models.CharField(max_length=1, choices=FamilyConfiguration.PERIOD_TYPES, help_text="Type of period when it was closed")
-    closed_at = models.DateTimeField(auto_now_add=True)
+    family = models.ForeignKey(Family, on_delete=models.CASCADE, related_name='periods')
+    start_date = models.DateField(help_text="Start date of the period")
+    end_date = models.DateField(help_text="End date of the period")
+    period_type = models.CharField(max_length=1, choices=FamilyConfiguration.PERIOD_TYPES, help_text="Type of period")
+    currency = models.CharField(
+        max_length=3,
+        default='USD',
+        help_text="Currency for this period"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         ordering = ['-start_date']
         unique_together = ('family', 'start_date')
     
     def __str__(self):
-        return f"{self.family.name} - {self.start_date} to {self.end_date} ({self.get_period_type_display()})"
+        return f"{self.family.name} - {self.start_date} to {self.end_date} ({self.get_period_type_display()}) - {self.currency}"
 
 class FlowGroup(models.Model):
     """
@@ -152,7 +158,7 @@ class FlowGroup(models.Model):
     budgeted_amount = MoneyField(
         max_digits=14,
         decimal_places=2,
-        default_currency='BRL',
+        default_currency='USD',
         default=Decimal('0.00')
     )
     
@@ -223,7 +229,7 @@ class Transaction(models.Model):
     amount = MoneyField(
         max_digits=14,
         decimal_places=2,
-        default_currency='BRL'
+        default_currency='USD'
     )
     
     date = models.DateField(default=timezone.localdate)
@@ -291,7 +297,7 @@ class Investment(models.Model):
     amount = MoneyField(
         max_digits=15,
         decimal_places=2,
-        default_currency='BRL',
+        default_currency='USD',
         default=Decimal('0.00')
     )
     
@@ -309,11 +315,11 @@ class BankBalance(models.Model):
     member = models.ForeignKey(FamilyMember, on_delete=models.SET_NULL, null=True, blank=True, related_name='bank_balances')
     description = models.CharField(max_length=255, help_text="Description of the bank account")
     
-    # ATUALIZADO: MoneyField com moeda
+    # MoneyField with currency
     amount = MoneyField(
         max_digits=14,
         decimal_places=2,
-        default_currency='BRL',
+        default_currency='USD',
         help_text="Current bank balance"
     )
     

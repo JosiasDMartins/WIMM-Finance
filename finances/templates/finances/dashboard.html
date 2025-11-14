@@ -111,16 +111,16 @@
                                 <span class="ml-2 text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 px-2 py-1 rounded-full">⚠ Over budget</span>
                                 {% endif %}
                             </td>
-                            <td class="py-4 px-4 text-sm {% if group.is_child_group %}font-medium{% elif group.budget_warning %}text-yellow-600 dark:text-yellow-500 font-semibold{% else %}text-gray-500 dark:text-gray-400{% endif %} text-right group-estimated" data-value="{{ group.total_estimated }}">$ {{ group.total_estimated|intcomma }}</td>
+                            <td class="py-4 px-4 text-sm {% if group.is_child_group %}font-medium{% elif group.budget_warning %}text-yellow-600 dark:text-yellow-500 font-semibold{% else %}text-gray-500 dark:text-gray-400{% endif %} text-right group-estimated" data-value="{{ group.total_estimated }}">{{ currency_symbol }} {{ group.total_estimated|intcomma }}</td>
                             <td class="py-4 px-4 text-sm {% if group.is_child_group %}font-medium{% else %}text-red-600 dark:text-red-500{% endif %} text-right group-realized" data-value="{{ group.total_spent|default:'0.00' }}">
                                 {% if group.is_kids_group and member_role_for_period in 'PARENT,ADMIN' %}
                                     {% if group.realized %}
-                                        $ {{ group.budgeted_amount|intcomma }} ($ {{ group.child_expenses|default:"0.00"|intcomma }})
+                                        {{ currency_symbol }} {{ group.budgeted_amount|intcomma }} ({{ currency_symbol }} {{ group.child_expenses|default:"0.00"|intcomma }})
                                     {% else %}
-                                        ($ {{ group.child_expenses|default:"0.00"|intcomma }})
+                                        ({{ currency_symbol }} {{ group.child_expenses|default:"0.00"|intcomma }})
                                     {% endif %}
                                 {% else %}
-                                    $ {{ group.total_spent|default:"0.00"|intcomma }}
+                                    {{ currency_symbol }} {{ group.total_spent|default:"0.00"|intcomma }}
                                 {% endif %}
                             </td>
                             <td class="py-4 px-4 text-right">
@@ -183,7 +183,7 @@
                                     </td>
                                     
                                     <td class="py-3 px-4 text-sm text-right {% if kids_income.realized %}text-green-600 dark:text-green-500{% else %}text-gray-400 dark:text-gray-500{% endif %}">
-                                        <div class="cell-amount-display">$ {{ kids_income.amount|intcomma }}</div>
+                                        <div class="cell-amount-display"> {{ kids_income.amount|intcomma }}</div>
                                     </td>
                                     
                                     <td class="px-6 py-4 text-center whitespace-nowrap">
@@ -220,9 +220,9 @@
                                 </td>
                                 
                                 <td class="py-3 px-4 text-sm text-right {% if transaction.realized %}text-green-600 dark:text-green-500{% else %}text-gray-400 dark:text-gray-500{% endif %}">
-                                    <div class="cell-amount-display">$ {{ transaction.amount|intcomma }}</div>
+                                    <div class="cell-amount-display"> {{ transaction.amount|intcomma }}</div>
                                     <div class="cell-amount-edit hidden">
-                                        <input type="number" step="0.01" data-field="amount" class="w-20 border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs text-right p-1" value="{{ transaction.amount }}">
+                                        <input type="number" step="0.01" data-field="amount" class="w-20 border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs text-right p-1" value="{{ transaction.amount.amount }}">
                                     </div>
                                 </td>
                                 
@@ -259,7 +259,7 @@
                                         <span class="text-xs text-gray-400">-</span>
                                     </td>
                                     <td class="py-3 px-4 text-sm text-right font-medium" style="color: #DAA520;">
-                                        $ {{ child_data.total|intcomma }}
+                                        {{ currency_symbol }} {{ child_data.total|intcomma }}
                                     </td>
                                     <td class="px-6 py-4 text-center">
                                         <span class="text-xs" style="color: #DAA520;">Child Income</span>
@@ -271,16 +271,16 @@
                                         {% for trans in child_data.transactions %}
                                             <div class="flex justify-between py-1">
                                                 <span>{{ trans.description }}</span>
-                                                <span class="font-medium">$ {{ trans.amount|intcomma }}</span>
+                                                <span class="font-medium">{{ currency_symbol }} {{ trans.amount|intcomma }}</span>
                                             </div>
                                         {% endfor %}
                                         <div class="flex justify-between pt-2 mt-2 border-t border-gray-700 font-semibold">
                                             <span>Total:</span>
-                                            <span>$ {{ child_data.total|intcomma }}</span>
+                                            <span>{{ currency_symbol }} {{ child_data.total|intcomma }}</span>
                                         </div>
                                         <div class="flex justify-between pt-1 text-green-400">
                                             <span>Realized:</span>
-                                            <span>$ {{ child_data.realized_total|intcomma }}</span>
+                                            <span>{{ currency_symbol }} {{ child_data.realized_total|intcomma }}</span>
                                         </div>
                                     </div>
                                 </tr>
@@ -337,18 +337,18 @@
                         </tr>
                         <tr>
                             <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white">Income</td>
-                            <td id="balance-estimated-income" class="py-4 px-4 text-sm text-green-600 dark:text-green-500">$ {{ summary_totals.total_budgeted_income|default:"0.00"|intcomma }}</td>
-                            <td id="balance-realized-income" class="py-4 px-4 text-sm text-green-600 dark:text-green-500">$ {{ summary_totals.total_realized_income|default:"0.00"|intcomma }}</td>
+                            <td id="balance-estimated-income" class="py-4 px-4 text-sm text-green-600 dark:text-green-500">{{ currency_symbol }} {{ summary_totals.total_budgeted_income|default:"0.00"|intcomma }}</td>
+                            <td id="balance-realized-income" class="py-4 px-4 text-sm text-green-600 dark:text-green-500">{{ currency_symbol }} {{ summary_totals.total_realized_income|default:"0.00"|intcomma }}</td>
                         </tr>
                         <tr>
                             <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white">Expenses</td>
-                            <td id="balance-estimated-expense" class="py-4 px-4 text-sm text-red-600 dark:text-red-500">$ {{ summary_totals.total_budgeted_expense|default:"0.00"|intcomma }}</td>
-                            <td id="balance-realized-expense" class="py-4 px-4 text-sm text-red-600 dark:text-red-500">$ {{ summary_totals.total_realized_expense|default:"0.00"|intcomma }}</td>
+                            <td id="balance-estimated-expense" class="py-4 px-4 text-sm text-red-600 dark:text-red-500">{{ currency_symbol }} {{ summary_totals.total_budgeted_expense|default:"0.00"|intcomma }}</td>
+                            <td id="balance-realized-expense" class="py-4 px-4 text-sm text-red-600 dark:text-red-500">{{ currency_symbol }} {{ summary_totals.total_realized_expense|default:"0.00"|intcomma }}</td>
                         </tr>
                         <tr>
                             <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white font-bold">Result</td>
-                            <td id="balance-estimated-result" class="py-4 px-4 text-sm {% if summary_totals.estimated_result >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %} font-bold">$ {{ summary_totals.estimated_result|default:"0.00"|intcomma }}</td>
-                            <td id="balance-realized-result" class="py-4 px-4 text-sm {% if summary_totals.realized_result >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %} font-bold">$ {{ summary_totals.realized_result|default:"0.00"|intcomma }}</td>
+                            <td id="balance-estimated-result" class="py-4 px-4 text-sm {% if summary_totals.estimated_result >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %} font-bold">{{ currency_symbol }} {{ summary_totals.estimated_result|default:"0.00"|intcomma }}</td>
+                            <td id="balance-realized-result" class="py-4 px-4 text-sm {% if summary_totals.realized_result >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %} font-bold">{{ currency_symbol }} {{ summary_totals.realized_result|default:"0.00"|intcomma }}</td>
                         </tr>
                     </tbody>
                 </table>             
@@ -1015,7 +1015,9 @@
                 // Update row data
                 row.setAttribute('data-amount', data.amount);
                 row.querySelector('.cell-description-display').textContent = data.description;
-                row.querySelector('.cell-amount-display').textContent = '$ ' + formatCurrency(data.amount);
+                // Use currency_symbol from backend response
+                const currencySymbol = data.currency_symbol || '{{ currency_symbol }}';
+                row.querySelector('.cell-amount-display').textContent = currencySymbol + ' ' + formatCurrency(data.amount);
                 row.querySelector('.cell-date-display').textContent = new Date(data.date).toLocaleDateString('en-GB', {day: '2-digit', month: '2-digit'});
                 
                 // Update inputs
