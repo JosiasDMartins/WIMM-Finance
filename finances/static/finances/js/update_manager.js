@@ -1,424 +1,77 @@
-// finances/static/finances/js/update_manager.js - CORRECTED
+// ============================
+// Update Manager - Central controller for app updates
+// ============================
 
 class UpdateManager {
     constructor() {
-        this.updateData = null;
-        this.init();
+        this.modal = null;
+        this.checkAttempts = 0;
+        this.maxAttempts = 3;
     }
-    
+
     init() {
-        document.addEventListener('DOMContentLoaded', () => {
-            this.checkForUpdates();
-            this.setupEventListeners();
-        });
+        // Tenta inicializar imediatamente
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.setup());
+        } else {
+            this.setup();
+        }
     }
-    
+
+    setup() {
+        this.modal = document.getElementById('updateModal');
+        
+        if (!this.modal) {
+            // Se o modal não existir, tenta novamente após 1 segundo (max 3 tentativas)
+            this.checkAttempts++;
+            if (this.checkAttempts < this.maxAttempts) {
+                setTimeout(() => this.setup(), 1000);
+            }
+            return;
+        }
+
+        this.setupEventListeners();
+        this.checkForUpdates();
+    }
+
     setupEventListeners() {
-        document.getElementById('btn-apply-local')?.addEventListener('click', () => this.applyLocalUpdates());
-        document.getElementById('btn-install-github')?.addEventListener('click', () => this.installGithubUpdate());
-        document.getElementById('btn-skip')?.addEventListener('click', () => this.skipUpdate());
-        document.getElementById('btn-close')?.addEventListener('click', () => this.closeAndReload());
-        document.getElementById('btn-view-logs')?.addEventListener('click', () => this.showLogs());
-        document.getElementById('btn-view-release')?.addEventListener('click', () => this.viewRelease());
-        document.getElementById('btn-create-backup')?.addEventListener('click', () => this.createBackup());
-        document.getElementById('close-logs')?.addEventListener('click', () => this.closeLogs());
-        
-        document.getElementById('backup-confirmed')?.addEventListener('change', (e) => {
-            const installBtn = document.getElementById('btn-install-github');
-            if (installBtn) {
-                installBtn.disabled = !e.target.checked;
-            }
-        });
-    }
-    
-    async checkForUpdates() {
-        try {
-            const response = await fetch('/check-updates/');
-            const data = await response.json();
-            
-            if (data.needs_update) {
-                this.updateData = data;
-                this.showUpdateModal(data);
-            }
-        } catch (error) {
-            console.error('Error checking for updates:', error);
+        // Botão de fechar modal
+        const closeBtn = this.modal?.querySelector('.close');
+        if (closeBtn) {
+            closeBtn.onclick = () => this.closeModal();
+        }
+
+        // Botão de aplicar updates locais
+        const applyBtn = document.getElementById('applyLocalUpdates');
+        if (applyBtn) {
+            applyBtn.onclick = () => this.applyLocalUpdates();
+        }
+
+        // Botão de download GitHub
+        const downloadBtn = document.getElementById('downloadGithubUpdate');
+        if (downloadBtn) {
+            downloadBtn.onclick = () => this.downloadGithubUpdate();
+        }
+
+        // Botão de skip
+        const skipBtn = document.getElementById('skipUpdate');
+        if (skipBtn) {
+            skipBtn.onclick = () => this.skipUpdate();
+        }
+
+        // Botão de criar backup
+        const backupBtn = document.getElementById('createBackupBtn');
+        if (backupBtn) {
+            backupBtn.onclick = () => this.createBackup();
+        }
+
+        // Botão de check manual (Settings page)
+        const manualCheckBtn = document.getElementById('manualCheckUpdates');
+        if (manualCheckBtn) {
+            manualCheckBtn.onclick = () => this.manualCheckUpdates();
         }
     }
-    
-    showUpdateModal(data) {
-        const modal = document.getElementById('update-modal');
-        
-        document.getElementById('current-version').textContent = data.current_version;
-        document.getElementById('target-version').textContent = data.target_version;
-        
-        if (data.update_type === 'local') {
-            this.showLocalUpdate(data);
-        } else if (data.update_type === 'github') {
-            this.showGithubUpdate(data);
-        }
-        
-        modal.classList.remove('hidden');
-    }
-    
-    showLocalUpdate(data) {
-        const modalIcon = document.getElementById('modal-icon');
-        const updateDesc = document.getElementById('update-description');
-        const scriptsInfo = document.getElementById('scripts-info');
-        const scriptsList = document.getElementById('scripts-list');
-        const btnApply = document.getElementById('btn-apply-local');
-        
-        modalIcon.className = 'material-symbols-outlined text-4xl text-orange-500';
-        modalIcon.textContent = 'construction';
-        
-        if (data.has_scripts) {
-            updateDesc.textContent = 'Local updates are available and must be applied before continuing.';
-            scriptsInfo.classList.remove('hidden');
-            scriptsList.innerHTML = '';
-            data.update_scripts.forEach(script => {
-                const li = document.createElement('li');
-                li.textContent = `v${script.version}: ${script.description}`;
-                scriptsList.appendChild(li);
-            });
-        } else {
-            updateDesc.textContent = 'System files have been updated. Database migrations will be applied.';
-        }
-        
-        // ALWAYS show apply button for local updates
-        btnApply.classList.remove('hidden');
-    }
-    
-    showGithubUpdate(data) {
-        const modalIcon = document.getElementById('modal-icon');
-        const updateDesc = document.getElementById('update-description');
-        const githubInfo = document.getElementById('github-info');
-        const releaseName = document.getElementById('release-name');
-        const releaseNotes = document.getElementById('release-notes');
-        const releaseDate = document.getElementById('release-date');
-        const containerWarning = document.getElementById('container-warning');
-        const backupSection = document.getElementById('backup-section');
-        const btnSkip = document.getElementById('btn-skip');
-        const btnInstall = document.getElementById('btn-install-github');
-        const btnViewRelease = document.getElementById('btn-view-release');
-        
-        modalIcon.className = 'material-symbols-outlined text-4xl text-green-500';
-        modalIcon.textContent = 'cloud_download';
-        
-        updateDesc.textContent = 'A new version is available on GitHub!';
-        
-        githubInfo.classList.remove('hidden');
-        releaseName.textContent = data.github_release.name || `Version ${data.target_version}`;
-        
-        const notes = data.github_release.body || 'No release notes available.';
-        releaseNotes.innerHTML = this.formatMarkdown(notes);
-        
-        const date = new Date(data.github_release.published_at);
-        releaseDate.textContent = date.toLocaleDateString();
-        
-        btnViewRelease.classList.remove('hidden');
-        btnSkip.classList.remove('hidden');
-        
-        if (data.requires_container) {
-            containerWarning.classList.remove('hidden');
-            btnInstall.classList.add('hidden');
-            backupSection.classList.add('hidden');
-        } else {
-            backupSection.classList.remove('hidden');
-            btnInstall.classList.remove('hidden');
-            btnInstall.disabled = true;
-        }
-    }
-    
-    formatMarkdown(text) {
-        return text
-            .replace(/^### (.*$)/gim, '<h3 class="font-semibold mt-3 mb-1">$1</h3>')
-            .replace(/^## (.*$)/gim, '<h2 class="font-bold text-lg mt-4 mb-2">$1</h2>')
-            .replace(/^# (.*$)/gim, '<h1 class="font-bold text-xl mt-4 mb-2">$1</h1>')
-            .replace(/^\* (.*$)/gim, '<li class="ml-4">$1</li>')
-            .replace(/^\- (.*$)/gim, '<li class="ml-4">$1</li>')
-            .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
-            .replace(/\n\n/g, '</p><p class="mt-2">')
-            .replace(/\n/g, '<br>');
-    }
-    
-    async applyLocalUpdates() {
-        const progressSection = document.getElementById('update-progress');
-        const progressBar = document.getElementById('progress-bar');
-        const progressText = document.getElementById('progress-text');
-        const progressTitle = document.getElementById('progress-title');
-        const btnApply = document.getElementById('btn-apply-local');
-        const mainContent = document.getElementById('main-content');
-        
-        btnApply.classList.add('hidden');
-        progressSection.classList.remove('hidden');
-        progressTitle.textContent = 'Applying Updates...';
-        
-        try {
-            let progress = 0;
-            const progressInterval = setInterval(() => {
-                progress = Math.min(progress + 10, 90);
-                progressBar.style.width = progress + '%';
-                progressText.textContent = `Processing... ${progress}%`;
-            }, 500);
-            
-            const response = await fetch('/apply-local-updates/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': this.getCookie('csrftoken')
-                },
-                body: JSON.stringify({
-                    scripts: this.updateData.update_scripts || []
-                })
-            });
-            
-            clearInterval(progressInterval);
-            progressBar.style.width = '100%';
-            
-            const data = await response.json();
-            this.showResults(data);
-            
-        } catch (error) {
-            this.showError('Network error: ' + error.message);
-        }
-    }
-    
-    async installGithubUpdate() {
-        const backupConfirmed = document.getElementById('backup-confirmed').checked;
-        
-        if (!backupConfirmed) {
-            alert('Please confirm that you have created a backup before proceeding.');
-            return;
-        }
-        
-        const progressSection = document.getElementById('update-progress');
-        const progressBar = document.getElementById('progress-bar');
-        const progressText = document.getElementById('progress-text');
-        const progressTitle = document.getElementById('progress-title');
-        const btnInstall = document.getElementById('btn-install-github');
-        const btnSkip = document.getElementById('btn-skip');
-        const backupSection = document.getElementById('backup-section');
-        
-        btnInstall.classList.add('hidden');
-        btnSkip.classList.add('hidden');
-        backupSection.classList.add('hidden');
-        progressSection.classList.remove('hidden');
-        progressTitle.textContent = 'Installing Update from GitHub...';
-        
-        try {
-            progressBar.style.width = '10%';
-            progressText.textContent = 'Downloading files...';
-            
-            const response = await fetch('/download-github-update/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': this.getCookie('csrftoken')
-                },
-                body: JSON.stringify({
-                    zipball_url: this.updateData.github_release.zipball_url,
-                    target_version: this.updateData.target_version
-                })
-            });
-            
-            progressBar.style.width = '100%';
-            progressText.textContent = 'Files updated successfully!';
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                // Show success message and reload
-                this.showSuccess(data.message + ' - Reloading to apply migrations...');
-                setTimeout(() => {
-                    location.reload();
-                }, 2000);
-            } else {
-                this.showError(data.error || 'Installation failed');
-            }
-            
-        } catch (error) {
-            this.showError('Network error: ' + error.message);
-        }
-    }
-    
-    async createBackup() {
-        const btn = document.getElementById('btn-create-backup');
-        const originalText = btn.innerHTML;
-        
-        btn.disabled = true;
-        btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Creating backup...';
-        
-        try {
-            const response = await fetch('/create-backup/', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': this.getCookie('csrftoken')
-                }
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                window.location.href = data.download_url;
-                
-                btn.innerHTML = '<span class="material-symbols-outlined">check_circle</span> Backup Downloaded';
-                btn.classList.remove('bg-amber-600', 'hover:bg-amber-700');
-                btn.classList.add('bg-green-600');
-                
-                document.getElementById('backup-confirmed').disabled = false;
-            } else {
-                alert('Backup failed: ' + data.error);
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-            }
-        } catch (error) {
-            alert('Error creating backup: ' + error.message);
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-        }
-    }
-    
-    async skipUpdate() {
-        if (!confirm('Are you sure you want to skip this update? You can update later from settings.')) {
-            return;
-        }
-        
-        try {
-            const response = await fetch('/skip-updates/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': this.getCookie('csrftoken')
-                },
-                body: JSON.stringify({
-                    update_type: this.updateData.update_type
-                })
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                document.getElementById('update-modal').classList.add('hidden');
-            }
-        } catch (error) {
-            console.error('Error skipping update:', error);
-        }
-    }
-    
-    showResults(data) {
-        const progressSection = document.getElementById('update-progress');
-        const resultsSection = document.getElementById('update-results');
-        const successMsg = document.getElementById('success-message');
-        const successDetails = document.getElementById('success-details');
-        const errorMsg = document.getElementById('error-message');
-        const errorDetails = document.getElementById('error-details');
-        const resultsDetailsDiv = document.getElementById('results-details');
-        const btnClose = document.getElementById('btn-close');
-        const btnViewLogs = document.getElementById('btn-view-logs');
-        
-        progressSection.classList.add('hidden');
-        resultsSection.classList.remove('hidden');
-        
-        if (data.success) {
-            successMsg.classList.remove('hidden');
-            btnClose.classList.remove('hidden');
-            
-            let html = '<div class="space-y-2">';
-            if (data.results) {
-                data.results.forEach(result => {
-                    if (result.status === 'success') {
-                        html += `
-                            <div class="flex items-start gap-2 text-sm text-green-700 dark:text-green-300">
-                                <span class="material-symbols-outlined text-green-500">check_circle</span>
-                                <div>
-                                    <div class="font-medium">${result.script}</div>
-                                    <div class="text-xs mt-1">${result.output || 'Completed successfully'}</div>
-                                </div>
-                            </div>
-                        `;
-                    }
-                });
-            }
-            html += '</div>';
-            resultsDetailsDiv.innerHTML = html;
-        } else {
-            errorMsg.classList.remove('hidden');
-            errorDetails.textContent = data.error || 'An unknown error occurred';
-            btnViewLogs.classList.remove('hidden');
-            
-            this.logsContent = this.formatLogs(data);
-        }
-    }
-    
-    showSuccess(message) {
-        const progressSection = document.getElementById('update-progress');
-        const resultsSection = document.getElementById('update-results');
-        const successMsg = document.getElementById('success-message');
-        const successDetails = document.getElementById('success-details');
-        const btnClose = document.getElementById('btn-close');
-        
-        progressSection.classList.add('hidden');
-        resultsSection.classList.remove('hidden');
-        successMsg.classList.remove('hidden');
-        successDetails.textContent = message;
-        btnClose.classList.remove('hidden');
-    }
-    
-    showError(message) {
-        const progressSection = document.getElementById('update-progress');
-        const resultsSection = document.getElementById('update-results');
-        const errorMsg = document.getElementById('error-message');
-        const errorDetails = document.getElementById('error-details');
-        const btnViewLogs = document.getElementById('btn-view-logs');
-        
-        progressSection.classList.add('hidden');
-        resultsSection.classList.remove('hidden');
-        errorMsg.classList.remove('hidden');
-        errorDetails.textContent = message;
-        btnViewLogs.classList.remove('hidden');
-    }
-    
-    formatLogs(data) {
-        let logs = '';
-        if (data.results) {
-            data.results.forEach(result => {
-                logs += `\n=== ${result.script} ===\n`;
-                logs += `Status: ${result.status}\n`;
-                if (result.output) {
-                    logs += `Output:\n${result.output}\n`;
-                }
-                if (result.error) {
-                    logs += `Error: ${result.error}\n`;
-                    if (result.traceback) {
-                        logs += `\nTraceback:\n${result.traceback}\n`;
-                    }
-                }
-            });
-        }
-        if (data.traceback) {
-            logs += `\n=== Full Traceback ===\n${data.traceback}`;
-        }
-        return logs || 'No detailed logs available';
-    }
-    
-    showLogs() {
-        document.getElementById('logs-modal').classList.remove('hidden');
-        document.getElementById('logs-content').textContent = this.logsContent;
-    }
-    
-    closeLogs() {
-        document.getElementById('logs-modal').classList.add('hidden');
-    }
-    
-    viewRelease() {
-        if (this.updateData && this.updateData.github_release) {
-            window.open(this.updateData.github_release.html_url, '_blank');
-        }
-    }
-    
-    closeAndReload() {
-        location.reload();
-    }
-    
+
     getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -433,6 +86,287 @@ class UpdateManager {
         }
         return cookieValue;
     }
+
+    async checkForUpdates() {
+        try {
+            const response = await fetch('/check-updates/');
+            const data = await response.json();
+
+            if (data.needs_update) {
+                this.showUpdateModal(data);
+            }
+        } catch (error) {
+            console.error('Error checking for updates:', error);
+        }
+    }
+
+    async manualCheckUpdates() {
+        const btn = document.getElementById('manualCheckUpdates');
+        const originalText = btn?.textContent;
+        
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Verificando...';
+        }
+
+        try {
+            const response = await fetch('/manual-check-updates/');
+            const data = await response.json();
+
+            if (data.local_update_available) {
+                // Busca detalhes completos da atualização local
+                const detailResponse = await fetch('/check-updates/');
+                const detailData = await detailResponse.json();
+                
+                if (detailData.needs_update) {
+                    this.showUpdateModal(detailData);
+                    return;
+                }
+            }
+
+            if (data.github_update_available) {
+                // Monta dados no formato esperado pelo modal
+                const updateData = {
+                    needs_update: true,
+                    update_type: 'github',
+                    current_version: data.current_version,
+                    target_version: data.github_version,
+                    github_release: data.github_release,
+                    requires_container: data.requires_container,
+                    can_skip: true
+                };
+                this.showUpdateModal(updateData);
+                return;
+            }
+
+            // Nenhuma atualização disponível
+            alert('Nenhuma atualização disponível. Você está na versão mais recente!');
+
+        } catch (error) {
+            console.error('Error checking for updates:', error);
+            alert('Erro ao verificar atualizações. Tente novamente.');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+    }
+
+    showUpdateModal(data) {
+        if (!this.modal) return;
+
+        const title = this.modal.querySelector('#updateModalTitle');
+        const content = this.modal.querySelector('#updateModalContent');
+        const localSection = this.modal.querySelector('#localUpdateSection');
+        const githubSection = this.modal.querySelector('#githubUpdateSection');
+        const skipBtn = document.getElementById('skipUpdate');
+
+        if (data.update_type === 'local') {
+            if (title) title.textContent = 'Atualização de Banco de Dados Necessária';
+            
+            let scriptsHtml = '';
+            if (data.has_scripts && data.update_scripts.length > 0) {
+                scriptsHtml = '<ul class="update-scripts-list">';
+                data.update_scripts.forEach(script => {
+                    scriptsHtml += `<li><strong>v${script.version}:</strong> ${script.description}</li>`;
+                });
+                scriptsHtml += '</ul>';
+            }
+
+            if (content) {
+                content.innerHTML = `
+                    <p>Uma atualização do banco de dados é necessária.</p>
+                    <p><strong>Versão Atual:</strong> ${data.current_version}</p>
+                    <p><strong>Nova Versão:</strong> ${data.target_version}</p>
+                    ${scriptsHtml}
+                    <p class="warning-text">⚠️ É altamente recomendado fazer um backup antes de continuar.</p>
+                `;
+            }
+
+            if (localSection) localSection.style.display = 'block';
+            if (githubSection) githubSection.style.display = 'none';
+            if (skipBtn) skipBtn.style.display = 'none';
+
+        } else if (data.update_type === 'github') {
+            if (title) title.textContent = 'Nova Versão Disponível no GitHub';
+            
+            if (content) {
+                content.innerHTML = `
+                    <p>Uma nova versão está disponível no GitHub.</p>
+                    <p><strong>Versão Atual:</strong> ${data.current_version}</p>
+                    <p><strong>Nova Versão:</strong> ${data.target_version}</p>
+                    ${data.github_release.body ? `<div class="release-notes">${data.github_release.body}</div>` : ''}
+                    ${data.requires_container ? '<p class="warning-text">⚠️ Esta atualização requer rebuild do container Docker.</p>' : ''}
+                `;
+            }
+
+            if (localSection) localSection.style.display = 'none';
+            if (githubSection) githubSection.style.display = 'block';
+            if (skipBtn) skipBtn.style.display = data.can_skip ? 'inline-block' : 'none';
+        }
+
+        this.modal.style.display = 'block';
+        this.currentUpdateData = data;
+    }
+
+    closeModal() {
+        if (this.modal) {
+            this.modal.style.display = 'none';
+        }
+    }
+
+    async createBackup() {
+        const btn = document.getElementById('createBackupBtn');
+        const originalText = btn?.textContent;
+        
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Criando backup...';
+        }
+
+        try {
+            const response = await fetch('/create-backup/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': this.getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert(`Backup criado com sucesso!\n\nArquivo: ${data.filename}`);
+                
+                if (data.download_url) {
+                    window.location.href = data.download_url;
+                }
+            } else {
+                alert('Erro ao criar backup: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error creating backup:', error);
+            alert('Erro ao criar backup. Tente novamente.');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+    }
+
+    async applyLocalUpdates() {
+        const btn = document.getElementById('applyLocalUpdates');
+        const progressDiv = document.getElementById('updateProgress');
+        const progressBar = progressDiv?.querySelector('.progress-bar');
+        const progressText = progressDiv?.querySelector('.progress-text');
+
+        if (btn) btn.disabled = true;
+        if (progressDiv) progressDiv.style.display = 'block';
+
+        try {
+            const scripts = this.currentUpdateData?.update_scripts || [];
+
+            const response = await fetch('/apply-local-updates/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': this.getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ scripts })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                if (progressBar) progressBar.style.width = '100%';
+                if (progressText) progressText.textContent = 'Atualização concluída! Recarregando...';
+                
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                alert('Erro durante a atualização:\n' + (data.error || 'Erro desconhecido'));
+                if (btn) btn.disabled = false;
+                if (progressDiv) progressDiv.style.display = 'none';
+            }
+        } catch (error) {
+            console.error('Error applying updates:', error);
+            alert('Erro ao aplicar atualizações. Tente novamente.');
+            if (btn) btn.disabled = false;
+            if (progressDiv) progressDiv.style.display = 'none';
+        }
+    }
+
+    async downloadGithubUpdate() {
+        const btn = document.getElementById('downloadGithubUpdate');
+        const originalText = btn?.textContent;
+
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Baixando...';
+        }
+
+        try {
+            const response = await fetch('/download-github-update/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': this.getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    zipball_url: this.currentUpdateData.github_release.zipball_url,
+                    target_version: this.currentUpdateData.target_version
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert('Atualização baixada com sucesso! A página será recarregada.');
+                window.location.reload();
+            } else {
+                alert('Erro ao baixar atualização: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error downloading update:', error);
+            alert('Erro ao baixar atualização. Tente novamente.');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+    }
+
+    async skipUpdate() {
+        try {
+            const response = await fetch('/skip-updates/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': this.getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    update_type: this.currentUpdateData.update_type
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.closeModal();
+            } else {
+                alert('Erro ao pular atualização: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error skipping update:', error);
+            alert('Erro ao pular atualização.');
+        }
+    }
 }
 
-new UpdateManager();
+// Inicializa o UpdateManager globalmente
+const updateManager = new UpdateManager();
+updateManager.init();

@@ -231,7 +231,7 @@ def apply_local_updates(request):
             'success': False,
             'error': str(e),
             'traceback': traceback.format_exc()
-        }, status=5.00)
+        }, status=500)
 
 
 def execute_update_script(script_path):
