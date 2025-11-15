@@ -96,24 +96,53 @@ def manual_check_updates(request):
     except ValueError:
         local_update_needed = True
     
+    # Se há update local, retorna dados completos para abrir o modal
+    if local_update_needed:
+        local_scripts = get_available_update_scripts(db_version, target_version)
+        
+        return JsonResponse({
+            'has_update': True,
+            'update_type': 'local',
+            'current_version': db_version,
+            'target_version': target_version,
+            'has_scripts': len(local_scripts) > 0,
+            'update_scripts': local_scripts,
+            'can_skip': False,
+            # Campos para compatibilidade
+            'local_update_available': True,
+            'github_update_available': False
+        })
+    
+    # Verifica GitHub
     has_github_update, github_release = check_github_update(target_version)
     
-    response_data = {
-        'current_version': target_version,
-        'db_version': db_version,
-        'local_update_available': local_update_needed,
-        'github_update_available': has_github_update,
-    }
-    
+    # Se há update GitHub, retorna dados completos para abrir o modal
     if has_github_update:
-        response_data['github_version'] = github_release['version']
-        response_data['github_release'] = github_release
-        response_data['requires_container'] = requires_container_update(
-            target_version, 
-            github_release['version']
-        )
+        github_version = github_release['version']
+        container_required = requires_container_update(target_version, github_version)
+        
+        return JsonResponse({
+            'has_update': True,
+            'update_type': 'github',
+            'current_version': target_version,
+            'target_version': github_version,
+            'github_release': github_release,
+            'requires_container': container_required,
+            'can_skip': True,
+            # Campos para compatibilidade
+            'local_update_available': False,
+            'github_update_available': True,
+            'github_version': github_version
+        })
     
-    return JsonResponse(response_data)
+    # Nenhuma atualização disponível
+    return JsonResponse({
+        'has_update': False,
+        'current_version': target_version,
+        'target_version': target_version,
+        'local_update_available': False,
+        'github_update_available': False
+    })
 
 
 def get_available_update_scripts(from_version, to_version):

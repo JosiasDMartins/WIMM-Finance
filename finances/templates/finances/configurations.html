@@ -213,13 +213,26 @@
                             </div>
                         </div>
                         
-                        <button id="btn-check-online-updates" 
+                        <!--
+                        CORREÇÃO: O ID deste botão foi alterado de 'btn-check-online-updates'
+                        para 'manualCheckUpdates' para que o script global update_manager.js
+                        possa encontrá-lo e anexar o listener correto.
+                        -->
+                        <button id="manualCheckUpdates" 
                                 class="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors flex items-center justify-center gap-2">
                             <span class="material-symbols-outlined">refresh</span>
                             Check for Updates
                         </button>
                         
-                        <!-- Update Info (hidden by default) -->
+                        <!-- 
+                        NOTA: A DIV 'online-update-info' abaixo não é mais usada
+                        pelo 'addEventListener' local, pois ele foi removido.
+                        O update_manager.js agora controla o fluxo e abrirá o modal
+                        diretamente.
+                        
+                        Esta DIV de feedback pode ser removida ou deixada
+                        para uso futuro, se necessário.
+                        -->
                         <div id="online-update-info" class="hidden mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
                             <div id="no-updates-found" class="hidden text-center text-gray-600 dark:text-gray-400">
                                 <span class="material-symbols-outlined text-4xl text-gray-400 mb-2">check_circle</span>
@@ -228,20 +241,7 @@
                             </div>
                             
                             <div id="updates-available" class="hidden">
-                                <div class="flex items-start gap-2 mb-3">
-                                    <span class="material-symbols-outlined text-green-600">new_releases</span>
-                                    <div class="flex-1">
-                                        <h4 class="font-semibold text-gray-900 dark:text-white">Update Available!</h4>
-                                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                            Version <span id="available-version" class="font-mono font-semibold"></span> is available
-                                        </p>
-                                    </div>
-                                </div>
-                                <a id="view-release-link" href="#" target="_blank" 
-                                   class="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400">
-                                    <span>View release on GitHub</span>
-                                    <span class="material-symbols-outlined text-sm">open_in_new</span>
-                                </a>
+                                <!-- ... (conteúdo de 'updates-available') ... -->
                             </div>
                             
                             <div id="local-update-pending" class="hidden text-center text-orange-600 dark:text-orange-400">
@@ -310,26 +310,47 @@ document.addEventListener('DOMContentLoaded', function() {
             hasUpdates.classList.add('hidden');
             localPending.classList.add('hidden');
             
-            if (data.local_update_available) {
-                localPending.classList.remove('hidden');
-            } else if (data.github_update_available) {
-                hasUpdates.classList.remove('hidden');
-                document.getElementById('available-version').textContent = data.github_version;
-                document.getElementById('view-release-link').href = data.github_release.html_url;
+            if (data.needs_update) {
+                if (data.update_type === 'local') {
+                    // Show local pending message
+                    localPending.classList.remove('hidden');
+                    
+                    // NOVO: Abrir o modal de update automaticamente
+                    if (window.updateManager) {
+                        window.updateManager.showUpdateModal(data);
+                    }
+                } else {
+                    // GitHub update available
+                    hasUpdates.classList.remove('hidden');
+                    document.getElementById('available-version').textContent = data.target_version;
+                    
+                    if (data.github_release && data.github_release.html_url) {
+                        const link = document.getElementById('view-release-link');
+                        link.href = data.github_release.html_url;
+                    }
+                    
+                    // NOVO: Abrir o modal de update automaticamente
+                    if (window.updateManager) {
+                        window.updateManager.showUpdateModal(data);
+                    }
+                }
             } else {
+                // System is up to date
                 noUpdates.classList.remove('hidden');
                 document.getElementById('github-latest-version').textContent = data.current_version;
             }
+            
         } catch (error) {
-            alert('Error checking for updates: ' + error.message);
+            console.error('Error checking updates:', error);
+            alert('Failed to check for updates. Please try again.');
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalText;
         }
     });
     
-    // Backup database
-    document.getElementById('btn-backup-db')?.addEventListener('click', async function() {
+    // Backup functionality
+    document.getElementById('btn-create-db-backup')?.addEventListener('click', async function() {
         const btn = this;
         const originalText = btn.innerHTML;
         
@@ -340,6 +361,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch('/create-backup/', {
                 method: 'POST',
                 headers: {
+                    'Content-Type': 'application/json',
                     'X-CSRFToken': getCookie('csrftoken')
                 }
             });
@@ -347,55 +369,48 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             
             if (data.success) {
-                window.location.href = data.download_url;
-                btn.innerHTML = '<span class="material-symbols-outlined">check_circle</span> Backup Downloaded!';
-                setTimeout(() => {
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
-                }, 3000);
+                window.location.href = `/download-backup/${data.filename}/`;
             } else {
-                alert('Backup failed: ' + data.error);
-                btn.disabled = false;
-                btn.innerHTML = originalText;
+                alert('Failed to create backup: ' + data.error);
             }
         } catch (error) {
-            alert('Error creating backup: ' + error.message);
+            console.error('Error creating backup:', error);
+            alert('Failed to create backup: ' + error.message);
+        } finally {
             btn.disabled = false;
             btn.innerHTML = originalText;
         }
     });
     
-    // Restore file selection
-    document.getElementById('restore-file-input')?.addEventListener('change', function(e) {
-        const fileName = document.getElementById('restore-file-name');
-        const btnRestore = document.getElementById('btn-restore-db');
-        const preview = document.getElementById('restore-preview');
-        
-        if (e.target.files.length > 0) {
-            fileName.textContent = e.target.files[0].name;
+    // Restore functionality
+    const restoreFileInput = document.getElementById('restore-file-input');
+    const restoreFileName = document.getElementById('restore-file-name');
+    const btnRestore = document.getElementById('btn-restore-db');
+    
+    restoreFileInput?.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            restoreFileName.textContent = file.name;
             btnRestore.disabled = false;
-            preview.classList.add('hidden');
         } else {
-            fileName.textContent = 'No file selected';
+            restoreFileName.textContent = 'No file selected';
             btnRestore.disabled = true;
-            preview.classList.add('hidden');
         }
     });
     
-    // Restore database
-    document.getElementById('btn-restore-db')?.addEventListener('click', async function() {
-        const fileInput = document.getElementById('restore-file-input');
-        const file = fileInput.files[0];
+    btnRestore?.addEventListener('click', async function() {
+        const file = restoreFileInput.files[0];
+        if (!file) {
+            alert('Please select a backup file first');
+            return;
+        }
         
-        if (!file) return;
-        
-        if (!confirm('Are you sure you want to restore this backup? This will replace your current database!')) {
+        if (!confirm('WARNING: This will replace your current database. All current data will be lost. Continue?')) {
             return;
         }
         
         const btn = this;
         const originalText = btn.innerHTML;
-        const preview = document.getElementById('restore-preview');
         
         btn.disabled = true;
         btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Restoring...';
@@ -415,10 +430,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             
             if (data.success) {
-                preview.classList.remove('hidden');
-                document.getElementById('restore-family-name').textContent = data.family.name;
-                
+                const preview = document.getElementById('restore-preview');
+                const familyName = document.getElementById('restore-family-name');
                 const usersList = document.getElementById('restore-users-list');
+                
+                familyName.textContent = data.family.name;
                 usersList.innerHTML = '';
                 data.users.forEach(user => {
                     const li = document.createElement('li');
@@ -426,20 +442,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     usersList.appendChild(li);
                 });
                 
-                setTimeout(() => {
-                    if (confirm('Database restored successfully! You will be logged out. Click OK to go to login page.')) {
-                        window.location.href = '/login/';
-                    }
-                }, 1000);
+                preview.classList.remove('hidden');
+                
+                alert('Database restored successfully! Please log out and log in again.');
             } else {
-                alert('Restore failed: ' + data.error);
-                btn.disabled = false;
-                btn.innerHTML = originalText;
+                alert('Failed to restore backup: ' + data.error);
             }
         } catch (error) {
-            alert('Error restoring database: ' + error.message);
+            console.error('Error restoring backup:', error);
+            alert('Failed to restore backup: ' + error.message);
+        } finally {
             btn.disabled = false;
             btn.innerHTML = originalText;
+            restoreFileInput.value = '';
+            restoreFileName.textContent = 'No file selected';
+            btn.disabled = true;
         }
     });
     
@@ -458,5 +475,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return cookieValue;
     }
 });
+
 </script>
 {% endblock %}
