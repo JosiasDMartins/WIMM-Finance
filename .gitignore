@@ -1,2 +1,3 @@
 db/db.sqlite3
 config/local_settings.py
+db/db.sqlite3_bkp
