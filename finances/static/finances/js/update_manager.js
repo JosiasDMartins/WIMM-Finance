@@ -3,57 +3,81 @@
 class UpdateManager {
     constructor() {
         this.updateData = null;
+        this.logsContent = '';
         this.init();
     }
     
     init() {
-        // Always check on page load
+        console.log('[UpdateManager] Initializing...');
         this.checkForUpdates();
         this.setupEventListeners();
         
-        // Expose forceCheck method globally for testing
+        // Expose for testing
         window.forceUpdateCheck = () => this.checkForUpdates(true);
+        window.updateManager = this;
+        console.log('[UpdateManager] Ready');
     }
     
     setupEventListeners() {
         document.getElementById('btn-apply-local')?.addEventListener('click', () => this.applyLocalUpdates());
         document.getElementById('btn-install-github')?.addEventListener('click', () => this.installGithubUpdate());
+        document.getElementById('btn-skip-local')?.addEventListener('click', () => this.skipLocalUpdate());
         document.getElementById('btn-skip')?.addEventListener('click', () => this.skipUpdate());
         document.getElementById('btn-close')?.addEventListener('click', () => this.closeAndReload());
         document.getElementById('btn-view-logs')?.addEventListener('click', () => this.showLogs());
         document.getElementById('btn-view-release')?.addEventListener('click', () => this.viewRelease());
         document.getElementById('btn-create-backup')?.addEventListener('click', () => this.createBackup());
+        document.getElementById('btn-create-backup-local')?.addEventListener('click', () => this.createBackup());
         document.getElementById('close-logs')?.addEventListener('click', () => this.closeLogs());
         
+        // Checkbox de backup confirmado (GitHub)
         document.getElementById('backup-confirmed')?.addEventListener('change', (e) => {
             const installBtn = document.getElementById('btn-install-github');
             if (installBtn) {
                 installBtn.disabled = !e.target.checked;
             }
         });
+        
+        // Checkbox de backup confirmado (Local)
+        document.getElementById('backup-confirmed-local')?.addEventListener('change', (e) => {
+            const applyBtn = document.getElementById('btn-apply-local');
+            if (applyBtn) {
+                applyBtn.disabled = !e.target.checked;
+            }
+        });
     }
     
     async checkForUpdates(forceShow = false) {
         try {
+            console.log('[UpdateManager] Checking for updates...');
             const response = await fetch('/check-updates/');
             const data = await response.json();
+            
+            console.log('[UpdateManager] Update data:', data);
             
             if (data.needs_update || forceShow) {
                 this.updateData = data;
                 this.showUpdateModal(data);
+            } else {
+                console.log('[UpdateManager] No updates needed');
             }
         } catch (error) {
-            console.error('Error checking for updates:', error);
+            console.error('[UpdateManager] Error checking for updates:', error);
         }
     }
     
     showUpdateModal(data) {
+        console.log('[UpdateManager] Showing modal');
         const modal = document.getElementById('update-modal');
         if (!modal) {
-            console.error('Update modal element not found');
+            console.error('[UpdateManager] Modal not found');
             return;
         }
         
+        // Hide all sections first
+        this.hideAllSections();
+        
+        // Set versions
         document.getElementById('current-version').textContent = data.current_version;
         document.getElementById('target-version').textContent = data.target_version;
         
@@ -66,34 +90,87 @@ class UpdateManager {
         modal.classList.remove('hidden');
     }
     
+    hideAllSections() {
+        // Hide all possible sections
+        const sections = [
+            'scripts-info', 'github-info', 'container-warning', 
+            'backup-section', 'backup-section-local', 'update-progress', 'update-results'
+        ];
+        
+        sections.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
+        });
+        
+        // Hide all buttons
+        const buttons = [
+            'btn-apply-local', 'btn-install-github', 'btn-skip', 'btn-skip-local',
+            'btn-close', 'btn-view-logs', 'btn-view-release', 'btn-create-backup',
+            'btn-create-backup-local'
+        ];
+        
+        buttons.forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) btn.classList.add('hidden');
+        });
+        
+        // Hide result messages
+        const messages = ['success-message', 'error-message'];
+        messages.forEach(id => {
+            const msg = document.getElementById(id);
+            if (msg) msg.classList.add('hidden');
+        });
+    }
+    
     showLocalUpdate(data) {
+        console.log('[UpdateManager] Showing local update');
+        
         const modalIcon = document.getElementById('modal-icon');
         const updateDesc = document.getElementById('update-description');
         const scriptsInfo = document.getElementById('scripts-info');
         const scriptsList = document.getElementById('scripts-list');
+        const backupSection = document.getElementById('backup-section-local');
         const btnApply = document.getElementById('btn-apply-local');
+        const btnSkip = document.getElementById('btn-skip-local');
+        const btnBackup = document.getElementById('btn-create-backup-local');
         
-        modalIcon.className = 'material-symbols-outlined text-4xl text-orange-500';
-        modalIcon.textContent = 'construction';
-        
-        if (data.has_scripts) {
-            updateDesc.textContent = 'Local updates are available and must be applied before continuing.';
-            scriptsInfo.classList.remove('hidden');
-            scriptsList.innerHTML = '';
-            data.update_scripts.forEach(script => {
-                const li = document.createElement('li');
-                li.textContent = `v${script.version}: ${script.description}`;
-                scriptsList.appendChild(li);
-            });
-        } else {
-            updateDesc.textContent = 'System files have been updated. Database migrations will be applied.';
+        if (modalIcon) {
+            modalIcon.className = 'material-symbols-outlined text-4xl text-orange-500';
+            modalIcon.textContent = 'construction';
         }
         
-        // ALWAYS show apply button for local updates
-        btnApply.classList.remove('hidden');
+        if (data.has_scripts) {
+            if (updateDesc) {
+                updateDesc.textContent = 'Local updates are available and must be applied before continuing.';
+            }
+            if (scriptsInfo) scriptsInfo.classList.remove('hidden');
+            if (scriptsList) {
+                scriptsList.innerHTML = '';
+                data.update_scripts.forEach(script => {
+                    const li = document.createElement('li');
+                    li.textContent = `v${script.version}: ${script.description}`;
+                    scriptsList.appendChild(li);
+                });
+            }
+        } else {
+            if (updateDesc) {
+                updateDesc.textContent = 'System files have been updated. Database migrations will be applied.';
+            }
+        }
+        
+        // Mostrar seção de backup e botões
+        if (backupSection) backupSection.classList.remove('hidden');
+        if (btnBackup) btnBackup.classList.remove('hidden');
+        if (btnApply) {
+            btnApply.classList.remove('hidden');
+            btnApply.disabled = true; // Desabilitado até confirmar backup
+        }
+        if (btnSkip) btnSkip.classList.remove('hidden');
     }
     
     showGithubUpdate(data) {
+        console.log('[UpdateManager] Showing GitHub update');
+        
         const modalIcon = document.getElementById('modal-icon');
         const updateDesc = document.getElementById('update-description');
         const githubInfo = document.getElementById('github-info');
@@ -106,31 +183,43 @@ class UpdateManager {
         const btnInstall = document.getElementById('btn-install-github');
         const btnViewRelease = document.getElementById('btn-view-release');
         
-        modalIcon.className = 'material-symbols-outlined text-4xl text-green-500';
-        modalIcon.textContent = 'cloud_download';
+        if (modalIcon) {
+            modalIcon.className = 'material-symbols-outlined text-4xl text-green-500';
+            modalIcon.textContent = 'cloud_download';
+        }
         
-        updateDesc.textContent = 'A new version is available on GitHub!';
+        if (updateDesc) {
+            updateDesc.textContent = 'A new version is available on GitHub!';
+        }
         
-        githubInfo.classList.remove('hidden');
-        releaseName.textContent = data.github_release.name || `Version ${data.target_version}`;
+        if (githubInfo) githubInfo.classList.remove('hidden');
+        if (releaseName) {
+            releaseName.textContent = data.github_release.name || `Version ${data.target_version}`;
+        }
         
-        const notes = data.github_release.body || 'No release notes available.';
-        releaseNotes.innerHTML = this.formatMarkdown(notes);
+        if (releaseNotes) {
+            const notes = data.github_release.body || 'No release notes available.';
+            releaseNotes.innerHTML = this.formatMarkdown(notes);
+        }
         
-        const date = new Date(data.github_release.published_at);
-        releaseDate.textContent = date.toLocaleDateString();
+        if (releaseDate) {
+            const date = new Date(data.github_release.published_at);
+            releaseDate.textContent = date.toLocaleDateString();
+        }
         
-        btnViewRelease.classList.remove('hidden');
-        btnSkip.classList.remove('hidden');
+        if (btnViewRelease) btnViewRelease.classList.remove('hidden');
+        if (btnSkip) btnSkip.classList.remove('hidden');
         
         if (data.requires_container) {
-            containerWarning.classList.remove('hidden');
-            btnInstall.classList.add('hidden');
-            backupSection.classList.add('hidden');
+            if (containerWarning) containerWarning.classList.remove('hidden');
+            if (btnInstall) btnInstall.classList.add('hidden');
+            if (backupSection) backupSection.classList.add('hidden');
         } else {
-            backupSection.classList.remove('hidden');
-            btnInstall.classList.remove('hidden');
-            btnInstall.disabled = true;
+            if (backupSection) backupSection.classList.remove('hidden');
+            if (btnInstall) {
+                btnInstall.classList.remove('hidden');
+                btnInstall.disabled = true;
+            }
         }
     }
     
@@ -147,53 +236,78 @@ class UpdateManager {
     }
     
     async applyLocalUpdates() {
+        console.log('[UpdateManager] Applying local updates...');
+        
+        const backupConfirmed = document.getElementById('backup-confirmed-local');
+        if (!backupConfirmed || !backupConfirmed.checked) {
+            alert('Please confirm that you have created a backup before proceeding.');
+            return;
+        }
+        
         const progressSection = document.getElementById('update-progress');
         const progressBar = document.getElementById('progress-bar');
         const progressText = document.getElementById('progress-text');
+        const progressTitle = document.getElementById('progress-title');
         const btnApply = document.getElementById('btn-apply-local');
+        const btnSkip = document.getElementById('btn-skip-local');
+        const backupSection = document.getElementById('backup-section-local');
         
-        btnApply.classList.add('hidden');
-        progressSection.classList.remove('hidden');
+        if (btnApply) btnApply.classList.add('hidden');
+        if (btnSkip) btnSkip.classList.add('hidden');
+        if (backupSection) backupSection.classList.add('hidden');
+        if (progressSection) progressSection.classList.remove('hidden');
+        if (progressTitle) progressTitle.textContent = 'Applying Updates...';
         
         try {
-            progressBar.style.width = '10%';
-            progressText.textContent = 'Preparing update...';
+            if (progressBar) progressBar.style.width = '10%';
+            if (progressText) progressText.textContent = 'Preparing update...';
+            
+            // Enviar os scripts para o backend
+            const requestBody = this.updateData.has_scripts ? {
+                scripts: this.updateData.update_scripts
+            } : {};
+            
+            console.log('[UpdateManager] Sending request with body:', requestBody);
             
             const response = await fetch('/apply-local-updates/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': this.getCookie('csrftoken')
-                }
+                },
+                body: JSON.stringify(requestBody)
             });
             
-            progressBar.style.width = '50%';
-            progressText.textContent = 'Applying updates...';
+            if (progressBar) progressBar.style.width = '50%';
+            if (progressText) progressText.textContent = 'Applying updates...';
             
             const data = await response.json();
+            console.log('[UpdateManager] Update response:', data);
             
-            progressBar.style.width = '100%';
-            progressText.textContent = 'Update complete!';
+            if (progressBar) progressBar.style.width = '100%';
+            if (progressText) progressText.textContent = 'Update complete!';
+            
+            this.logsContent = this.formatLogs(data);
             
             if (data.success) {
-                this.logsContent = this.formatLogs(data);
-                this.showSuccess('Updates applied successfully! The page will reload.');
+                this.showSuccess('Updates applied successfully! The page will reload in 3 seconds.');
+                setTimeout(() => location.reload(), 3000);
             } else {
-                this.logsContent = this.formatLogs(data);
                 this.showError(data.error || 'Update failed. Check logs for details.');
             }
         } catch (error) {
-            console.error('Error applying updates:', error);
+            console.error('[UpdateManager] Error applying updates:', error);
             this.showError('Failed to apply updates: ' + error.message);
         }
     }
     
     async createBackup() {
-        const btn = document.getElementById('btn-create-backup');
-        const originalText = btn.innerHTML;
+        const btn = document.getElementById('btn-create-backup') || document.getElementById('btn-create-backup-local');
+        if (!btn) return;
         
+        const originalText = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Creating backup...';
+        btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Creating...';
         
         try {
             const response = await fetch('/create-backup/', {
@@ -207,12 +321,16 @@ class UpdateManager {
             const data = await response.json();
             
             if (data.success) {
+                // Download the backup
                 window.location.href = `/download-backup/${data.filename}/`;
+                
+                // Show success message
+                alert('Backup created successfully! File will be downloaded.');
             } else {
                 alert('Failed to create backup: ' + data.error);
             }
         } catch (error) {
-            console.error('Error creating backup:', error);
+            console.error('[UpdateManager] Error creating backup:', error);
             alert('Failed to create backup: ' + error.message);
         } finally {
             btn.disabled = false;
@@ -220,57 +338,8 @@ class UpdateManager {
         }
     }
     
-    async installGithubUpdate() {
-        if (!confirm('This will download and install the update. Continue?')) {
-            return;
-        }
-        
-        const progressSection = document.getElementById('update-progress');
-        const progressBar = document.getElementById('progress-bar');
-        const progressText = document.getElementById('progress-text');
-        const progressTitle = document.getElementById('progress-title');
-        const btnInstall = document.getElementById('btn-install-github');
-        const btnSkip = document.getElementById('btn-skip');
-        const backupSection = document.getElementById('backup-section');
-        
-        btnInstall.classList.add('hidden');
-        btnSkip.classList.add('hidden');
-        backupSection.classList.add('hidden');
-        progressSection.classList.remove('hidden');
-        progressTitle.textContent = 'Installing Update from GitHub...';
-        
-        try {
-            progressBar.style.width = '10%';
-            progressText.textContent = 'Downloading files...';
-            
-            const response = await fetch('/download-github-update/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': this.getCookie('csrftoken')
-                },
-                body: JSON.stringify({
-                    zipball_url: this.updateData.github_release.zipball_url,
-                    target_version: this.updateData.target_version
-                })
-            });
-            
-            progressBar.style.width = '100%';
-            progressText.textContent = 'Files updated successfully!';
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                this.logsContent = this.formatLogs(data);
-                this.showSuccess('Update downloaded successfully! Please restart the application to apply changes.');
-            } else {
-                this.logsContent = this.formatLogs(data);
-                this.showError(data.error || 'Update failed. Check logs for details.');
-            }
-        } catch (error) {
-            console.error('Error installing update:', error);
-            this.showError('Failed to install update: ' + error.message);
-        }
+    async skipLocalUpdate() {
+        alert('Local updates cannot be skipped. They are required for the system to function correctly.');
     }
     
     async skipUpdate() {
@@ -296,7 +365,7 @@ class UpdateManager {
                 document.getElementById('update-modal').classList.add('hidden');
             }
         } catch (error) {
-            console.error('Error skipping update:', error);
+            console.error('[UpdateManager] Error skipping update:', error);
         }
     }
     
@@ -307,11 +376,11 @@ class UpdateManager {
         const successDetails = document.getElementById('success-details');
         const btnClose = document.getElementById('btn-close');
         
-        progressSection.classList.add('hidden');
-        resultsSection.classList.remove('hidden');
-        successMsg.classList.remove('hidden');
-        successDetails.textContent = message;
-        btnClose.classList.remove('hidden');
+        if (progressSection) progressSection.classList.add('hidden');
+        if (resultsSection) resultsSection.classList.remove('hidden');
+        if (successMsg) successMsg.classList.remove('hidden');
+        if (successDetails) successDetails.textContent = message;
+        if (btnClose) btnClose.classList.remove('hidden');
     }
     
     showError(message) {
@@ -321,58 +390,11 @@ class UpdateManager {
         const errorDetails = document.getElementById('error-details');
         const btnViewLogs = document.getElementById('btn-view-logs');
         
-        progressSection.classList.add('hidden');
-        resultsSection.classList.remove('hidden');
-        errorMsg.classList.remove('hidden');
-        errorDetails.textContent = message;
-        btnViewLogs.classList.remove('hidden');
-    }
-    
-    showResults(data) {
-        const progressSection = document.getElementById('update-progress');
-        const resultsSection = document.getElementById('update-results');
-        const successMsg = document.getElementById('success-message');
-        const successDetails = document.getElementById('success-details');
-        const errorMsg = document.getElementById('error-message');
-        const errorDetails = document.getElementById('error-details');
-        const resultsDetailsDiv = document.getElementById('results-details');
-        const btnClose = document.getElementById('btn-close');
-        const btnViewLogs = document.getElementById('btn-view-logs');
-        
-        progressSection.classList.add('hidden');
-        resultsSection.classList.remove('hidden');
-        
-        if (data.success) {
-            successMsg.classList.remove('hidden');
-            
-            let message = 'All updates applied successfully!';
-            if (data.results) {
-                const successCount = data.results.filter(r => r.status === 'success').length;
-                message = `${successCount} update(s) applied successfully!`;
-            }
-            successDetails.textContent = message;
-            
-            if (data.results && resultsDetailsDiv) {
-                resultsDetailsDiv.innerHTML = '';
-                data.results.forEach(result => {
-                    const item = document.createElement('div');
-                    item.className = 'p-2 bg-gray-50 dark:bg-gray-900 rounded text-sm';
-                    item.innerHTML = `
-                        <span class="font-mono">${result.script}</span>
-                        <span class="text-green-600">✓</span>
-                    `;
-                    resultsDetailsDiv.appendChild(item);
-                });
-            }
-            
-            btnClose.classList.remove('hidden');
-        } else {
-            errorMsg.classList.remove('hidden');
-            errorDetails.textContent = data.error || 'Update failed';
-            btnViewLogs.classList.remove('hidden');
-        }
-        
-        this.logsContent = this.formatLogs(data);
+        if (progressSection) progressSection.classList.add('hidden');
+        if (resultsSection) resultsSection.classList.remove('hidden');
+        if (errorMsg) errorMsg.classList.remove('hidden');
+        if (errorDetails) errorDetails.textContent = message;
+        if (btnViewLogs) btnViewLogs.classList.remove('hidden');
     }
     
     formatLogs(data) {
@@ -440,6 +462,5 @@ if (document.readyState === 'loading') {
         new UpdateManager();
     });
 } else {
-    // DOM already loaded
     new UpdateManager();
 }

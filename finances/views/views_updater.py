@@ -12,7 +12,6 @@ from django.views.decorators.http import require_POST, require_http_methods
 from django.db.utils import OperationalError, ProgrammingError
 from django.conf import settings
 
-# Importações relativas do app (.. sobe um nível, de /views/ para /finances/)
 from ..models import SystemVersion
 from ..version_utils import Version, needs_update
 from ..github_utils import (
@@ -40,6 +39,8 @@ def check_for_updates(request):
     if db_version is None or db_version == '' or db_version.strip() == '':
         db_version = "0.0.0"
     
+    print(f"[CHECK_UPDATES] DB: {db_version}, Code: {target_version}")
+    
     # Verifica atualizações locais primeiro
     local_update_needed = False
     try:
@@ -49,6 +50,7 @@ def check_for_updates(request):
     
     if local_update_needed:
         local_scripts = get_available_update_scripts(db_version, target_version)
+        print(f"[CHECK_UPDATES] Local update needed. Scripts: {len(local_scripts)}")
         
         return JsonResponse({
             'needs_update': True,
@@ -77,6 +79,7 @@ def check_for_updates(request):
             'can_skip': True
         })
     
+    print(f"[CHECK_UPDATES] No updates needed")
     return JsonResponse({
         'needs_update': False,
         'current_version': target_version,
@@ -90,6 +93,8 @@ def manual_check_updates(request):
     target_version = VERSION
     db_version = SystemVersion.get_current_version() or "0.0.0"
     
+    print(f"[MANUAL_CHECK] DB: {db_version}, Code: {target_version}")
+    
     local_update_needed = False
     try:
         local_update_needed = needs_update(db_version, target_version)
@@ -101,16 +106,13 @@ def manual_check_updates(request):
         local_scripts = get_available_update_scripts(db_version, target_version)
         
         return JsonResponse({
-            'has_update': True,
+            'needs_update': True,
             'update_type': 'local',
             'current_version': db_version,
             'target_version': target_version,
             'has_scripts': len(local_scripts) > 0,
             'update_scripts': local_scripts,
-            'can_skip': False,
-            # Campos para compatibilidade
-            'local_update_available': True,
-            'github_update_available': False
+            'can_skip': False
         })
     
     # Verifica GitHub
@@ -122,26 +124,20 @@ def manual_check_updates(request):
         container_required = requires_container_update(target_version, github_version)
         
         return JsonResponse({
-            'has_update': True,
+            'needs_update': True,
             'update_type': 'github',
             'current_version': target_version,
             'target_version': github_version,
             'github_release': github_release,
             'requires_container': container_required,
-            'can_skip': True,
-            # Campos para compatibilidade
-            'local_update_available': False,
-            'github_update_available': True,
-            'github_version': github_version
+            'can_skip': True
         })
     
     # Nenhuma atualização disponível
     return JsonResponse({
-        'has_update': False,
+        'needs_update': False,
         'current_version': target_version,
-        'target_version': target_version,
-        'local_update_available': False,
-        'github_update_available': False
+        'target_version': target_version
     })
 
 
@@ -203,12 +199,31 @@ def run_migrations():
 def apply_local_updates(request):
     """Applies local updates: runs migrations and scripts."""
     try:
-        data = json.loads(request.body)
-        scripts = data.get('scripts', [])
+        print(f"[APPLY_UPDATES] Starting...")
+        print(f"[APPLY_UPDATES] Content-Type: {request.content_type}")
+        print(f"[APPLY_UPDATES] Body: {request.body[:200]}")  # Primeiros 200 chars
+        
+        # Parse request body - pode estar vazio ou ter JSON
+        scripts = []
+        if request.body:
+            try:
+                data = json.loads(request.body)
+                scripts = data.get('scripts', [])
+            except json.JSONDecodeError as e:
+                print(f"[APPLY_UPDATES] JSON decode error: {e}")
+                # Continua mesmo sem scripts - irá pegar da DB
+        
+        # Se não veio scripts no body, busca do banco
+        if not scripts:
+            db_version = SystemVersion.get_current_version() or "0.0.0"
+            scripts = get_available_update_scripts(db_version, VERSION)
+            print(f"[APPLY_UPDATES] Found {len(scripts)} scripts from DB version {db_version}")
         
         results = []
         all_success = True
         
+        # 1. Run migrations
+        print(f"[APPLY_UPDATES] Running migrations...")
         migration_success, migration_output = run_migrations()
         
         results.append({
@@ -221,13 +236,19 @@ def apply_local_updates(request):
         
         if not migration_success:
             all_success = False
+            print(f"[APPLY_UPDATES] Migration failed: {migration_output}")
         else:
+            print(f"[APPLY_UPDATES] Migrations completed successfully")
+            
+            # 2. Run update scripts
             for script_info in scripts:
-                script_path = script_info['path']
-                script_version = script_info['version']
+                script_path = script_info.get('path') or script_info.get('filename')
+                script_version = script_info.get('version')
+                
+                print(f"[APPLY_UPDATES] Running script: {script_path}")
                 
                 result = {
-                    'script': script_info['filename'],
+                    'script': script_info.get('filename', 'Unknown'),
                     'version': script_version,
                     'status': 'pending'
                 }
@@ -236,26 +257,35 @@ def apply_local_updates(request):
                     output = execute_update_script(script_path)
                     result['status'] = 'success'
                     result['output'] = output
+                    print(f"[APPLY_UPDATES] Script success: {output}")
                 except Exception as e:
                     result['status'] = 'error'
                     result['error'] = str(e)
                     result['traceback'] = traceback.format_exc()
                     all_success = False
+                    print(f"[APPLY_UPDATES] Script failed: {e}")
                     results.append(result)
                     break
                 
                 results.append(result)
         
+        # 3. Update version in DB if all successful
         if all_success:
             SystemVersion.set_version(VERSION)
+            print(f"[APPLY_UPDATES] Version updated to {VERSION}")
         
-        return JsonResponse({
+        response_data = {
             'success': all_success,
             'results': results,
             'new_version': VERSION if all_success else SystemVersion.get_current_version()
-        })
+        }
+        
+        print(f"[APPLY_UPDATES] Finished. Success: {all_success}")
+        return JsonResponse(response_data)
         
     except Exception as e:
+        print(f"[APPLY_UPDATES] Exception: {e}")
+        print(f"[APPLY_UPDATES] Traceback: {traceback.format_exc()}")
         return JsonResponse({
             'success': False,
             'error': str(e),
@@ -265,6 +295,13 @@ def apply_local_updates(request):
 
 def execute_update_script(script_path):
     """Executes an update script and returns the output."""
+    # Se script_path é só o nome do arquivo, construir o path completo
+    if not Path(script_path).exists():
+        scripts_dir = Path(settings.BASE_DIR) / 'update_scripts'
+        script_path = scripts_dir / script_path
+    
+    print(f"[EXECUTE_SCRIPT] Loading from: {script_path}")
+    
     spec = importlib.util.spec_from_file_location("update_script", script_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -423,7 +460,7 @@ def restore_backup(request):
 
 @require_http_methods(["POST"])
 def skip_updates(request):
-    """Skip GitHub updates by marking the current version.."""
+    """Skip GitHub updates by marking the current version."""
     try:
         data = json.loads(request.body)
         update_type = data.get('update_type', 'local')
