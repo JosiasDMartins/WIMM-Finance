@@ -1,3 +1,4 @@
+from django.db.utils import OperationalError, ProgrammingError
 from .models import SystemVersion
 
 #Files version
