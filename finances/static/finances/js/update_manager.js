@@ -13,12 +13,16 @@ class UpdateManager {
         this.setupEventListeners();
         
         // Expose for testing
-        window.forceUpdateCheck = () => this.checkForUpdates(true);
+        window.forceUpdateCheck = () => this.manualCheckUpdates();
         window.updateManager = this;
         console.log('[UpdateManager] Ready');
     }
     
     setupEventListeners() {
+        // Manual check button in settings
+        document.getElementById('manualCheckUpdates')?.addEventListener('click', () => this.manualCheckUpdates());
+        
+        // Modal buttons
         document.getElementById('btn-apply-local')?.addEventListener('click', () => this.applyLocalUpdates());
         document.getElementById('btn-install-github')?.addEventListener('click', () => this.installGithubUpdate());
         document.getElementById('btn-skip-local')?.addEventListener('click', () => this.skipLocalUpdate());
@@ -30,7 +34,7 @@ class UpdateManager {
         document.getElementById('btn-create-backup-local')?.addEventListener('click', () => this.createBackup());
         document.getElementById('close-logs')?.addEventListener('click', () => this.closeLogs());
         
-        // Checkbox de backup confirmado (GitHub)
+        // Backup confirmation checkboxes
         document.getElementById('backup-confirmed')?.addEventListener('change', (e) => {
             const installBtn = document.getElementById('btn-install-github');
             if (installBtn) {
@@ -38,7 +42,6 @@ class UpdateManager {
             }
         });
         
-        // Checkbox de backup confirmado (Local)
         document.getElementById('backup-confirmed-local')?.addEventListener('change', (e) => {
             const applyBtn = document.getElementById('btn-apply-local');
             if (applyBtn) {
@@ -63,6 +66,67 @@ class UpdateManager {
             }
         } catch (error) {
             console.error('[UpdateManager] Error checking for updates:', error);
+        }
+    }
+    
+    async manualCheckUpdates() {
+        const btn = document.getElementById('manualCheckUpdates');
+        const infoDiv = document.getElementById('online-update-info');
+        const noUpdates = document.getElementById('no-updates-found');
+        const hasUpdates = document.getElementById('updates-available');
+        const localPending = document.getElementById('local-update-pending');
+        const githubVersion = document.getElementById('github-latest-version');
+        
+        if (!btn) return;
+        
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Checking...';
+        
+        try {
+            const response = await fetch('/check-updates/manual/');
+            const data = await response.json();
+            
+            console.log('[UpdateManager] Manual check data:', data);
+            
+            // Show info div
+            if (infoDiv) {
+                infoDiv.classList.remove('hidden');
+                
+                // Hide all messages first
+                if (noUpdates) noUpdates.classList.add('hidden');
+                if (hasUpdates) hasUpdates.classList.add('hidden');
+                if (localPending) localPending.classList.add('hidden');
+                
+                if (data.needs_update) {
+                    if (data.update_type === 'local') {
+                        // Local updates pending
+                        if (localPending) localPending.classList.remove('hidden');
+                        
+                        // Open modal
+                        this.updateData = data;
+                        this.showUpdateModal(data);
+                    } else {
+                        // GitHub update available
+                        if (hasUpdates) hasUpdates.classList.remove('hidden');
+                        if (githubVersion) githubVersion.textContent = data.target_version;
+                        
+                        // Open modal
+                        this.updateData = data;
+                        this.showUpdateModal(data);
+                    }
+                } else {
+                    // System is up to date
+                    if (noUpdates) noUpdates.classList.remove('hidden');
+                    if (githubVersion) githubVersion.textContent = data.current_version;
+                }
+            }
+        } catch (error) {
+            console.error('[UpdateManager] Error checking updates:', error);
+            alert('Failed to check for updates. Please try again.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
         }
     }
     
@@ -158,12 +222,12 @@ class UpdateManager {
             }
         }
         
-        // Mostrar seção de backup e botões
+        // Show backup section and buttons
         if (backupSection) backupSection.classList.remove('hidden');
         if (btnBackup) btnBackup.classList.remove('hidden');
         if (btnApply) {
             btnApply.classList.remove('hidden');
-            btnApply.disabled = true; // Desabilitado até confirmar backup
+            btnApply.disabled = true; // Disabled until backup confirmed
         }
         if (btnSkip) btnSkip.classList.remove('hidden');
     }
@@ -262,7 +326,6 @@ class UpdateManager {
             if (progressBar) progressBar.style.width = '10%';
             if (progressText) progressText.textContent = 'Preparing update...';
             
-            // Enviar os scripts para o backend
             const requestBody = this.updateData.has_scripts ? {
                 scripts: this.updateData.update_scripts
             } : {};
@@ -301,6 +364,11 @@ class UpdateManager {
         }
     }
     
+    async installGithubUpdate() {
+        console.log('[UpdateManager] Installing GitHub update...');
+        alert('GitHub installation is not yet implemented. Please update manually by pulling the latest version.');
+    }
+    
     async createBackup() {
         const btn = document.getElementById('btn-create-backup') || document.getElementById('btn-create-backup-local');
         if (!btn) return;
@@ -321,10 +389,7 @@ class UpdateManager {
             const data = await response.json();
             
             if (data.success) {
-                // Download the backup
                 window.location.href = `/download-backup/${data.filename}/`;
-                
-                // Show success message
                 alert('Backup created successfully! File will be downloaded.');
             } else {
                 alert('Failed to create backup: ' + data.error);

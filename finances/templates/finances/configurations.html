@@ -282,73 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     updateFieldVisibility();
     
-    // Check for online updates
-    document.getElementById('btn-check-online-updates')?.addEventListener('click', async function() {
-        const btn = this;
-        const originalText = btn.innerHTML;
-        
-        btn.disabled = true;
-        btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Checking...';
-        
-        try {
-            const response = await fetch('/check-updates/manual/', {
-                method: 'GET',
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken')
-                }
-            });
-            
-            const data = await response.json();
-            
-            const infoDiv = document.getElementById('online-update-info');
-            const noUpdates = document.getElementById('no-updates-found');
-            const hasUpdates = document.getElementById('updates-available');
-            const localPending = document.getElementById('local-update-pending');
-            
-            infoDiv.classList.remove('hidden');
-            noUpdates.classList.add('hidden');
-            hasUpdates.classList.add('hidden');
-            localPending.classList.add('hidden');
-            
-            if (data.needs_update) {
-                if (data.update_type === 'local') {
-                    // Show local pending message
-                    localPending.classList.remove('hidden');
-                    
-                    // NOVO: Abrir o modal de update automaticamente
-                    if (window.updateManager) {
-                        window.updateManager.showUpdateModal(data);
-                    }
-                } else {
-                    // GitHub update available
-                    hasUpdates.classList.remove('hidden');
-                    document.getElementById('available-version').textContent = data.target_version;
-                    
-                    if (data.github_release && data.github_release.html_url) {
-                        const link = document.getElementById('view-release-link');
-                        link.href = data.github_release.html_url;
-                    }
-                    
-                    // NOVO: Abrir o modal de update automaticamente
-                    if (window.updateManager) {
-                        window.updateManager.showUpdateModal(data);
-                    }
-                }
-            } else {
-                // System is up to date
-                noUpdates.classList.remove('hidden');
-                document.getElementById('github-latest-version').textContent = data.current_version;
-            }
-            
-        } catch (error) {
-            console.error('Error checking updates:', error);
-            alert('Failed to check for updates. Please try again.');
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-        }
-    });
-    
+   
     // Backup functionality
     document.getElementById('btn-create-db-backup')?.addEventListener('click', async function() {
         const btn = this;
