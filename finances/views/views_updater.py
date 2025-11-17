@@ -20,8 +20,8 @@ from ..github_utils import (
     download_and_extract_release,
     create_database_backup
 )
-from .views_utils import VERSION
 
+from ..context_processors import VERSION, db_version
 
 def check_for_updates(request):
     """
@@ -29,15 +29,6 @@ def check_for_updates(request):
     Priority: Local > GitHub
     """
     target_version = VERSION
-    
-    db_version = None
-    try:
-        db_version = SystemVersion.get_current_version()
-    except (OperationalError, ProgrammingError):
-        pass
-    
-    if db_version is None or db_version == '' or db_version.strip() == '':
-        db_version = "0.0.0"
     
     print(f"[CHECK_UPDATES] DB: {db_version}, Code: {target_version}")
     
@@ -91,7 +82,6 @@ def check_for_updates(request):
 def manual_check_updates(request):
     """Manually check for updates on the settings page."""
     target_version = VERSION
-    db_version = SystemVersion.get_current_version() or "0.0.0"
     
     print(f"[MANUAL_CHECK] DB: {db_version}, Code: {target_version}")
     
@@ -214,8 +204,7 @@ def apply_local_updates(request):
                 # Continua mesmo sem scripts - irá pegar da DB
         
         # Se não veio scripts no body, busca do banco
-        if not scripts:
-            db_version = SystemVersion.get_current_version() or "0.0.0"
+        if not scripts:            
             scripts = get_available_update_scripts(db_version, VERSION)
             print(f"[APPLY_UPDATES] Found {len(scripts)} scripts from DB version {db_version}")
         
@@ -227,28 +216,29 @@ def apply_local_updates(request):
         migration_success, migration_output = run_migrations()
         
         results.append({
-            'script': 'Database Migrations',
-            'version': VERSION,
+            'type': 'migration',
             'status': 'success' if migration_success else 'error',
-            'output': migration_output if migration_success else None,
-            'error': migration_output if not migration_success else None
+            'output': migration_output
         })
         
         if not migration_success:
             all_success = False
-            print(f"[APPLY_UPDATES] Migration failed: {migration_output}")
-        else:
-            print(f"[APPLY_UPDATES] Migrations completed successfully")
-            
-            # 2. Run update scripts
-            for script_info in scripts:
-                script_path = script_info.get('path') or script_info.get('filename')
-                script_version = script_info.get('version')
-                
-                print(f"[APPLY_UPDATES] Running script: {script_path}")
+            return JsonResponse({
+                'success': False,
+                'results': results,
+                'error': 'Migration failed'
+            })
+        
+        # 2. Execute update scripts
+        if scripts:
+            print(f"[APPLY_UPDATES] Executing {len(scripts)} scripts...")
+            for script in scripts:
+                script_path = script.get('path') or script.get('filename')
+                script_version = script.get('version', 'unknown')
                 
                 result = {
-                    'script': script_info.get('filename', 'Unknown'),
+                    'type': 'script',
+                    'filename': Path(script_path).name,
                     'version': script_version,
                     'status': 'pending'
                 }
@@ -400,7 +390,10 @@ def restore_backup(request):
         
         backup_file = request.FILES['backup_file']
         
-        temp_path = Path(settings.BASE_DIR) / 'temp_restore.sqlite3'
+        # Pega o caminho correto do banco de dados do Django settings
+        db_path = Path(settings.DATABASES['default']['NAME'])
+        
+        temp_path = db_path.parent / 'temp_restore.sqlite3'
         
         with open(temp_path, 'wb+') as destination:
             for chunk in backup_file.chunks():
@@ -436,11 +429,12 @@ def restore_backup(request):
         
         conn.close()
         
-        db_path = Path(settings.BASE_DIR) / 'db.sqlite3'
+        # Backup do banco atual antes de substituir
         if db_path.exists():
-            backup_old = Path(settings.BASE_DIR) / 'db.sqlite3.old'
+            backup_old = db_path.parent / f'{db_path.name}.old'
             shutil.copy2(db_path, backup_old)
         
+        # Move o arquivo temporário para o local correto
         shutil.move(str(temp_path), str(db_path))
         
         return JsonResponse({
@@ -451,7 +445,9 @@ def restore_backup(request):
         })
         
     except Exception as e:
-        temp_path = Path(settings.BASE_DIR) / 'temp_restore.sqlite3'
+        # Limpa arquivo temporário em caso de erro
+        db_path = Path(settings.DATABASES['default']['NAME'])
+        temp_path = db_path.parent / 'temp_restore.sqlite3'
         if temp_path.exists():
             temp_path.unlink()
         

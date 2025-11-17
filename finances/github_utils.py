@@ -219,35 +219,38 @@ def download_and_extract_release(zipball_url: str) -> Tuple[bool, str]:
         return False, f"Error during update: {str(e)}"
 
 
-def create_database_backup() -> Tuple[bool, str, Optional[Path]]:
+def create_database_backup():
     """
     Creates a backup of the database.
-    
-    Returns:
-        Tuple of (success: bool, message: str, backup_path: Path or None)
+    Returns: (success: bool, message: str, backup_path: Path or None)
     """
+    from pathlib import Path
+    import shutil
+    from datetime import datetime
+    from django.conf import settings
+    
     try:
-        base_dir = Path(settings.BASE_DIR)
-        backups_dir = base_dir / 'backups'
-        
-        # Create backups directory if it doesn't exist
-        backups_dir.mkdir(exist_ok=True)
-        
-        # Generate backup filename with timestamp
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        backup_filename = f'db_backup_{timestamp}.sqlite3'
-        backup_path = backups_dir / backup_filename
-        
-        # Path to current database
-        db_path = base_dir / 'db.sqlite3'
+        # Pega o caminho correto do banco de dados do Django settings
+        db_path = Path(settings.DATABASES['default']['NAME'])
         
         if not db_path.exists():
             return False, "Database file not found", None
         
-        # Copy database file
+        # Cria diretório de backups se não existir
+        backup_dir = Path(settings.BASE_DIR) / 'backups'
+        backup_dir.mkdir(exist_ok=True)
+        
+        # Nome do arquivo de backup com timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_filename = f'db_backup_{timestamp}.sqlite3'
+        backup_path = backup_dir / backup_filename
+        
+        # Copia o banco de dados
         shutil.copy2(db_path, backup_path)
         
-        return True, f"Backup created: {backup_filename}", backup_path
+        return True, f"Backup created successfully: {backup_filename}", backup_path
         
     except Exception as e:
-        return False, f"Backup failed: {str(e)}", None
+        return False, f"Failed to create backup: {str(e)}", None
+
+

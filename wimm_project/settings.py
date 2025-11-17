@@ -66,7 +66,9 @@ TEMPLATES = [
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+                'django.contrib.messages.context_processors.messages',    
+                'finances.context_processors.database_version',
+                'finances.context_processors.app_version',
             ],
         },
     },

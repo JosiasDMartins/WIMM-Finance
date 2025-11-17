@@ -7,7 +7,7 @@ from babel.numbers import get_group_symbol, get_currency_symbol as get_currency_
 
 # Importações relativas do app (.. sobe um nível, de /views/ para /finances/)
 from ..models import (
-    FamilyMember, FlowGroup, Transaction,
+    FamilyMember, FlowGroup, Transaction, SystemVersion,
     FLOW_TYPE_INCOME, FLOW_TYPE_EXPENSE
 )
 from ..utils import (
@@ -15,8 +15,10 @@ from ..utils import (
     get_period_currency
 )
 
+from ..context_processors import VERSION
+
 # Versão global do App
-VERSION = "1.0.0-alpha5"
+
 
 
 def get_thousand_separator():
@@ -179,11 +181,12 @@ def get_base_template_context(family, query_period, start_date):
         available_periods[0]['is_current'] = True
         current_period_label = available_periods[0]['label']
     
+    
     return {
         'available_periods': available_periods,
         'current_period_label': current_period_label,
         'selected_period': current_period_value,
-        'app_version': VERSION,
+        #'app_version': VERSION,
     }
 
 

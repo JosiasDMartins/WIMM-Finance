@@ -19,8 +19,9 @@ from ..utils import get_current_period_dates
 from .views_utils import (
     get_family_context,
     get_base_template_context,
-    VERSION
 )
+
+from ..context_processors import VERSION, db_version
 
 
 def initial_setup_view(request):

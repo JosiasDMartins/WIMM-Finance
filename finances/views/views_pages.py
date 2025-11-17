@@ -38,7 +38,7 @@ from .views_utils import (
     get_default_date_for_period,
     get_periods_history,
     get_currency_symbol,
-    VERSION
+    VERSION,
 )
 
 
@@ -444,7 +444,7 @@ def configuration_view(request):
             form = FamilyConfigurationForm(instance=config, initial={'base_currency': period_currency})
         else:
             form = FamilyConfigurationForm(instance=config)
-    
+
     context = {
         'form': form,
         'family': family,
