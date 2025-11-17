@@ -21,32 +21,48 @@ from ..github_utils import (
     create_database_backup
 )
 
-from ..context_processors import VERSION, db_version
+from ..context_processors import VERSION
+
+
+
+def get_db_version():
+    db_version = None
+    try:
+        db_version = SystemVersion.get_current_version()
+    except (OperationalError, ProgrammingError):
+        pass
+        
+    if db_version is None or db_version == '' or db_version.strip() == '':
+        db_version = "0.0.0"
+    
+    return db_version
 
 def check_for_updates(request):
     """
     Check for local and GitHub updates.
     Priority: Local > GitHub
     """
+
+    
     target_version = VERSION
     
-    print(f"[CHECK_UPDATES] DB: {db_version}, Code: {target_version}")
+    print(f"[CHECK_UPDATES] DB: {get_db_version()}, Code: {target_version}")
     
     # Verifica atualizações locais primeiro
     local_update_needed = False
     try:
-        local_update_needed = needs_update(db_version, target_version)
+        local_update_needed = needs_update(get_db_version(), target_version)
     except ValueError:
         local_update_needed = True
     
     if local_update_needed:
-        local_scripts = get_available_update_scripts(db_version, target_version)
+        local_scripts = get_available_update_scripts(get_db_version(), target_version)
         print(f"[CHECK_UPDATES] Local update needed. Scripts: {len(local_scripts)}")
         
         return JsonResponse({
             'needs_update': True,
             'update_type': 'local',
-            'current_version': db_version,
+            'current_version': get_db_version(),
             'target_version': target_version,
             'has_scripts': len(local_scripts) > 0,
             'update_scripts': local_scripts,
@@ -83,22 +99,22 @@ def manual_check_updates(request):
     """Manually check for updates on the settings page."""
     target_version = VERSION
     
-    print(f"[MANUAL_CHECK] DB: {db_version}, Code: {target_version}")
+    print(f"[MANUAL_CHECK] DB: {get_db_version()}, Code: {target_version}")
     
     local_update_needed = False
     try:
-        local_update_needed = needs_update(db_version, target_version)
+        local_update_needed = needs_update(get_db_version(), target_version)
     except ValueError:
         local_update_needed = True
     
     # Se há update local, retorna dados completos para abrir o modal
     if local_update_needed:
-        local_scripts = get_available_update_scripts(db_version, target_version)
+        local_scripts = get_available_update_scripts(get_db_version(), target_version)
         
         return JsonResponse({
             'needs_update': True,
             'update_type': 'local',
-            'current_version': db_version,
+            'current_version': get_db_version(),
             'target_version': target_version,
             'has_scripts': len(local_scripts) > 0,
             'update_scripts': local_scripts,
@@ -205,8 +221,8 @@ def apply_local_updates(request):
         
         # Se não veio scripts no body, busca do banco
         if not scripts:            
-            scripts = get_available_update_scripts(db_version, VERSION)
-            print(f"[APPLY_UPDATES] Found {len(scripts)} scripts from DB version {db_version}")
+            scripts = get_available_update_scripts(get_db_version(), VERSION)
+            print(f"[APPLY_UPDATES] Found {len(scripts)} scripts from DB version {get_db_version()}")
         
         results = []
         all_success = True
