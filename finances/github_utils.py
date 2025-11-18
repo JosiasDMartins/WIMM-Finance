@@ -15,6 +15,10 @@ from .version_utils import Version, needs_update
 GITHUB_OWNER = "JosiasDMartins"
 GITHUB_REPO = "SweetMoney"
 GITHUB_RELEASES_URL = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases"
+GITHUB_RAW_CONTENT_URL = f"https://raw.githubusercontent.com/{GITHUB_OWNER}/{GITHUB_REPO}/main"
+
+# Cache for container update version (to avoid multiple GitHub requests)
+_cached_container_version = None
 
 
 def get_latest_github_release() -> Optional[Dict]:
@@ -47,6 +51,46 @@ def get_latest_github_release() -> Optional[Dict]:
             
     except Exception as e:
         print(f"Error fetching GitHub releases: {str(e)}")
+        return None
+
+
+def get_min_container_version_from_github() -> Optional[str]:
+    """
+    Fetches the minimum version that requires container update from GitHub.
+    Reads the need_container_update.txt file from the main branch.
+    
+    Returns:
+        Version string (e.g., "1.0.0-alpha4") or None if failed
+    """
+    global _cached_container_version
+    
+    # Return cached version if available
+    if _cached_container_version is not None:
+        return _cached_container_version
+    
+    try:
+        url = f"{GITHUB_RAW_CONTENT_URL}/need_container_update.txt"
+        print(f"Fetching container version requirement from: {url}")
+        
+        response = requests.get(url, timeout=5)
+        
+        if response.status_code == 200:
+            # Read version from file (trim whitespace and newlines)
+            version = response.text.strip()
+            
+            if version:
+                print(f"Container update required for versions < {version}")
+                _cached_container_version = version
+                return version
+            else:
+                print("Empty version in need_container_update.txt")
+                return None
+        else:
+            print(f"Failed to fetch need_container_update.txt. Status: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        print(f"Error fetching container version requirement: {str(e)}")
         return None
 
 
@@ -105,32 +149,50 @@ def requires_container_update(current_version: str, target_version: str) -> bool
     """
     Determines if the update requires a container rebuild.
     
-    Container updates are needed when:
-    - Major version changes (1.x.x -> 2.x.x)
-    - Dependencies change (requirements.txt modified)
-    - System-level changes indicated in release notes
+    Checks the need_container_update.txt file on GitHub to get the minimum version
+    that supports web updates. If current version is below this minimum, container
+    update is required.
     
     Args:
         current_version: Current version string
-        target_version: Target version string
+        target_version: Target version string (not used, kept for compatibility)
     
     Returns:
         bool: True if container update is required
     """
     try:
-        current_ver = Version(current_version)
-        target_ver = Version(target_version)
+        # Get minimum version from GitHub
+        min_web_update_version_str = get_min_container_version_from_github()
         
-        # Check for major version change
-        if target_ver.major > current_ver.major:
-            return True
+        if min_web_update_version_str:
+            # Parse versions
+            current_ver = Version(current_version)
+            min_web_update_version = Version(min_web_update_version_str)
+            
+            # If current version is older than minimum, container update is required
+            if current_ver < min_web_update_version:
+                print(f"Container update required: {current_version} < {min_web_update_version_str}")
+                return True
+            else:
+                print(f"Web update OK: {current_version} >= {min_web_update_version_str}")
+                return False
+        else:
+            # If we can't fetch the file, use fallback version
+            print("Could not fetch container version requirement, using fallback")
+            fallback_version = Version("1.0.0-alpha4")
+            current_ver = Version(current_version)
+            
+            if current_ver < fallback_version:
+                return True
+            return False
         
-        # For now, assume no container update needed for minor/patch updates
-        # In the future, could check release notes for keywords like "container" or "docker"
-        return False
-        
-    except ValueError:
+    except ValueError as e:
         # If version parsing fails, assume container update is needed for safety
+        print(f"Version parsing error: {e}")
+        return True
+    except Exception as e:
+        # Any other error, assume container update is needed for safety
+        print(f"Error checking container update requirement: {e}")
         return True
 
 
@@ -222,35 +284,36 @@ def download_and_extract_release(zipball_url: str) -> Tuple[bool, str]:
 def create_database_backup():
     """
     Creates a backup of the database.
-    Returns: (success: bool, message: str, backup_path: Path or None)
-    """
-    from pathlib import Path
-    import shutil
-    from datetime import datetime
-    from django.conf import settings
     
+    Returns:
+        Tuple of (success: bool, backup_path: str or error_message: str)
+    """
     try:
-        # Pega o caminho correto do banco de dados do Django settings
+        from django.conf import settings
+        import shutil
+        from datetime import datetime
+        
+        # Create backups directory if it doesn't exist
+        backups_dir = Path(settings.BASE_DIR) / 'backups'
+        backups_dir.mkdir(exist_ok=True)
+        
+        # Source database file
         db_path = Path(settings.DATABASES['default']['NAME'])
         
         if not db_path.exists():
-            return False, "Database file not found", None
+            return False, "Database file not found"
         
-        # Cria diretório de backups se não existir
-        backup_dir = Path(settings.BASE_DIR) / 'backups'
-        backup_dir.mkdir(exist_ok=True)
-        
-        # Nome do arquivo de backup com timestamp
+        # Create backup filename with timestamp
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         backup_filename = f'db_backup_{timestamp}.sqlite3'
-        backup_path = backup_dir / backup_filename
+        backup_path = backups_dir / backup_filename
         
-        # Copia o banco de dados
+        # Copy database file
         shutil.copy2(db_path, backup_path)
         
-        return True, f"Backup created successfully: {backup_filename}", backup_path
+        print(f"Database backup created: {backup_path}")
+        return True, str(backup_filename)
         
     except Exception as e:
-        return False, f"Failed to create backup: {str(e)}", None
-
-
+        print(f"Error creating backup: {str(e)}")
+        return False, str(e)

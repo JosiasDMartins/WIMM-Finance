@@ -1,18 +1,18 @@
-<!-- finances/templates/finances/update_modal.html -->
-<!-- Este modal deve ser incluído no base.html -->
+{% load static %}
 
 <div id="update-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full mx-4 p-6">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-3xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <div class="flex items-start mb-4">
             <div class="flex-shrink-0">
-                <span class="material-symbols-outlined text-4xl text-blue-500">system_update</span>
+                <span id="modal-icon" class="material-symbols-outlined text-4xl text-blue-500">system_update</span>
             </div>
             <div class="ml-4 flex-1">
                 <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                    System Update Available
+                    <span id="modal-title">System Update Available</span>
                 </h3>
-                <div class="text-sm text-gray-600 dark:text-gray-300 space-y-2">
-                    <p>A new version of SweetMoney is available!</p>
+                
+                <div id="main-content" class="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+                    <p id="update-description">A new version is available!</p>
                     
                     <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 my-4">
                         <div class="flex justify-between items-center">
@@ -30,74 +30,165 @@
                         </div>
                     </div>
                     
+                    <!-- Local Scripts Info -->
                     <div id="scripts-info" class="hidden">
                         <p class="font-semibold text-gray-900 dark:text-gray-200 mb-2">Update Scripts to Apply:</p>
                         <ul id="scripts-list" class="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-400 max-h-40 overflow-y-auto">
-                            <!-- Scripts will be populated here -->
                         </ul>
                     </div>
                     
-                    <!-- Progress Section (hidden initially) -->
+                    <!-- Backup Section for LOCAL Updates -->
+                    <div id="backup-section-local" class="hidden mt-4">
+                        <div class="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 p-4 mb-4">
+                            <div class="flex">
+                                <span class="material-symbols-outlined text-amber-500 mr-2">warning</span>
+                                <div>
+                                    <h4 class="text-sm font-medium text-amber-800 dark:text-amber-200">Backup Recommended</h4>
+                                    <p class="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                                        Before applying updates, create a database backup to protect your data.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button id="btn-create-backup-local" 
+                                class="w-full px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium transition-colors flex items-center justify-center gap-2 mb-3">
+                            <span class="material-symbols-outlined">download</span>
+                            Download Database Backup
+                        </button>
+                        
+                        <div class="flex items-center gap-2 p-3 bg-white dark:bg-gray-900 rounded border border-amber-200 dark:border-amber-800">
+                            <input type="checkbox" id="backup-confirmed-local" class="rounded text-amber-600 focus:ring-amber-500">
+                            <label for="backup-confirmed-local" class="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                                I have created a backup and want to proceed with the update
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- GitHub Release Info -->
+                    <div id="github-info" class="hidden">
+                        <div class="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4 mb-4">
+                            <h4 class="font-semibold text-green-900 dark:text-green-200 mb-2" id="release-name">New Release</h4>
+                            <div class="text-sm text-green-800 dark:text-green-300 mb-2" id="release-notes">
+                                Loading release notes...
+                            </div>
+                            <p class="text-xs text-green-700 dark:text-green-400">
+                                Released: <span id="release-date">-</span>
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Container Warning (GitHub Updates) -->
+                    <div id="container-warning" class="hidden bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-4">
+                        <div class="flex">
+                            <span class="material-symbols-outlined text-red-500 mr-2">error</span>
+                            <div>
+                                <h4 class="text-sm font-medium text-red-800 dark:text-red-200">Container Restart Required</h4>
+                                <p class="text-sm text-red-700 dark:text-red-300 mt-1">
+                                    This update requires container restart. Please update your Docker image manually.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Backup Section for GITHUB Updates -->
+                    <div id="backup-section" class="hidden mt-4">
+                        <div class="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 p-4 mb-4">
+                            <div class="flex">
+                                <span class="material-symbols-outlined text-amber-500 mr-2">warning</span>
+                                <div>
+                                    <h4 class="text-sm font-medium text-amber-800 dark:text-amber-200">Backup Required</h4>
+                                    <p class="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                                        Before installing, create a database backup to protect your data.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button id="btn-create-backup" 
+                                class="w-full px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium transition-colors flex items-center justify-center gap-2 mb-3">
+                            <span class="material-symbols-outlined">download</span>
+                            Download Database Backup
+                        </button>
+                        
+                        <div class="flex items-center gap-2 p-3 bg-white dark:bg-gray-900 rounded border border-amber-200 dark:border-amber-800">
+                            <input type="checkbox" id="backup-confirmed" class="rounded text-amber-600 focus:ring-amber-500">
+                            <label for="backup-confirmed" class="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                                I have created a backup and want to proceed with the update
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Progress Section -->
                     <div id="update-progress" class="hidden mt-4">
-                        <p class="font-semibold mb-2">Applying Updates...</p>
+                        <p class="font-semibold mb-2" id="progress-title">Applying Updates...</p>
                         <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mb-2">
-                            <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                            <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
                         </div>
                         <p id="progress-text" class="text-sm text-gray-600 dark:text-gray-400">Preparing...</p>
                     </div>
                     
-                    <!-- Results Section (hidden initially) -->
+                    <!-- Results Section -->
                     <div id="update-results" class="hidden mt-4">
                         <div id="success-message" class="hidden bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4">
                             <div class="flex">
-                                <div class="flex-shrink-0">
-                                    <span class="material-symbols-outlined text-green-500">check_circle</span>
-                                </div>
-                                <div class="ml-3">
+                                <span class="material-symbols-outlined text-green-500 mr-2">check_circle</span>
+                                <div class="flex-1">
                                     <h3 class="text-sm font-medium text-green-800 dark:text-green-200">Update Successful!</h3>
-                                    <div class="mt-2 text-sm text-green-700 dark:text-green-300">
-                                        <p>Your system has been successfully updated.</p>
-                                    </div>
+                                    <p class="mt-2 text-sm text-green-700 dark:text-green-300" id="success-details">
+                                        Your system has been successfully updated.
+                                    </p>
                                 </div>
                             </div>
                         </div>
                         
                         <div id="error-message" class="hidden bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4">
                             <div class="flex">
-                                <div class="flex-shrink-0">
-                                    <span class="material-symbols-outlined text-red-500">error</span>
-                                </div>
-                                <div class="ml-3">
+                                <span class="material-symbols-outlined text-red-500 mr-2">error</span>
+                                <div class="flex-1">
                                     <h3 class="text-sm font-medium text-red-800 dark:text-red-200">Update Failed</h3>
-                                    <div class="mt-2 text-sm text-red-700 dark:text-red-300">
-                                        <p id="error-details">An error occurred during the update process.</p>
-                                    </div>
+                                    <p class="mt-2 text-sm text-red-700 dark:text-red-300" id="error-details">
+                                        An error occurred during the update process.
+                                    </p>
                                 </div>
                             </div>
                         </div>
                         
-                        <div id="results-details" class="mt-4 max-h-60 overflow-y-auto">
-                            <!-- Detailed results will be shown here -->
-                        </div>
+                        <div id="results-details" class="mt-4 max-h-60 overflow-y-auto"></div>
                     </div>
                 </div>
             </div>
         </div>
         
         <div class="flex justify-end gap-3 mt-6">
-            <button id="btn-continue" 
-                    class="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition-colors">
-                Continue Without Updating
+            <button id="btn-view-release" 
+                    class="hidden px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition-colors">
+                View Release on GitHub
             </button>
             
-            <button id="btn-apply-updates" 
-                    class="hidden px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors">
+            <button id="btn-skip-local" 
+                    class="hidden px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition-colors">
+                Remind Me Later
+            </button>
+            
+            <button id="btn-skip" 
+                    class="hidden px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition-colors">
+                Skip Update
+            </button>
+            
+            <button id="btn-apply-local" 
+                    class="hidden px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                 Apply Updates
+            </button>
+            
+            <button id="btn-install-github" 
+                    class="hidden px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                Install Update
             </button>
             
             <button id="btn-close" 
                     class="hidden px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 font-medium transition-colors">
-                Close
+                Close & Reload
             </button>
             
             <button id="btn-view-logs" 
@@ -123,222 +214,167 @@
     </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    let updateData = null;
-    
-    // Check for updates on page load
-    checkForUpdates();
-    
-    function checkForUpdates() {
-        fetch('/check-updates/')
-            .then(response => response.json())
-            .then(data => {
-                if (data.needs_update) {
-                    updateData = data;
-                    showUpdateModal(data);
-                }
-            })
-            .catch(error => {
-                console.error('Error checking for updates:', error);
-            });
-    }
-    
-    function showUpdateModal(data) {
-        const modal = document.getElementById('update-modal');
-        const currentVersionEl = document.getElementById('current-version');
-        const targetVersionEl = document.getElementById('target-version');
-        const scriptsInfo = document.getElementById('scripts-info');
-        const scriptsList = document.getElementById('scripts-list');
-        const btnApplyUpdates = document.getElementById('btn-apply-updates');
+<script src="{% static 'finances/js/update_manager.js' %}" type="module"></script>
+
+ <!-- UPDATE MANAGER - INLINE (Evita cache) -->
+    <script>
+    (function() {
+        'use strict';
+        console.log('[UpdateManager] Loading at:', Date.now());
         
-        // Set version info
-        currentVersionEl.textContent = data.current_version;
-        targetVersionEl.textContent = data.target_version;
+        let updateData = null;
         
-        // Show scripts if any
-        if (data.has_scripts) {
-            scriptsInfo.classList.remove('hidden');
-            scriptsList.innerHTML = '';
-            data.update_scripts.forEach(script => {
-                const li = document.createElement('li');
-                li.textContent = `v${script.version}: ${script.description}`;
-                scriptsList.appendChild(li);
-            });
-            btnApplyUpdates.classList.remove('hidden');
-        }
-        
-        modal.classList.remove('hidden');
-    }
-    
-    // Continue without updating
-    document.getElementById('btn-continue').addEventListener('click', function() {
-        if (confirm('Are you sure you want to continue without updating? This may cause compatibility issues.')) {
-            skipUpdates();
-        }
-    });
-    
-    // Apply updates
-    document.getElementById('btn-apply-updates').addEventListener('click', function() {
-        applyUpdates();
-    });
-    
-    // Close modal after successful update
-    document.getElementById('btn-close').addEventListener('click', function() {
-        document.getElementById('update-modal').classList.add('hidden');
-        location.reload(); // Reload page to use new version
-    });
-    
-    // View logs
-    document.getElementById('btn-view-logs').addEventListener('click', function() {
-        document.getElementById('logs-modal').classList.remove('hidden');
-    });
-    
-    document.getElementById('close-logs').addEventListener('click', function() {
-        document.getElementById('logs-modal').classList.add('hidden');
-    });
-    
-    function applyUpdates() {
-        const progressSection = document.getElementById('update-progress');
-        const progressBar = document.getElementById('progress-bar');
-        const progressText = document.getElementById('progress-text');
-        const btnApplyUpdates = document.getElementById('btn-apply-updates');
-        const btnContinue = document.getElementById('btn-continue');
-        
-        // Hide buttons, show progress
-        btnApplyUpdates.classList.add('hidden');
-        btnContinue.classList.add('hidden');
-        progressSection.classList.remove('hidden');
-        
-        // Apply updates
-        fetch('/apply-updates/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({
-                scripts: updateData.update_scripts
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            progressBar.style.width = '100%';
-            showResults(data);
-        })
-        .catch(error => {
-            showError('Network error: ' + error.message);
-        });
-        
-        // Simulate progress (since we don't have real-time updates)
-        let progress = 0;
-        const progressInterval = setInterval(() => {
-            progress += 10;
-            if (progress <= 90) {
-                progressBar.style.width = progress + '%';
-                progressText.textContent = `Processing... ${progress}%`;
-            } else {
-                clearInterval(progressInterval);
-            }
-        }, 500);
-    }
-    
-    function showResults(data) {
-        const progressSection = document.getElementById('update-progress');
-        const resultsSection = document.getElementById('update-results');
-        const successMsg = document.getElementById('success-message');
-        const errorMsg = document.getElementById('error-message');
-        const resultsDetails = document.getElementById('results-details');
-        const btnClose = document.getElementById('btn-close');
-        const btnViewLogs = document.getElementById('btn-view-logs');
-        
-        progressSection.classList.add('hidden');
-        resultsSection.classList.remove('hidden');
-        
-        if (data.success) {
-            successMsg.classList.remove('hidden');
-            btnClose.classList.remove('hidden');
+        function checkForUpdates() {
+            const t = Date.now();
+            console.log('[UpdateManager] Checking updates...', t);
             
-            // Show success details
-            let html = '<div class="space-y-2">';
-            data.results.forEach(result => {
-                html += `
-                    <div class="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
-                        <span class="material-symbols-outlined text-green-500">check_circle</span>
-                        <span>${result.script}: ${result.output}</span>
-                    </div>
-                `;
-            });
-            html += '</div>';
-            resultsDetails.innerHTML = html;
-        } else {
-            errorMsg.classList.remove('hidden');
-            btnViewLogs.classList.remove('hidden');
-            
-            // Show error details
-            const errorDetail = document.getElementById('error-details');
-            errorDetail.textContent = data.error || 'An unknown error occurred';
-            
-            // Populate logs
-            const logsContent = document.getElementById('logs-content');
-            let logsHtml = '';
-            if (data.results) {
-                data.results.forEach(result => {
-                    logsHtml += `\n=== ${result.script} ===\n`;
-                    logsHtml += `Status: ${result.status}\n`;
-                    if (result.error) {
-                        logsHtml += `Error: ${result.error}\n`;
-                        logsHtml += `\nTraceback:\n${result.traceback}\n`;
+            fetch('/check-updates/?t=' + t)
+                .then(r => {
+                    console.log('[UpdateManager] Status:', r.status);
+                    return r.json();
+                })
+                .then(data => {
+                    console.log('[UpdateManager] Data:', data);
+                    if (data.needs_update) {
+                        updateData = data;
+                        showModal(data);
+                    } else {
+                        console.log('[UpdateManager] No updates');
                     }
-                });
-            }
-            if (data.traceback) {
-                logsHtml += `\n=== Full Traceback ===\n${data.traceback}`;
-            }
-            logsContent.textContent = logsHtml || 'No detailed logs available';
+                })
+                .catch(e => console.error('[UpdateManager] Error:', e));
         }
-    }
-    
-    function showError(message) {
-        showResults({
-            success: false,
-            error: message,
-            results: []
-        });
-    }
-    
-    function skipUpdates() {
-        fetch('/skip-updates/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
+        
+        function showModal(data) {
+            console.log('[UpdateManager] Showing modal');
+            const modal = document.getElementById('update-modal');
+            if (!modal) return console.error('[UpdateManager] Modal not found');
+            
+            hideAll();
+            setText('current-version', data.current_version);
+            setText('target-version', data.target_version);
+            
+            if (data.update_type === 'local') {
+                showLocal(data);
+            } else if (data.update_type === 'github') {
+                showGithub(data);
             }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById('update-modal').classList.add('hidden');
+            
+            modal.classList.remove('hidden');
+        }
+        
+        function showLocal(data) {
+            const icon = document.getElementById('modal-icon');
+            if (icon) {
+                icon.className = 'material-symbols-outlined text-4xl text-orange-500';
+                icon.textContent = 'construction';
             }
-        })
-        .catch(error => {
-            console.error('Error skipping updates:', error);
-        });
-    }
-    
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
+            setText('update-description', 'Local updates must be applied.');
+            
+            if (data.has_scripts && data.update_scripts) {
+                show('scripts-info');
+                const list = document.getElementById('scripts-list');
+                if (list) {
+                    list.innerHTML = '';
+                    data.update_scripts.forEach(s => {
+                        const li = document.createElement('li');
+                        li.textContent = `v${s.version}: ${s.description}`;
+                        list.appendChild(li);
+                    });
                 }
             }
+            show('btn-apply-local');
         }
-        return cookieValue;
-    }
-});
-</script>
+        
+        function showGithub(data) {
+            const icon = document.getElementById('modal-icon');
+            if (icon) {
+                icon.className = 'material-symbols-outlined text-4xl text-green-500';
+                icon.textContent = 'cloud_download';
+            }
+            setText('update-description', 'New version on GitHub!');
+            show('github-info');
+            show('btn-skip');
+        }
+        
+        function applyLocal() {
+            console.log('[UpdateManager] Applying...');
+            hide('btn-apply-local');
+            show('update-progress');
+            
+            fetch('/apply-local-updates/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccess('Updates applied! Reloading...');
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    showError(data.error || 'Update failed');
+                }
+            })
+            .catch(e => {
+                console.error('[UpdateManager] Apply error:', e);
+                showError('Failed: ' + e.message);
+            });
+        }
+        
+        function showSuccess(msg) {
+            hide('update-progress');
+            show('update-results');
+            show('success-message');
+            setText('success-details', msg);
+            show('btn-close');
+        }
+        
+        function showError(msg) {
+            hide('update-progress');
+            show('update-results');
+            show('error-message');
+            setText('error-details', msg);
+        }
+        
+        function hideAll() {
+            ['scripts-info', 'github-info', 'container-warning', 'backup-section',
+             'update-progress', 'update-results', 'success-message', 'error-message',
+             'btn-apply-local', 'btn-install-github', 'btn-skip', 'btn-close',
+             'btn-view-logs', 'btn-view-release'].forEach(hide);
+        }
+        
+        function show(id) { const el = document.getElementById(id); if (el) el.classList.remove('hidden'); }
+        function hide(id) { const el = document.getElementById(id); if (el) el.classList.add('hidden'); }
+        function setText(id, txt) { const el = document.getElementById(id); if (el) el.textContent = txt; }
+        
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+        
+        // Setup
+        const btn = document.getElementById('btn-apply-local');
+        if (btn) btn.addEventListener('click', applyLocal);
+        
+        const closeBtn = document.getElementById('btn-close');
+        if (closeBtn) closeBtn.addEventListener('click', () => location.reload());
+        
+        // Expose
+        window.forceUpdateCheck = checkForUpdates;
+        window.showUpdateModal = showModal;
+        
+        // Auto-init
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', checkForUpdates);
+        } else {
+            setTimeout(checkForUpdates, 100);
+        }
+        
+        console.log('[UpdateManager] Ready');
+    })();
+    </script>    

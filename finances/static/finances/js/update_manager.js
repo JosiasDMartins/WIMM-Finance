@@ -261,9 +261,26 @@ class UpdateManager {
             releaseName.textContent = data.github_release.name || `Version ${data.target_version}`;
         }
         
+        // Limit release notes to 7 lines with fade effect
         if (releaseNotes) {
             const notes = data.github_release.body || 'No release notes available.';
-            releaseNotes.innerHTML = this.formatMarkdown(notes);
+            const lines = notes.split('\n');
+            const maxLines = 7;
+            
+            if (lines.length > maxLines) {
+                const limitedNotes = lines.slice(0, maxLines).join('\n');
+                const formattedNotes = this.formatMarkdown(limitedNotes);
+                
+                // Create container with fade effect
+                releaseNotes.innerHTML = `
+                    <div class="relative max-h-48 overflow-hidden">
+                        <div>${formattedNotes}</div>
+                        <div class="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white dark:from-gray-800 to-transparent"></div>
+                    </div>
+                `;
+            } else {
+                releaseNotes.innerHTML = this.formatMarkdown(notes);
+            }
         }
         
         if (releaseDate) {
@@ -275,14 +292,16 @@ class UpdateManager {
         if (btnSkip) btnSkip.classList.remove('hidden');
         
         if (data.requires_container) {
+            // Container update required - manual process
             if (containerWarning) containerWarning.classList.remove('hidden');
             if (btnInstall) btnInstall.classList.add('hidden');
             if (backupSection) backupSection.classList.add('hidden');
         } else {
+            // Can install via web interface
             if (backupSection) backupSection.classList.remove('hidden');
             if (btnInstall) {
                 btnInstall.classList.remove('hidden');
-                btnInstall.disabled = true;
+                btnInstall.disabled = true; // Disabled until backup confirmed
             }
         }
     }
@@ -366,7 +385,61 @@ class UpdateManager {
     
     async installGithubUpdate() {
         console.log('[UpdateManager] Installing GitHub update...');
-        alert('GitHub installation is not yet implemented. Please update manually by pulling the latest version.');
+        
+        const backupConfirmed = document.getElementById('backup-confirmed');
+        if (!backupConfirmed || !backupConfirmed.checked) {
+            alert('Please confirm that you have created a backup before proceeding.');
+            return;
+        }
+        
+        const progressSection = document.getElementById('update-progress');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const progressTitle = document.getElementById('progress-title');
+        const btnInstall = document.getElementById('btn-install-github');
+        const btnSkip = document.getElementById('btn-skip');
+        const backupSection = document.getElementById('backup-section');
+        
+        if (btnInstall) btnInstall.classList.add('hidden');
+        if (btnSkip) btnSkip.classList.add('hidden');
+        if (backupSection) backupSection.classList.add('hidden');
+        if (progressSection) progressSection.classList.remove('hidden');
+        if (progressTitle) progressTitle.textContent = 'Installing GitHub Update...';
+        
+        try {
+            if (progressBar) progressBar.style.width = '10%';
+            if (progressText) progressText.textContent = 'Downloading release...';
+            
+            const response = await fetch('/download-github-update/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    zipball_url: this.updateData.github_release.zipball_url
+                })
+            });
+            
+            if (progressBar) progressBar.style.width = '50%';
+            if (progressText) progressText.textContent = 'Extracting files...';
+            
+            const data = await response.json();
+            console.log('[UpdateManager] GitHub update response:', data);
+            
+            if (progressBar) progressBar.style.width = '100%';
+            if (progressText) progressText.textContent = 'Update complete!';
+            
+            if (data.success) {
+                this.showSuccess('GitHub update installed successfully! The page will reload in 3 seconds.');
+                setTimeout(() => location.reload(), 3000);
+            } else {
+                this.showError(data.error || 'Update failed.');
+            }
+        } catch (error) {
+            console.error('[UpdateManager] Error installing GitHub update:', error);
+            this.showError('Failed to install update: ' + error.message);
+        }
     }
     
     async createBackup() {

@@ -21,6 +21,8 @@ from ..github_utils import (
     create_database_backup
 )
 
+from ..version_utils import SKIP_LOCAL_UPDATE, FORCE_UPDATE_FOR_TESTING
+
 from ..context_processors import VERSION
 
 
@@ -44,16 +46,18 @@ def check_for_updates(request):
     """
 
     
+
     target_version = VERSION
     
     print(f"[CHECK_UPDATES] DB: {get_db_version()}, Code: {target_version}")
     
     # Verifica atualizações locais primeiro
     local_update_needed = False
-    try:
-        local_update_needed = needs_update(get_db_version(), target_version)
-    except ValueError:
-        local_update_needed = True
+    if not SKIP_LOCAL_UPDATE:
+        try:
+            local_update_needed = needs_update(get_db_version(), target_version)
+        except ValueError:
+            local_update_needed = True
     
     if local_update_needed:
         local_scripts = get_available_update_scripts(get_db_version(), target_version)
@@ -102,10 +106,11 @@ def manual_check_updates(request):
     print(f"[MANUAL_CHECK] DB: {get_db_version()}, Code: {target_version}")
     
     local_update_needed = False
-    try:
-        local_update_needed = needs_update(get_db_version(), target_version)
-    except ValueError:
-        local_update_needed = True
+    if not SKIP_LOCAL_UPDATE:
+        try:
+            local_update_needed = needs_update(get_db_version(), target_version)
+        except ValueError:
+            local_update_needed = True
     
     # Se há update local, retorna dados completos para abrir o modal
     if local_update_needed:
