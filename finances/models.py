@@ -333,3 +333,62 @@ class BankBalance(models.Model):
     def __str__(self):
         member_name = self.member.user.username if self.member else "Family"
         return f"{self.description} - {member_name} - {self.amount} ({self.date})"
+
+
+class Notification(models.Model):
+    """
+    Internal notification system.
+    Notifies about overdue transactions, overbudget, and new releases.
+    """
+    NOTIFICATION_TYPES = [
+        ('OVERDUE', 'Overdue Transaction'),
+        ('OVERBUDGET', 'Over Budget'),
+        ('NEW_TRANSACTION', 'New Transaction'),
+    ]
+    
+    family = models.ForeignKey(Family, on_delete=models.CASCADE, related_name='notifications')
+    member = models.ForeignKey(FamilyMember, on_delete=models.CASCADE, related_name='notifications')
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
+    
+    # Optional references to related objects
+    transaction = models.ForeignKey(
+        'Transaction', 
+        on_delete=models.CASCADE, 
+        null=True, 
+        blank=True,
+        related_name='notifications'
+    )
+    flow_group = models.ForeignKey(
+        'FlowGroup', 
+        on_delete=models.CASCADE, 
+        null=True, 
+        blank=True,
+        related_name='notifications'
+    )
+    
+    # Notification message
+    message = models.TextField()
+    
+    # URL notification rection
+    target_url = models.CharField(max_length=500, blank=True)
+    
+    # Status control
+    is_acknowledged = models.BooleanField(default=False)
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['member', 'is_acknowledged', '-created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_notification_type_display()} - {self.member.user.username} - {'Ack' if self.is_acknowledged else 'New'}"
+    
+    def acknowledge(self):
+        """Marca a notificação como reconhecida."""
+        self.is_acknowledged = True
+        self.acknowledged_at = timezone.now()
+        self.save()

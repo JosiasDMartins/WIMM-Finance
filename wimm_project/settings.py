@@ -69,6 +69,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',    
                 'finances.context_processors.database_version',
                 'finances.context_processors.app_version',
+                'finances.context_processors.notifications_processor',
             ],
         },
     },

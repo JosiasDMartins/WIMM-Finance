@@ -68,4 +68,11 @@ urlpatterns = [
     path('download-backup/<str:filename>/', views.download_backup, name='download_backup'),
     path('restore-backup/', views.restore_backup, name='restore_backup'),
     path('skip-updates/', views.skip_updates, name='skip_updates'),
+
+    #Notifications
+    path('api/notifications/', views.get_notifications_ajax, name='get_notifications_ajax'),
+    path('api/notifications/acknowledge/', views.acknowledge_notification_ajax, name='acknowledge_notification_ajax'),
+    path('api/notifications/acknowledge-all/', views.acknowledge_all_notifications_ajax, name='acknowledge_all_notifications_ajax'),
 ]
+
+

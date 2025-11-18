@@ -102,10 +102,10 @@
                         <!-- Period Selector Dropdown -->
                         <div x-data="{ periodDropdownOpen: false }" class="relative">
                             <button @click="periodDropdownOpen = !periodDropdownOpen" 
-                                    class="flex items-center space-x-2 px-3 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors">
-                                <span class="material-symbols-outlined text-sm">calendar_month</span>
-                                <span class="text-sm font-medium">{{ current_period_label }}</span>
-                                <span class="material-symbols-outlined text-sm">expand_more</span>
+                                    class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                                <span class="material-symbols-outlined text-lg">calendar_month</span>
+                                <span class="hidden md:inline">Period</span>
+                                <span class="material-symbols-outlined text-lg">expand_more</span>
                             </button>
                             
                             <div x-show="periodDropdownOpen" 
@@ -116,16 +116,17 @@
                                  x-transition:leave="transition ease-in duration-75"
                                  x-transition:leave-start="transform opacity-100 scale-100"
                                  x-transition:leave-end="transform opacity-0 scale-95"
-                                 class="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
-                                 style="display: none;">
-                                 <div class="py-1">
+                                 class="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-700 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 max-h-96 overflow-y-auto z-50">
+                                <div class="py-2">
                                     {% for period in available_periods %}
-                                    <a href="?period={{ period.value }}" 
-                                       class="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 {% if period.is_current %}bg-primary/10 text-primary font-semibold{% else %}text-gray-700 dark:text-gray-300{% endif %}">
+                                    <a href="?period={{ period.period_start }}" 
+                                       class="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-600 {% if period.period_start == selected_period %}bg-gray-100 dark:bg-gray-600 font-semibold{% endif %}">
                                         <div class="flex items-center justify-between">
-                                            <span>{{ period.label }}</span>
-                                            {% if period.is_current %}
-                                            <span class="text-primary">●</span>
+                                            <span class="{% if period.period_start == selected_period %}text-primary{% else %}text-gray-700 dark:text-gray-300{% endif %}">
+                                                {{ period.display }}
+                                            </span>
+                                            {% if period.period_start == selected_period %}
+                                            <span class="text-xs text-primary">●</span>
                                             {% elif period.has_data %}
                                             <span class="text-xs text-gray-400">•</span>
                                             {% endif %}
@@ -139,9 +140,35 @@
                         </div>
                     </div>
                     
-                    <a href="#" class="text-gray-600 dark:text-gray-400 hover:text-primary">
-                        <span class="material-symbols-outlined">notifications</span>
-                    </a>
+                    <!-- Notifications Bell -->
+                    <div class="relative">
+                        <button id="notification-bell" class="relative text-gray-600 dark:text-gray-400 hover:text-primary transition-colors">
+                            <span class="material-symbols-outlined">notifications</span>
+                            {% if unread_notifications_count > 0 %}
+                            <span id="notification-badge" class="absolute -top-1 -right-1 bg-yellow-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                                {{ unread_notifications_count }}
+                            </span>
+                            {% else %}
+                            <span id="notification-badge" class="hidden absolute -top-1 -right-1 bg-yellow-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                                0
+                            </span>
+                            {% endif %}
+                        </button>
+                        
+                        <!-- Notifications Dropdown -->
+                        <div id="notification-dropdown" class="hidden absolute right-0 mt-2 w-96 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-600 max-h-96 overflow-hidden z-50">
+                            <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                                <h3 class="font-semibold text-gray-900 dark:text-white">Notifications</h3>
+                                <button id="acknowledge-all-btn" class="text-xs text-primary hover:text-primary/80 font-medium">
+                                    Mark all as read
+                                </button>
+                            </div>
+                            <div id="notification-list" class="overflow-y-auto max-h-80">
+                                <!-- Notifications will be loaded here by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                    
                     <form method="POST" action="{% url 'auth_logout' %}" style="display: inline;">
                         {% csrf_token %}
                         <button type="submit" class="text-gray-600 dark:text-gray-400 hover:text-red-500" title="Logout">
@@ -167,6 +194,13 @@
             </main>
         </div>
     </div>
+    <!-- Update Modal-->
     {% include 'finances/update_modal.html' %}
+
+    <!-- Load notifications script -->
+    <script src="{% static 'finances/js/notifications.js' %}"></script>
+    
+    {% block extra_js %}
+    {% endblock %}
 </body>
 </html>

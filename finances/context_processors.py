@@ -1,5 +1,6 @@
 from django.db.utils import OperationalError, ProgrammingError
 from .models import SystemVersion
+from .models import Notification
 
 #Files version
 VERSION = "1.0.0-alpha5"
@@ -25,3 +26,57 @@ def database_version(request):
 
 def app_version(request):
     return {'app_version': VERSION}
+
+
+def notifications_processor(request):
+    """
+    Context processor que adiciona notificações não reconhecidas a todos os templates.
+    """
+    print(f"[DEBUG CONTEXT] notifications_processor called for user: {request.user}")
+    
+    if not request.user.is_authenticated:
+        print(f"[DEBUG CONTEXT] User not authenticated")
+        return {
+            'unread_notifications_count': 0,
+            'unread_notifications': []
+        }
+    
+    # Busca o FamilyMember do usuário atual
+    from .models import FamilyMember
+    
+    try:
+        member = FamilyMember.objects.filter(user=request.user).first()
+        if not member:
+            print(f"[DEBUG CONTEXT] Member not found for user: {request.user.username}")
+            return {
+                'unread_notifications_count': 0,
+                'unread_notifications': []
+            }
+        
+        print(f"[DEBUG CONTEXT] Member found: {member.user.username} (ID: {member.id})")
+        
+        # Busca notificações não reconhecidas
+        unread = Notification.objects.filter(
+            member=member,
+            is_acknowledged=False
+        ).select_related('transaction', 'flow_group').order_by('-created_at')[:99]
+        
+        count = unread.count()
+        print(f"[DEBUG CONTEXT] Unread notifications count: {count}")
+        
+        for notif in unread[:5]:  # Log apenas as 5 primeiras
+            print(f"[DEBUG CONTEXT]   - ID: {notif.id}, Type: {notif.notification_type}, Message: {notif.message}")
+        
+        return {
+            'unread_notifications_count': min(count, 99),
+            'unread_notifications': list(unread)
+        }
+    
+    except Exception as e:
+        print(f"[ERROR CONTEXT] Exception: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            'unread_notifications_count': 0,
+            'unread_notifications': []
+        }

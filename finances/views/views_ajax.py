@@ -10,6 +10,7 @@ from django.db import transaction as db_transaction
 from django.db.models import Max
 from django.shortcuts import get_object_or_404
 from moneyed import Money
+from ..notification_utils import create_new_transaction_notification
 
 # Importações relativas do app (.. sobe um nível, de /views/ para /finances/)
 from ..models import Transaction, FlowGroup, FamilyMember, BankBalance, FLOW_TYPE_INCOME
@@ -96,6 +97,8 @@ def save_flow_item_ajax(request):
         is_child_manual = data.get('is_child_manual', False)
         is_child_expense = data.get('is_child_expense', False)
         
+        print(f"[DEBUG] save_flow_item_ajax called - transaction_id: {transaction_id}, type: {type(transaction_id)}")
+        
         if not all([flow_group_id, description, amount_str, date_str]):
             return JsonResponse({'error': 'Missing required fields.'}, status=400)
         
@@ -118,12 +121,16 @@ def save_flow_item_ajax(request):
         if not can_access_flow_group(flow_group, current_member):
             return HttpResponseForbidden("You don't have permission to edit this group.")
 
-        if transaction_id and transaction_id != '0' and transaction_id is not None:
-            transaction = get_object_or_404(Transaction, id=transaction_id, flow_group=flow_group)
-            if member_id:
-                member = get_object_or_404(FamilyMember, id=member_id, family=family)
-                transaction.member = member
+        # Determinar se é nova transação ou edição
+        is_new = False
+        if not transaction_id or transaction_id == '0' or transaction_id == 'NEW' or transaction_id is None:
+            is_new = True
+            print(f"[DEBUG] New transaction detected")
         else:
+            print(f"[DEBUG] Updating existing transaction: {transaction_id}")
+            
+        if is_new:
+            # Nova transação
             max_order = Transaction.objects.filter(flow_group=flow_group).aggregate(max_order=Max('order'))['max_order']
             new_order = (max_order or 0) + 1
             transaction = Transaction(flow_group=flow_group, order=new_order)
@@ -133,6 +140,12 @@ def save_flow_item_ajax(request):
             else:
                 member = current_member
             transaction.member = member
+        else:
+            # Atualização de transação existente
+            transaction = get_object_or_404(Transaction, id=transaction_id, flow_group=flow_group)
+            if member_id:
+                member = get_object_or_404(FamilyMember, id=member_id, family=family)
+                transaction.member = member
 
         transaction.description = description
         transaction.amount = Money(abs(amount), currency)
@@ -146,6 +159,24 @@ def save_flow_item_ajax(request):
             transaction.is_child_expense = True
         
         transaction.save()
+        print(f"[DEBUG] Transaction saved with ID: {transaction.id}")
+
+        # Criar notificação SEMPRE (para novas transações e edições)
+        print(f"[DEBUG] Attempting to create notification for transaction {transaction.id}")
+        print(f"[DEBUG] Current member: {current_member.user.username} (ID: {current_member.id})")
+        print(f"[DEBUG] FlowGroup: {flow_group.name} (ID: {flow_group.id})")
+        
+        try:
+            notif_count = create_new_transaction_notification(
+                transaction=transaction,
+                exclude_member=current_member
+            )
+            print(f"[DEBUG] Notifications created: {notif_count}")
+        except Exception as e:
+            # Log error but don't fail the transaction
+            print(f"[ERROR] Error creating notification: {e}")
+            import traceback
+            traceback.print_exc()
         
         config = getattr(family, 'configuration', None)
         if config:
@@ -174,7 +205,7 @@ def save_flow_item_ajax(request):
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()
-        print(f"Error in save_flow_item_ajax: {error_trace}")
+        print(f"[ERROR] Error in save_flow_item_ajax: {error_trace}")
         return JsonResponse({'error': f'A server error occurred: {str(e)}'}, status=500)
 
 

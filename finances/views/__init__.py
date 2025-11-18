@@ -11,3 +11,4 @@ from .views_auth import *
 from .views_updater import *
 from .views_pages import *
 from .views_ajax import *
+from .views_notifications import *

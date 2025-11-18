@@ -1,0 +1,152 @@
+# finances/views/views_notifications.py
+
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+from django.utils import timezone
+from ..models import Notification, FamilyMember
+from ..notification_utils import check_and_create_notifications
+
+
+@login_required
+@require_http_methods(["GET"])
+def get_notifications_ajax(request):
+    """
+    Retorna as notificações não reconhecidas do usuário em formato JSON.
+    """
+    print(f"[DEBUG NOTIF API] get_notifications_ajax called by user: {request.user.username}")
+    
+    try:
+        member = FamilyMember.objects.filter(user=request.user).first()
+        if not member:
+            print(f"[ERROR NOTIF API] Member not found for user: {request.user.username}")
+            return JsonResponse({'success': False, 'error': 'Member not found'}, status=404)
+        
+        print(f"[DEBUG NOTIF API] Member found: {member.user.username} (ID: {member.id})")
+        
+        # Verifica e cria novas notificações (overdue, overbudget)
+        print(f"[DEBUG NOTIF API] Checking for new overdue/overbudget notifications...")
+        new_notifs = check_and_create_notifications(member.family, member)
+        print(f"[DEBUG NOTIF API] Created: {new_notifs}")
+        
+        # Busca notificações não reconhecidas
+        notifications = Notification.objects.filter(
+            member=member,
+            is_acknowledged=False
+        ).select_related('transaction', 'flow_group').order_by('-created_at')[:99]
+        
+        print(f"[DEBUG NOTIF API] Total unacknowledged notifications: {notifications.count()}")
+        
+        notifications_data = []
+        for notif in notifications:
+            print(f"[DEBUG NOTIF API]   - ID: {notif.id}, Type: {notif.notification_type}, Message: {notif.message}")
+            notifications_data.append({
+                'id': notif.id,
+                'type': notif.notification_type,
+                'message': notif.message,
+                'target_url': notif.target_url,
+                'created_at': notif.created_at.strftime('%Y-%m-%d %H:%M'),
+            })
+        
+        print(f"[DEBUG NOTIF API] Returning {len(notifications_data)} notifications")
+        
+        return JsonResponse({
+            'success': True,
+            'count': len(notifications_data),
+            'notifications': notifications_data
+        })
+    
+    except Exception as e:
+        print(f"[ERROR NOTIF API] Exception: {e}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def acknowledge_notification_ajax(request):
+    """
+    Marca uma notificação como reconhecida.
+    """
+    print(f"[DEBUG NOTIF ACK] acknowledge_notification_ajax called")
+    
+    try:
+        notification_id = request.POST.get('notification_id')
+        
+        print(f"[DEBUG NOTIF ACK] Notification ID: {notification_id}")
+        
+        if not notification_id:
+            return JsonResponse({'success': False, 'error': 'Notification ID required'}, status=400)
+        
+        member = FamilyMember.objects.filter(user=request.user).first()
+        if not member:
+            return JsonResponse({'success': False, 'error': 'Member not found'}, status=404)
+        
+        notification = Notification.objects.filter(
+            id=notification_id,
+            member=member
+        ).first()
+        
+        if not notification:
+            print(f"[ERROR NOTIF ACK] Notification {notification_id} not found for member {member.id}")
+            return JsonResponse({'success': False, 'error': 'Notification not found'}, status=404)
+        
+        print(f"[DEBUG NOTIF ACK] Acknowledging notification {notification_id}")
+        notification.acknowledge()
+        
+        # Retorna contagem atualizada
+        remaining_count = Notification.objects.filter(
+            member=member,
+            is_acknowledged=False
+        ).count()
+        
+        print(f"[DEBUG NOTIF ACK] Remaining notifications: {remaining_count}")
+        
+        return JsonResponse({
+            'success': True,
+            'remaining_count': min(remaining_count, 99)
+        })
+    
+    except Exception as e:
+        print(f"[ERROR NOTIF ACK] Exception: {e}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def acknowledge_all_notifications_ajax(request):
+    """
+    Marca todas as notificações do usuário como reconhecidas.
+    """
+    print(f"[DEBUG NOTIF ACK ALL] acknowledge_all_notifications_ajax called")
+    
+    try:
+        member = FamilyMember.objects.filter(user=request.user).first()
+        if not member:
+            return JsonResponse({'success': False, 'error': 'Member not found'}, status=404)
+        
+        # Atualiza todas as notificações não reconhecidas
+        updated_count = Notification.objects.filter(
+            member=member,
+            is_acknowledged=False
+        ).update(
+            is_acknowledged=True,
+            acknowledged_at=timezone.now()
+        )
+        
+        print(f"[DEBUG NOTIF ACK ALL] Acknowledged {updated_count} notifications")
+        
+        return JsonResponse({
+            'success': True,
+            'acknowledged_count': updated_count,
+            'remaining_count': 0
+        })
+    
+    except Exception as e:
+        print(f"[ERROR NOTIF ACK ALL] Exception: {e}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
