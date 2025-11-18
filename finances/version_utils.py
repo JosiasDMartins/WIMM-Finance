@@ -4,8 +4,8 @@ import re
 from typing import Tuple, Optional
 
 # Testing flags
-FORCE_UPDATE_FOR_TESTING = False  # Set to True to force update notifications even for equal versions
-SKIP_LOCAL_UPDATE = False  # Set to True to skip local update checks and go directly to GitHub
+FORCE_UPDATE_FOR_TESTING = True  # Set to True to force update notifications even for equal versions
+SKIP_LOCAL_UPDATE = True  # Set to True to skip local update checks and go directly to GitHub
 
 """
 Testing flags usage:

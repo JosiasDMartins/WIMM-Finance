@@ -14,6 +14,7 @@ def get_notifications_ajax(request):
     """
     Retorna as notificações não reconhecidas do usuário em formato JSON.
     """
+    print(f"[DEBUG NOTIF API] ========================================")
     print(f"[DEBUG NOTIF API] get_notifications_ajax called by user: {request.user.username}")
     
     try:
@@ -29,13 +30,23 @@ def get_notifications_ajax(request):
         new_notifs = check_and_create_notifications(member.family, member)
         print(f"[DEBUG NOTIF API] Created: {new_notifs}")
         
-        # Busca notificações não reconhecidas
+        # Busca notificações não reconhecidas - SEM FILTRO DE TIPO
         notifications = Notification.objects.filter(
             member=member,
             is_acknowledged=False
         ).select_related('transaction', 'flow_group').order_by('-created_at')[:99]
         
         print(f"[DEBUG NOTIF API] Total unacknowledged notifications: {notifications.count()}")
+        
+        # Log detalhado por tipo
+        notif_types = {}
+        for notif in notifications:
+            notif_type = notif.notification_type
+            if notif_type not in notif_types:
+                notif_types[notif_type] = 0
+            notif_types[notif_type] += 1
+        
+        print(f"[DEBUG NOTIF API] Notifications by type: {notif_types}")
         
         notifications_data = []
         for notif in notifications:
@@ -49,6 +60,7 @@ def get_notifications_ajax(request):
             })
         
         print(f"[DEBUG NOTIF API] Returning {len(notifications_data)} notifications")
+        print(f"[DEBUG NOTIF API] ========================================")
         
         return JsonResponse({
             'success': True,
@@ -92,7 +104,7 @@ def acknowledge_notification_ajax(request):
             print(f"[ERROR NOTIF ACK] Notification {notification_id} not found for member {member.id}")
             return JsonResponse({'success': False, 'error': 'Notification not found'}, status=404)
         
-        print(f"[DEBUG NOTIF ACK] Acknowledging notification {notification_id}")
+        print(f"[DEBUG NOTIF ACK] Acknowledging notification {notification_id} (type: {notification.notification_type})")
         notification.acknowledge()
         
         # Retorna contagem atualizada

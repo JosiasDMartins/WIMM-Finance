@@ -120,7 +120,7 @@ def create_new_transaction_notification(transaction, exclude_member=None):
         transaction: Transaction instance
         exclude_member: FamilyMember que não deve receber notificação (quem criou/editou)
     """
-    from .models import FamilyMember, Notification, FlowGroupAccess
+    from .models import FamilyMember, Notification
     
     print(f"[DEBUG NOTIF] Starting create_new_transaction_notification")
     print(f"[DEBUG NOTIF] Transaction: {transaction.id} - {transaction.description}")
@@ -130,10 +130,12 @@ def create_new_transaction_notification(transaction, exclude_member=None):
     flow_group = transaction.flow_group
     
     print(f"[DEBUG NOTIF] Family: {family.name}")
-    print(f"[DEBUG NOTIF] FlowGroup: {flow_group.name}")
+    print(f"[DEBUG NOTIF] FlowGroup: {flow_group.name} (ID: {flow_group.id})")
     print(f"[DEBUG NOTIF] FlowGroup type: {flow_group.group_type}")
     print(f"[DEBUG NOTIF] Is shared: {flow_group.is_shared}")
     print(f"[DEBUG NOTIF] Is kids group: {flow_group.is_kids_group}")
+    print(f"[DEBUG NOTIF] Transaction is_child_expense: {transaction.is_child_expense}")
+    print(f"[DEBUG NOTIF] Transaction is_child_manual_income: {transaction.is_child_manual_income}")
     
     # IMPORTANTE: Remove notificações antigas desta transação para evitar duplicatas
     deleted_count = Notification.objects.filter(
@@ -151,51 +153,15 @@ def create_new_transaction_notification(transaction, exclude_member=None):
     print(f"[DEBUG NOTIF] Total family members: {all_members.count()}")
     
     for member in all_members:
-        print(f"[DEBUG NOTIF] Checking member: {member.user.username} (role: {member.role})")
+        print(f"[DEBUG NOTIF] Checking member: {member.user.username} (role: {member.role}, ID: {member.id})")
         
         # Não notifica quem criou/editou a transação
-        if exclude_member and member.id == exclude_member.id:
-            print(f"[DEBUG NOTIF]   -> Skipped (is the editor)")
-            continue
+        #if exclude_member and member.id == exclude_member.id:
+        #    print(f"[DEBUG NOTIF]   -> Skipped (is the editor)")
+        #    continue
         
         # Verifica se o membro tem acesso ao FlowGroup
-        has_access = False
-        
-        if member.role in ['ADMIN', 'PARENT']:
-            print(f"[DEBUG NOTIF]   -> Member is ADMIN/PARENT")
-            # Admin e Parent sempre veem shared groups
-            if flow_group.is_shared:
-                has_access = True
-                print(f"[DEBUG NOTIF]   -> Access granted (shared group)")
-            # Admin e Parent veem seus próprios groups
-            elif flow_group.owner == member.user:
-                has_access = True
-                print(f"[DEBUG NOTIF]   -> Access granted (owner)")
-            # Admin e Parent veem groups onde foram explicitamente adicionados
-            elif flow_group.assigned_members.filter(id=member.id).exists():
-                has_access = True
-                print(f"[DEBUG NOTIF]   -> Access granted (assigned member)")
-            # Admin e Parent sempre veem Kids groups
-            elif flow_group.is_kids_group:
-                has_access = True
-                print(f"[DEBUG NOTIF]   -> Access granted (kids group)")
-        
-        elif member.role == 'CHILD':
-            print(f"[DEBUG NOTIF]   -> Member is CHILD")
-            # Children sempre veem Kids groups onde foram atribuídos
-            if flow_group.is_kids_group and flow_group.assigned_children.filter(id=member.id).exists():
-                has_access = True
-                print(f"[DEBUG NOTIF]   -> Access granted (assigned to kids group)")
-            # Children veem FlowGroups com acesso explícito
-            elif FlowGroupAccess.objects.filter(member=member, flow_group=flow_group).exists():
-                has_access = True
-                print(f"[DEBUG NOTIF]   -> Access granted (explicit access)")
-        
-        # Lançamentos de crianças sempre notificam parents e admin
-        if transaction.is_child_expense or transaction.is_child_manual_income:
-            if member.role in ['ADMIN', 'PARENT']:
-                has_access = True
-                print(f"[DEBUG NOTIF]   -> Access granted (child transaction)")
+        has_access = check_member_access_to_flow_group(member, flow_group, transaction)
         
         if has_access:
             members_to_notify.append(member)
@@ -210,10 +176,8 @@ def create_new_transaction_notification(transaction, exclude_member=None):
     for member in members_to_notify:
         creator_name = exclude_member.user.username if exclude_member else "Someone"
         
-        # Determina a ação (added/updated)
-        action = "added"  # Sempre "added" para simplificar
-        
-        message = f"{creator_name} {action} '{transaction.description}' in '{flow_group.name}'"
+        # Mensagem simplificada
+        message = f"{creator_name} added '{transaction.description}' in '{flow_group.name}'"
         
         # URL para o FlowGroup específico
         target_url = reverse('edit_flow_group', kwargs={'group_id': flow_group.id}) + f"?period={flow_group.period_start_date.strftime('%Y-%m-%d')}"
@@ -236,6 +200,75 @@ def create_new_transaction_notification(transaction, exclude_member=None):
     
     print(f"[DEBUG NOTIF] Total notifications created: {notifications_created}")
     return notifications_created
+
+
+def check_member_access_to_flow_group(member, flow_group, transaction=None):
+    """
+    Verifica se um membro tem acesso a um FlowGroup.
+    Considera transações de crianças.
+    
+    Args:
+        member: FamilyMember instance
+        flow_group: FlowGroup instance
+        transaction: Transaction instance (opcional, para casos especiais)
+    
+    Returns:
+        bool: True se o membro tem acesso
+    """
+    from .models import FlowGroupAccess
+    
+    print(f"[DEBUG ACCESS] Checking access for {member.user.username} to {flow_group.name}")
+    print(f"[DEBUG ACCESS]   Member role: {member.role}")
+    print(f"[DEBUG ACCESS]   FlowGroup owner: {flow_group.owner.username if flow_group.owner else 'None'}")
+    print(f"[DEBUG ACCESS]   Is shared: {flow_group.is_shared}")
+    print(f"[DEBUG ACCESS]   Is kids group: {flow_group.is_kids_group}")
+    
+    # ADMIN sempre tem acesso
+    if member.role == 'ADMIN':
+        print(f"[DEBUG ACCESS]   -> Access GRANTED (ADMIN)")
+        return True
+    
+    # PARENT verifica vários critérios
+    if member.role == 'PARENT':
+        # Dono do FlowGroup
+        if flow_group.owner == member.user:
+            print(f"[DEBUG ACCESS]   -> Access GRANTED (owner)")
+            return True
+        
+        # FlowGroup compartilhado
+        if flow_group.is_shared:
+            print(f"[DEBUG ACCESS]   -> Access GRANTED (shared group)")
+            return True
+        
+        # Kids group (PARENT sempre vê)
+        if flow_group.is_kids_group:
+            print(f"[DEBUG ACCESS]   -> Access GRANTED (kids group)")
+            return True
+        
+        # Membro explicitamente atribuído
+        if flow_group.assigned_members.filter(id=member.id).exists():
+            print(f"[DEBUG ACCESS]   -> Access GRANTED (assigned member)")
+            return True
+        
+        # Transação de criança (PARENT sempre vê)
+        if transaction and (transaction.is_child_expense or transaction.is_child_manual_income):
+            print(f"[DEBUG ACCESS]   -> Access GRANTED (child transaction)")
+            return True
+    
+    # CHILD verifica critérios específicos
+    if member.role == 'CHILD':
+        # Kids group onde foi atribuído
+        if flow_group.is_kids_group and flow_group.assigned_children.filter(id=member.id).exists():
+            print(f"[DEBUG ACCESS]   -> Access GRANTED (assigned to kids group)")
+            return True
+        
+        # Acesso explícito via FlowGroupAccess
+        if FlowGroupAccess.objects.filter(member=member, flow_group=flow_group).exists():
+            print(f"[DEBUG ACCESS]   -> Access GRANTED (explicit access)")
+            return True
+    
+    print(f"[DEBUG ACCESS]   -> Access DENIED")
+    return False
 
 
 def get_accessible_flow_groups(family, member):
