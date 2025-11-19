@@ -3,7 +3,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone 
 from decimal import Decimal 
 from djmoney.models.fields import MoneyField
@@ -142,6 +142,15 @@ class FamilyConfiguration(models.Model):
         max_length=3,
         default='USD',
         help_text="Base currency for the family (e.g., USD, BRL, EUR)"
+    )
+
+    # Bank reconciliation tolerance percentage
+    bank_reconciliation_tolerance = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=5.00,
+        validators=[MinValueValidator(0.01), MaxValueValidator(100.00)],
+        help_text="Percentage tolerance for bank reconciliation discrepancy warnings (e.g., 5.00 for 5%)"
     )
 
     def __str__(self):

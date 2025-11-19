@@ -182,7 +182,7 @@
             </div>
             <div class="ml-3">
                 <p class="text-sm text-yellow-700 dark:text-yellow-300">
-                    <strong>Budget Warning:</strong> Estimated expenses ($ {{ total_estimated|intcomma }}) exceed the budgeted amount ($ {{ flow_group.budgeted_amount|intcomma }}).
+                    <strong>Budget Warning:</strong> Estimated expenses ($ {{ total_estimated|floatformat:2|intcomma }}) exceed the budgeted amount ($ {{ flow_group.budgeted_amount|floatformat:2|intcomma }}).
                 </p>
             </div>
         </div>

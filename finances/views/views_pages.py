@@ -37,6 +37,7 @@ from .views_utils import (
     get_base_template_context,
     get_default_date_for_period,
     get_periods_history,
+    get_year_to_date_metrics,
     get_currency_symbol,
     VERSION,
 )
@@ -306,6 +307,7 @@ def dashboard_view(request):
         child_can_create_groups = child_manual_income_total > Decimal('0.00')
 
     periods_history = get_periods_history(family, start_date)
+    ytd_metrics = get_year_to_date_metrics(family, end_date)
 
     context = {
         'start_date': start_date,
@@ -323,6 +325,7 @@ def dashboard_view(request):
         'kids_income_entries': context_kids_income if member_role_for_period == 'CHILD' else [],
         'children_manual_income': children_manual_income if member_role_for_period in ['ADMIN', 'PARENT'] else {},
         'periods_history_json': json.dumps(periods_history),
+        'ytd_metrics': ytd_metrics,
     }
         
     period_currency = get_period_currency(family, start_date)
@@ -335,6 +338,8 @@ def dashboard_view(request):
 @login_required
 def configuration_view(request):
     """View for family settings."""
+    family, current_member, family_members = get_family_context(request.user)
+    
     try:
         member = FamilyMember.objects.select_related('family', 'family__configuration').get(user=request.user)
     except FamilyMember.DoesNotExist:
@@ -445,9 +450,13 @@ def configuration_view(request):
         else:
             form = FamilyConfigurationForm(instance=config)
 
+    # Add members data for the Members tab
     context = {
         'form': form,
         'family': family,
+        'family_members': family_members,
+        'add_member_form': NewUserAndMemberForm(),
+        'is_admin': current_member.role == 'ADMIN',
         'selected_period': selected_period,
         'start_date': start_date,
         'end_date': end_date,
@@ -458,7 +467,7 @@ def configuration_view(request):
         'VERSION': VERSION,
         'app_version': VERSION,
     }
-    
+
     return render(request, 'finances/configurations.html', context)
 
 
@@ -468,10 +477,14 @@ def bank_reconciliation_view(request):
     family, current_member, family_members = get_family_context(request.user)
     if not family:
         return redirect('dashboard')
-    
+
+    # Get tolerance configuration
+    config = family.configuration
+    tolerance = config.bank_reconciliation_tolerance
+
     query_period = request.GET.get('period')
     start_date, end_date, _ = get_current_period_dates(family, query_period)
-    
+
     member_role_for_period = get_member_role_for_period(current_member, start_date)
     mode = request.GET.get('mode', 'general')
     
@@ -510,7 +523,7 @@ def bank_reconciliation_view(request):
         
         discrepancy = total_bank_balance - calculated_balance
         discrepancy_percentage = abs(discrepancy / calculated_balance * 100) if calculated_balance != 0 else 0
-        has_warning = discrepancy_percentage > 5
+        has_warning = discrepancy_percentage > tolerance
         
         reconciliation_data = {
             'mode': 'general',
@@ -539,7 +552,7 @@ def bank_reconciliation_view(request):
             
             member_discrepancy = member_bank_balance - member_calculated_balance
             member_discrepancy_percentage = abs(member_discrepancy / member_calculated_balance * 100) if member_calculated_balance != 0 else 0
-            member_has_warning = member_discrepancy_percentage > 5
+            member_has_warning = member_discrepancy_percentage > tolerance
             
             members_data.append({
                 'member': member,
@@ -749,7 +762,9 @@ def edit_flow_group_view(request, group_id):
 
 @login_required
 def members_view(request):
-    """View to manage family members."""
+    """View to manage family members.
+    The template was marged to Configurations, but the view is still in use for redirects.
+    """
     family, current_member, family_members = get_family_context(request.user)
     if not family:
         return redirect('dashboard')

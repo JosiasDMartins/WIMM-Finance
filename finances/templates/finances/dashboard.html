@@ -32,28 +32,31 @@
             
             <!-- Metrics Card -->
             <div class="flex flex-col">
-                <h3 class="text-lg font-semibold text-[#0d171b] dark:text-white mb-3">Key Metrics</h3>
-                <div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-4 space-y-3" style="height: 220px;">
+                <h3 class="text-lg font-semibold text-[#0d171b] dark:text-white mb-3">Key Metrics (YTD)</h3>
+                <div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 space-y-2" style="height: 220px;">
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-600 dark:text-gray-400">Highest Expense</span>
-                        <span class="text-lg font-bold text-red-600 dark:text-red-500" id="metric-highest">$ 0.00</span>
+                        <span class="text-xs text-gray-600 dark:text-gray-400">YTD Income</span>
+                        <span class="text-sm font-bold text-green-600 dark:text-green-500">{{ currency_symbol }} {{ ytd_metrics.ytd_income|floatformat:2|intcomma }}</span>
                     </div>
                     <div class="h-px bg-gray-300 dark:bg-gray-600"></div>
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-600 dark:text-gray-400">Avg. Savings (12 periods)</span>
-                        <span class="text-lg font-bold text-green-600 dark:text-green-500" id="metric-avg-savings">$ 0.00</span>
+                        <span class="text-xs text-gray-600 dark:text-gray-400">YTD Savings</span>
+                        <span class="text-sm font-bold {% if ytd_metrics.ytd_savings >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %}">{{ currency_symbol }} {{ ytd_metrics.ytd_savings|floatformat:2|intcomma }}</span>
                     </div>
                     <div class="h-px bg-gray-300 dark:bg-gray-600"></div>
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-600 dark:text-gray-400">Expense Trend</span>
-                        <span class="text-lg font-bold" id="metric-trend">
-                            <span class="material-symbols-outlined align-middle">trending_flat</span>
-                        </span>
+                        <span class="text-xs text-gray-600 dark:text-gray-400">YTD Investments</span>
+                        <span class="text-sm font-bold text-blue-600 dark:text-blue-500">{{ currency_symbol }} {{ ytd_metrics.ytd_investments|floatformat:2|intcomma }}</span>
                     </div>
                     <div class="h-px bg-gray-300 dark:bg-gray-600"></div>
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-600 dark:text-gray-400">Income Commitment</span>
-                        <span class="text-lg font-bold" id="metric-commitment">0%</span>
+                        <span class="text-xs text-gray-600 dark:text-gray-400">Highest Expense</span>
+                        <span class="text-sm font-bold text-red-600 dark:text-red-500" id="metric-highest">$ 0.00</span>
+                    </div>
+                    <div class="h-px bg-gray-300 dark:bg-gray-600"></div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-gray-600 dark:text-gray-400">Income Commitment</span>
+                        <span class="text-sm font-bold" id="metric-commitment">0%</span>
                     </div>
                 </div>
             </div>
@@ -556,42 +559,41 @@
         });
     }
     
-    // Get Top 3 Expenses Data
+    // Get Top 3 Expenses Data (based on realized values only)
     function getTop3ExpensesData() {
         const expenseRows = document.querySelectorAll('tbody tr[data-group-id]');
         const expenses = [];
-        
+
         expenseRows.forEach(row => {
             // Get the first cell (after drag handle) which contains the group name
             const nameCell = row.querySelectorAll('td')[1]; // Second td (index 1)
             const nameText = nameCell.textContent.trim();
             // Get only the first line (group name) before any badges/labels
             const name = nameText.split('\n')[0].trim();
-            
-            const estimatedValue = parseFloat(row.querySelector('.group-estimated').getAttribute('data-value')) || 0;
+
+            // Use only realized values for the chart
             const realizedValue = parseFloat(row.querySelector('.group-realized').getAttribute('data-value')) || 0;
-            const value = Math.max(estimatedValue, realizedValue);
-            
-            if (value > 0) {
-                expenses.push({ name, value });
+
+            if (realizedValue > 0) {
+                expenses.push({ name, value: realizedValue });
             }
         });
-        
+
         // Sort by value descending
         expenses.sort((a, b) => b.value - a.value);
-        
+
         // Get top 3
         const top3 = expenses.slice(0, 3);
         const others = expenses.slice(3).reduce((sum, item) => sum + item.value, 0);
-        
+
         const labels = top3.map(e => e.name);
         const values = top3.map(e => e.value);
-        
+
         if (others > 0) {
             labels.push('Others');
             values.push(others);
         }
-        
+
         return { labels, values };
     }
     
@@ -605,10 +607,8 @@
         pieChart.update('none');
     }
     
-    // Update metrics card
+    // Update metrics card (only dynamic values)
     function updateMetrics() {
-        const barData = {{ periods_history_json|safe }};
-        
         // Highest expense (from current period)
         const expenseRows = document.querySelectorAll('tbody tr[data-group-id]');
         let highestExpense = 0;
@@ -619,37 +619,27 @@
             }
         });
         document.getElementById('metric-highest').textContent = '$ ' + formatCurrency(highestExpense);
-        
-        // Average savings (from 6 periods)
-        const avgSavings = barData.avg_savings || 0;
-        const avgSavingsElem = document.getElementById('metric-avg-savings');
-        avgSavingsElem.textContent = '$ ' + formatCurrency(Math.abs(avgSavings));
-        if (avgSavings < 0) {
-            avgSavingsElem.classList.remove('text-green-600', 'dark:text-green-500');
-            avgSavingsElem.classList.add('text-red-600', 'dark:text-red-500');
+
+        // Current commitment percentage (current period only)
+        const incomeElem = document.getElementById('balance-realized-income');
+        const expenseElem = document.getElementById('balance-realized-expense');
+
+        if (!incomeElem || !expenseElem) {
+            console.error('Balance elements not found');
+            return;
         }
-        
-        // Trend
-        const trend = barData.trend || 'stable';
-        const trendElem = document.getElementById('metric-trend');
-        if (trend === 'up') {
-            trendElem.innerHTML = '<span class="material-symbols-outlined align-middle text-red-600">trending_up</span>';
-        } else if (trend === 'down') {
-            trendElem.innerHTML = '<span class="material-symbols-outlined align-middle text-green-600">trending_down</span>';
-        } else {
-            trendElem.innerHTML = '<span class="material-symbols-outlined align-middle text-gray-600">trending_flat</span>';
-        }
-        
-        // Current commitment percentage
-        const realizedIncomeText = document.getElementById('balance-realized-income').textContent.replace('$', '').replace(/,/g, '').trim();
-        const realizedExpenseText = document.getElementById('balance-realized-expense').textContent.replace('$', '').replace(/,/g, '').trim();
+
+        // Remove all non-numeric characters except decimal point and minus sign
+        const realizedIncomeText = incomeElem.textContent.replace(/[^\d.-]/g, '');
+        const realizedExpenseText = expenseElem.textContent.replace(/[^\d.-]/g, '');
+
         const realizedIncome = parseFloat(realizedIncomeText) || 0;
         const realizedExpense = parseFloat(realizedExpenseText) || 0;
-        
+
         const commitment = realizedIncome > 0 ? (realizedExpense / realizedIncome * 100) : 0;
         const commitmentElem = document.getElementById('metric-commitment');
         commitmentElem.textContent = commitment.toFixed(1) + '%';
-        
+
         if (commitment >= 98) {
             commitmentElem.classList.remove('text-green-600', 'dark:text-green-500', 'text-yellow-600', 'dark:text-yellow-500');
             commitmentElem.classList.add('text-red-600', 'dark:text-red-500');

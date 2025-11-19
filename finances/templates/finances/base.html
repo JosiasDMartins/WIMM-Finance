@@ -56,18 +56,18 @@
 
             <nav class="flex flex-col justify-between flex-1 mt-6">
                 <div class="space-y-2">
-                    <a class="flex items-center px-4 py-2 text-gray-700 bg-gray-100 rounded-md dark:bg-gray-700 dark:text-gray-200" href="{% url 'dashboard' %}{% if selected_period %}?period={{ selected_period }}{% endif %}">
+                    <a class="flex items-center px-4 py-2 rounded-md {% if request.resolver_match.url_name == 'dashboard' %}text-gray-700 bg-gray-100 dark:bg-gray-700 dark:text-gray-200{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}" href="{% url 'dashboard' %}{% if selected_period %}?period={{ selected_period }}{% endif %}">
                         <span class="material-symbols-outlined">dashboard</span>
                         <span class="mx-4 font-medium">Dashboard</span>
                     </a>
-                    
-                    <a class="flex items-center px-4 py-2 text-gray-600 rounded-md dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700" href="{% url 'investments' %}{% if selected_period %}?period={{ selected_period }}{% endif %}">
+
+                    <a class="flex items-center px-4 py-2 rounded-md {% if request.resolver_match.url_name == 'investments' %}text-gray-700 bg-gray-100 dark:bg-gray-700 dark:text-gray-200{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}" href="{% url 'investments' %}{% if selected_period %}?period={{ selected_period }}{% endif %}">
                         <span class="material-symbols-outlined">trending_up</span>
                         <span class="mx-4 font-medium">Investments</span>
                         <span class="text-xs font-normal text-teal-600 dark:text-teal-500 ml-auto">Soon</span>
                     </a>
 
-                    <a class="flex items-center px-4 py-2 text-gray-600 rounded-md dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700" href="{% url 'configuration' %}{% if selected_period %}?period={{ selected_period }}{% endif %}">
+                    <a class="flex items-center px-4 py-2 rounded-md {% if request.resolver_match.url_name == 'configuration' or request.resolver_match.url_name == 'members' %}text-gray-700 bg-gray-100 dark:bg-gray-700 dark:text-gray-200{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}" href="{% url 'configuration' %}{% if selected_period %}?period={{ selected_period }}{% endif %}">
                         <span class="material-symbols-outlined">settings</span>
                         <span class="mx-4 font-medium">Settings</span>
                     </a>

@@ -158,17 +158,24 @@ class FamilyConfigurationForm(forms.ModelForm):
         choices=CURRENCY_CHOICES,
         label='Base Currency',
         widget=forms.Select(attrs={
-            'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent'
+            'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent'
         })
     )
-    
+
     class Meta:
         model = FamilyConfiguration
-        fields = ['starting_day', 'period_type', 'base_date', 'base_currency']
+        fields = ['starting_day', 'period_type', 'base_date', 'base_currency', 'bank_reconciliation_tolerance']
         widgets = {
             'starting_day': forms.NumberInput(attrs={'class': 'form-input'}),
             'period_type': forms.RadioSelect(choices=FamilyConfiguration.PERIOD_TYPES),
             'base_date': forms.DateInput(attrs={'class': 'form-input', 'type': 'date'}),
+            'bank_reconciliation_tolerance': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent',
+                'step': '0.01',
+                'min': '0.01',
+                'max': '100.00',
+                'placeholder': '5.00'
+            }),
         }
 
 # --- FlowGroup Form ---

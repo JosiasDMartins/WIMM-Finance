@@ -94,8 +94,8 @@ def create_overbudget_notifications(family, member):
             ).exists()
             
             if not existing:
-                over_amount = realized_total - budgeted
-                message = f"'{flow_group.name}' is over budget by {over_amount:.2f}"
+                over_amount = (realized_total - budgeted).quantize(Decimal('0.01'))
+                message = f"'{flow_group.name}' is over budget by {over_amount}"
                 
                 target_url = reverse('edit_flow_group', kwargs={'group_id': flow_group.id}) + f"?period={flow_group.period_start_date.strftime('%Y-%m-%d')}"
                 

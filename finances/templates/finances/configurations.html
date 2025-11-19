@@ -10,7 +10,7 @@
         <div x-data="{ activeTab: 'configuration' }" class="mb-6">
             <div class="border-b border-gray-200 dark:border-gray-700">
                 <nav class="-mb-px flex space-x-8">
-                    <button @click="activeTab = 'configuration'" 
+                    <button @click="activeTab = 'configuration'"
                             :class="activeTab === 'configuration' ? 'border-primary text-primary' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
                             class="border-b-2 py-4 px-1 text-sm font-medium transition-colors">
                         <span class="flex items-center gap-2">
@@ -18,16 +18,17 @@
                             Configuration
                         </span>
                     </button>
-                    
-                    <a href="{% url 'members' %}{% if selected_period %}?period={{ selected_period }}{% endif %}" 
-                       class="border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 py-4 px-1 text-sm font-medium">
+
+                    <button @click="activeTab = 'members'"
+                            :class="activeTab === 'members' ? 'border-primary text-primary' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
+                            class="border-b-2 py-4 px-1 text-sm font-medium transition-colors">
                         <span class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-lg">group</span>
                             Members
                         </span>
-                    </a>
-                    
-                    <button @click="activeTab = 'backup'" 
+                    </button>
+
+                    <button @click="activeTab = 'backup'"
                             :class="activeTab === 'backup' ? 'border-primary text-primary' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
                             class="border-b-2 py-4 px-1 text-sm font-medium transition-colors">
                         <span class="flex items-center gap-2">
@@ -35,8 +36,8 @@
                             Backup & Restore
                         </span>
                     </button>
-                    
-                    <button @click="activeTab = 'updates'" 
+
+                    <button @click="activeTab = 'updates'"
                             :class="activeTab === 'updates' ? 'border-primary text-primary' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
                             class="border-b-2 py-4 px-1 text-sm font-medium transition-colors">
                         <span class="flex items-center gap-2">
@@ -48,7 +49,7 @@
             </div>
             
             <!-- Configuration Tab -->
-            <div x-show="activeTab === 'configuration'" class="mt-6">
+            <div x-show="activeTab === 'configuration'" class="mt-6" x-cloak>
                 <form method="post" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
                     {% csrf_token %}
                     <div class="p-6 space-y-6">
@@ -78,15 +79,22 @@
                         <!-- Starting Day - Only for Monthly -->
                         <div id="starting-day-field" class="flex flex-col">
                             <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.starting_day.id_for_label }}">Starting Day of Month</label>
-                            {{ form.starting_day }}
+                            <input type="number" name="starting_day" id="{{ form.starting_day.id_for_label }}" value="{{ form.starting_day.value|default:'' }}" min="1" max="31" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                             <p class="text-xs text-gray-500 mt-1">Day of the month (1-31) that defines the cycle start.</p>
                         </div>
 
                         <!-- Base Date - Only for Bi-weekly/Weekly -->
                         <div id="base-date-field" class="flex flex-col" style="display: none;">
                             <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.base_date.id_for_label }}">Base Date for Cycle</label>
-                            {{ form.base_date }}
+                            <input type="date" name="base_date" id="{{ form.base_date.id_for_label }}" value="{{ form.base_date.value|default:'' }}" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                             <p class="text-xs text-gray-500 mt-1">Reference date used to calculate bi-weekly or weekly periods.</p>
+                        </div>
+
+                        <!-- Bank Reconciliation Tolerance -->
+                        <div class="flex flex-col">
+                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.bank_reconciliation_tolerance.id_for_label }}">Bank Reconciliation Tolerance (%)</label>
+                            {{ form.bank_reconciliation_tolerance }}
+                            <p class="text-xs text-gray-500 mt-1">Percentage tolerance for bank reconciliation discrepancy warnings (e.g., 5.00 for 5%).</p>
                         </div>
                     </div>
                     
@@ -97,9 +105,233 @@
                     </div>
                 </form>
             </div>
-            
+
+            <!-- Members Tab -->
+            <div x-show="activeTab === 'members'" class="mt-6" x-cloak x-data="{ editMemberId: null, editUsername: '', editEmail: '', editRole: '', showPasswordModal: false, passwordMemberId: null }">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-10 border border-primary/20">
+                    <h2 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">Add New Member</h2>
+
+                    {% if add_member_form.non_field_errors %}
+                        <div class="p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg dark:bg-red-200 dark:text-red-800" role="alert">
+                            <p><strong>Error:</strong> {{ add_member_form.non_field_errors }}</p>
+                        </div>
+                    {% endif %}
+
+                    <form method="POST" action="{% url 'member_add' %}{% if selected_period %}?period={{ selected_period }}{% endif %}">
+                        {% csrf_token %}
+                        <div class="grid grid-cols-1 gap-4 md:gap-6 md:grid-cols-5 items-end">
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="{{ add_member_form.username.id_for_label }}">
+                                    {{ add_member_form.username.label }}
+                                </label>
+                                {{ add_member_form.username }}
+                                {% for error in add_member_form.username.errors %}
+                                    <p class="mt-1 text-xs text-red-500">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="{{ add_member_form.email.id_for_label }}">
+                                    {{ add_member_form.email.label }}
+                                </label>
+                                {{ add_member_form.email }}
+                                {% for error in add_member_form.email.errors %}
+                                    <p class="mt-1 text-xs text-red-500">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="{{ add_member_form.password.id_for_label }}">
+                                    {{ add_member_form.password.label }}
+                                </label>
+                                {{ add_member_form.password }}
+                                {% for error in add_member_form.password.errors %}
+                                    <p class="mt-1 text-xs text-red-500">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="{{ add_member_form.role.id_for_label }}">
+                                    {{ add_member_form.role.label }}
+                                </label>
+                                {{ add_member_form.role }}
+                                {% for error in add_member_form.role.errors %}
+                                    <p class="mt-1 text-xs text-red-500">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+
+                            <div class="w-full">
+                                <button type="submit" class="w-full rounded-lg bg-primary text-white text-base font-bold p-3 h-12 flex items-center justify-center hover:bg-primary/90 transition-colors shadow-lg">
+                                    <span class="material-symbols-outlined mr-1">add</span>
+                                    Add
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead class="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Member</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Role</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                            {% for member in family_members %}
+                            <tr class="hover:bg-slate-50 dark:hover:bg-gray-700/50">
+                                <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white">{{ member.user.username }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-500">{{ member.user.email|default:"-" }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-500">
+                                    <span class="px-2 py-1 text-sm font-medium rounded-full bg-primary/20 text-primary">{{ member.get_role_display }}</span>
+                                </td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    <div class="flex justify-center gap-2">
+                                        {% if is_admin %}
+                                        <button type="button"
+                                                @click="editMemberId = {{ member.id }}; editUsername = '{{ member.user.username }}'; editEmail = '{{ member.user.email }}'; editRole = '{{ member.role }}'"
+                                                class="p-1 text-slate-500 hover:text-primary"
+                                                title="Edit">
+                                            <span class="material-symbols-outlined text-lg">edit</span>
+                                        </button>
+
+                                        <button type="button"
+                                                @click="passwordMemberId = {{ member.id }}; showPasswordModal = true"
+                                                class="p-1 text-slate-500 hover:text-blue-500"
+                                                title="Change Password">
+                                            <span class="material-symbols-outlined text-lg">key</span>
+                                        </button>
+
+                                        {% if member.user != request.user %}
+                                        <form method="POST" action="{% url 'member_remove' member_id=member.id %}{% if selected_period %}?period={{ selected_period }}{% endif %}" style="display: inline;">
+                                            {% csrf_token %}
+                                            <button type="submit"
+                                                    onclick="return confirm('Are you sure you want to remove {{ member.user.username }} from the family?')"
+                                                    class="p-1 text-slate-500 hover:text-red-500"
+                                                    title="Remove">
+                                                <span class="material-symbols-outlined text-lg">delete</span>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="px-6 py-4 text-sm text-gray-500 text-center">No members found in the family.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Edit Member Modal -->
+                <div x-show="editMemberId !== null"
+                     x-transition:enter="transition ease-out duration-300"
+                     x-transition:enter-start="opacity-0"
+                     x-transition:enter-end="opacity-100"
+                     x-transition:leave="transition ease-in duration-200"
+                     x-transition:leave-start="opacity-100"
+                     x-transition:leave-end="opacity-0"
+                     class="fixed inset-0 z-50 overflow-y-auto"
+                     style="display: none;">
+                    <div class="flex items-center justify-center min-h-screen px-4">
+                        <div class="fixed inset-0 bg-black opacity-50" @click="editMemberId = null"></div>
+
+                        <div class="relative bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 z-10">
+                            <h3 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">Edit Member</h3>
+
+                            <form method="POST" :action="`/members/edit/${editMemberId}/{% if selected_period %}?period={{ selected_period }}{% endif %}`">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="update_info">
+
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Username</label>
+                                        <input type="text" name="username" x-model="editUsername" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2" required>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
+                                        <input type="email" name="email" x-model="editEmail" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2">
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Role</label>
+                                        <select name="role" x-model="editRole" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2">
+                                            <option value="ADMIN">Admin</option>
+                                            <option value="PARENT">Parent</option>
+                                            <option value="CHILD">Child</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="mt-6 flex justify-end space-x-3">
+                                    <button type="button" @click="editMemberId = null" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                        Cancel
+                                    </button>
+                                    <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">
+                                        Save Changes
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Change Password Modal -->
+                <div x-show="showPasswordModal"
+                     x-transition:enter="transition ease-out duration-300"
+                     x-transition:enter-start="opacity-0"
+                     x-transition:enter-end="opacity-100"
+                     x-transition:leave="transition ease-in duration-200"
+                     x-transition:leave-start="opacity-100"
+                     x-transition:leave-end="opacity-0"
+                     class="fixed inset-0 z-50 overflow-y-auto"
+                     style="display: none;">
+                    <div class="flex items-center justify-center min-h-screen px-4">
+                        <div class="fixed inset-0 bg-black opacity-50" @click="showPasswordModal = false"></div>
+
+                        <div class="relative bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 z-10">
+                            <h3 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">Change Password</h3>
+
+                            <form method="POST" :action="`/members/edit/${passwordMemberId}/{% if selected_period %}?period={{ selected_period }}{% endif %}`">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="change_password">
+
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">New Password</label>
+                                        <input type="password" name="new_password" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2" required>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Confirm Password</label>
+                                        <input type="password" name="confirm_password" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2" required>
+                                    </div>
+                                </div>
+
+                                <div class="mt-6 flex justify-end space-x-3">
+                                    <button type="button" @click="showPasswordModal = false; passwordMemberId = null" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                        Cancel
+                                    </button>
+                                    <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">
+                                        Change Password
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Backup & Restore Tab -->
-            <div x-show="activeTab === 'backup'" class="mt-6 space-y-6">
+            <div x-show="activeTab === 'backup'" class="mt-6 space-y-6" x-cloak>
                 <!-- Database Backup Section -->
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
                     <div class="p-6">
@@ -182,7 +414,7 @@
             </div>
             
             <!-- Updates Tab -->
-            <div x-show="activeTab === 'updates'" class="mt-6 space-y-6">
+            <div x-show="activeTab === 'updates'" class="mt-6 space-y-6" x-cloak>
                 <!-- Current Version Info -->
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
                     <div class="p-6">
