@@ -5,7 +5,15 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>{% block title %}SweetMoney | Family Financial Flow{% endblock title %}</title>
-    
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/x-icon" href="{% static 'finances/images/favicons/favicon.ico' %}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'finances/images/favicons/favicon-16x16.png' %}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'finances/images/favicons/favicon-32x32.png' %}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'finances/images/favicons/apple-touch-icon.png' %}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'finances/images/favicons/android-chrome-192x192.png' %}">
+    <link rel="icon" type="image/png" sizes="512x512" href="{% static 'finances/images/favicons/android-chrome-512x512.png' %}">
+
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
@@ -35,8 +43,11 @@
             
             <div class="flex items-center justify-between">
                 <a href="{% url 'dashboard' %}{% if selected_period %}?period={{ selected_period }}{% endif %}" class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-3xl text-primary">savings</span>
-                    <span class="text-2xl font-bold text-gray-800 dark:text-white">SweetMoney</span>
+                    <img src="{% static 'finances/images/logo.png' %}" alt="SweetMoney" class="h-10 w-auto" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="flex items-center gap-2" style="display: none;">
+                        <span class="material-symbols-outlined text-3xl text-primary">savings</span>
+                        <span class="text-2xl font-bold text-gray-800 dark:text-white">SweetMoney</span>
+                    </div>
                 </a>
                 <button @click="sidebarOpen = false" class="md:hidden text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white">
                     <span class="material-symbols-outlined">close</span>
@@ -149,7 +160,7 @@
                             </span>
                             {% endif %}
                         </button>
-                        
+
                         <div id="notification-dropdown" class="hidden absolute right-0 mt-2 w-96 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-600 max-h-96 overflow-hidden z-50">
                             <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
                                 <h3 class="font-semibold text-gray-900 dark:text-white">Notifications</h3>
@@ -161,6 +172,11 @@
                                 </div>
                         </div>
                     </div>
+
+                    <button id="theme-toggle" class="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors" title="Toggle Dark Mode">
+                        <span class="material-symbols-outlined dark:hidden">dark_mode</span>
+                        <span class="material-symbols-outlined hidden dark:inline">light_mode</span>
+                    </button>
 
                     <form method="POST" action="{% url 'auth_logout' %}" style="display: inline;">
                         {% csrf_token %}
@@ -190,7 +206,26 @@
     {% include 'finances/update_modal.html' %}
 
     <script src="{% static 'finances/js/notifications.js' %}"></script>
-    
+
+    <script>
+        // Dark mode toggle functionality
+        const themeToggle = document.getElementById('theme-toggle');
+        const htmlElement = document.documentElement;
+
+        // Load saved theme preference or default to light mode
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        if (savedTheme === 'dark') {
+            htmlElement.classList.add('dark');
+        }
+
+        // Toggle theme on button click
+        themeToggle.addEventListener('click', () => {
+            htmlElement.classList.toggle('dark');
+            const newTheme = htmlElement.classList.contains('dark') ? 'dark' : 'light';
+            localStorage.setItem('theme', newTheme);
+        });
+    </script>
+
     {% block extra_js %}
     {% endblock %}
 </body>

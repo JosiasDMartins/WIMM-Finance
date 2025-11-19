@@ -3,3 +3,6 @@ config/local_settings.py
 db/db.sqlite3_bkp
 updater.md
 PASSWORD_RESET_SETUP.md
+finances/static/finances/images/README.md
+LOGO_SETUP_INSTRUCTIONS.md
+test_email_config.py

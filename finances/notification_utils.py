@@ -2,6 +2,7 @@
 
 from django.utils import timezone
 from django.urls import reverse
+from django.conf import settings
 from decimal import Decimal
 
 
@@ -121,71 +122,85 @@ def create_new_transaction_notification(transaction, exclude_member=None):
     exclude_member: FamilyMember who should not receive notifications (who created/edited)
     """
     from .models import FamilyMember, Notification
-    
-    print(f"[DEBUG NOTIF] Starting create_new_transaction_notification")
-    print(f"[DEBUG NOTIF] Transaction: {transaction.id} - {transaction.description}")
-    print(f"[DEBUG NOTIF] Exclude member: {exclude_member.user.username if exclude_member else 'None'}")
-    
+
+    debug_enabled = getattr(settings, 'DEBUG', False)
+
+    if debug_enabled:
+        print(f"[DEBUG NOTIF] Starting create_new_transaction_notification")
+        print(f"[DEBUG NOTIF] Transaction: {transaction.id} - {transaction.description}")
+        print(f"[DEBUG NOTIF] Exclude member: {exclude_member.user.username if exclude_member else 'None'}")
+
     family = transaction.flow_group.family
     flow_group = transaction.flow_group
-    
-    print(f"[DEBUG NOTIF] Family: {family.name}")
-    print(f"[DEBUG NOTIF] FlowGroup: {flow_group.name} (ID: {flow_group.id})")
-    print(f"[DEBUG NOTIF] FlowGroup type: {flow_group.group_type}")
-    print(f"[DEBUG NOTIF] Is shared: {flow_group.is_shared}")
-    print(f"[DEBUG NOTIF] Is kids group: {flow_group.is_kids_group}")
-    print(f"[DEBUG NOTIF] Transaction is_child_expense: {transaction.is_child_expense}")
-    print(f"[DEBUG NOTIF] Transaction is_child_manual_income: {transaction.is_child_manual_income}")
-    
+
+    if debug_enabled:
+        print(f"[DEBUG NOTIF] Family: {family.name}")
+        print(f"[DEBUG NOTIF] FlowGroup: {flow_group.name} (ID: {flow_group.id})")
+        print(f"[DEBUG NOTIF] FlowGroup type: {flow_group.group_type}")
+        print(f"[DEBUG NOTIF] Is shared: {flow_group.is_shared}")
+        print(f"[DEBUG NOTIF] Is kids group: {flow_group.is_kids_group}")
+        print(f"[DEBUG NOTIF] Transaction is_child_expense: {transaction.is_child_expense}")
+        print(f"[DEBUG NOTIF] Transaction is_child_manual_income: {transaction.is_child_manual_income}")
+
     # IMPORTANT: Remove old notifications for this transaction to avoid duplicates.
     deleted_count = Notification.objects.filter(
         transaction=transaction,
         notification_type='NEW_TRANSACTION',
         is_acknowledged=False
     ).delete()[0]
-    print(f"[DEBUG NOTIF] Deleted {deleted_count} old notifications")
+
+    if debug_enabled:
+        print(f"[DEBUG NOTIF] Deleted {deleted_count} old notifications")
     
     # Determines who should receive the notification
     members_to_notify = []
-    
+
     # For each family member
     all_members = family.members.all()
-    print(f"[DEBUG NOTIF] Total family members: {all_members.count()}")
-    
+
+    if debug_enabled:
+        print(f"[DEBUG NOTIF] Total family members: {all_members.count()}")
+
     for member in all_members:
-        print(f"[DEBUG NOTIF] Checking member: {member.user.username} (role: {member.role}, ID: {member.id})")
-        
+        if debug_enabled:
+            print(f"[DEBUG NOTIF] Checking member: {member.user.username} (role: {member.role}, ID: {member.id})")
+
         # Does not notify who created/edited the transaction
         #if exclude_member and member.id == exclude_member.id:
-        #    print(f"[DEBUG NOTIF]   -> Skipped (is the editor)")
+        #    if debug_enabled:
+        #        print(f"[DEBUG NOTIF]   -> Skipped (is the editor)")
         #    continue
-        
+
         # Verifica se o membro tem acesso ao FlowGroup
         has_access = check_member_access_to_flow_group(member, flow_group, transaction)
-        
+
         if has_access:
             members_to_notify.append(member)
-            print(f"[DEBUG NOTIF]   -> WILL BE NOTIFIED")
+            if debug_enabled:
+                print(f"[DEBUG NOTIF]   -> WILL BE NOTIFIED")
         else:
-            print(f"[DEBUG NOTIF]   -> NO ACCESS - will not be notified")
-    
-    print(f"[DEBUG NOTIF] Total members to notify: {len(members_to_notify)}")
+            if debug_enabled:
+                print(f"[DEBUG NOTIF]   -> NO ACCESS - will not be notified")
+
+    if debug_enabled:
+        print(f"[DEBUG NOTIF] Total members to notify: {len(members_to_notify)}")
     
     # Cria notificações
     notifications_created = 0
     for member in members_to_notify:
         creator_name = exclude_member.user.username if exclude_member else "Someone"
-        
+
         # Mensagem simplificada
         message = f"{creator_name} added '{transaction.description}' in '{flow_group.name}'"
-        
+
         # URL para o FlowGroup específico
         target_url = reverse('edit_flow_group', kwargs={'group_id': flow_group.id}) + f"?period={flow_group.period_start_date.strftime('%Y-%m-%d')}"
-        
-        print(f"[DEBUG NOTIF] Creating notification for {member.user.username}")
-        print(f"[DEBUG NOTIF]   Message: {message}")
-        print(f"[DEBUG NOTIF]   Target URL: {target_url}")
-        
+
+        if debug_enabled:
+            print(f"[DEBUG NOTIF] Creating notification for {member.user.username}")
+            print(f"[DEBUG NOTIF]   Message: {message}")
+            print(f"[DEBUG NOTIF]   Target URL: {target_url}")
+
         notif = Notification.objects.create(
             family=family,
             member=member,
@@ -195,10 +210,15 @@ def create_new_transaction_notification(transaction, exclude_member=None):
             message=message,
             target_url=target_url
         )
-        print(f"[DEBUG NOTIF]   Notification created with ID: {notif.id}")
+
+        if debug_enabled:
+            print(f"[DEBUG NOTIF]   Notification created with ID: {notif.id}")
+
         notifications_created += 1
-    
-    print(f"[DEBUG NOTIF] Total notifications created: {notifications_created}")
+
+    if debug_enabled:
+        print(f"[DEBUG NOTIF] Total notifications created: {notifications_created}")
+
     return notifications_created
 
 
@@ -218,58 +238,70 @@ def check_member_access_to_flow_group(member, flow_group, transaction=None):
 
     """
     from .models import FlowGroupAccess
-    
-    print(f"[DEBUG ACCESS] Checking access for {member.user.username} to {flow_group.name}")
-    print(f"[DEBUG ACCESS]   Member role: {member.role}")
-    print(f"[DEBUG ACCESS]   FlowGroup owner: {flow_group.owner.username if flow_group.owner else 'None'}")
-    print(f"[DEBUG ACCESS]   Is shared: {flow_group.is_shared}")
-    print(f"[DEBUG ACCESS]   Is kids group: {flow_group.is_kids_group}")
-    
+
+    debug_enabled = getattr(settings, 'DEBUG', False)
+
+    if debug_enabled:
+        print(f"[DEBUG ACCESS] Checking access for {member.user.username} to {flow_group.name}")
+        print(f"[DEBUG ACCESS]   Member role: {member.role}")
+        print(f"[DEBUG ACCESS]   FlowGroup owner: {flow_group.owner.username if flow_group.owner else 'None'}")
+        print(f"[DEBUG ACCESS]   Is shared: {flow_group.is_shared}")
+        print(f"[DEBUG ACCESS]   Is kids group: {flow_group.is_kids_group}")
+
     # ADMIN sempre tem acesso
     if member.role == 'ADMIN':
-        print(f"[DEBUG ACCESS]   -> Access GRANTED (ADMIN)")
+        if debug_enabled:
+            print(f"[DEBUG ACCESS]   -> Access GRANTED (ADMIN)")
         return True
     
     # PARENT verifica vários critérios
     if member.role == 'PARENT':
         # Dono do FlowGroup
         if flow_group.owner == member.user:
-            print(f"[DEBUG ACCESS]   -> Access GRANTED (owner)")
+            if debug_enabled:
+                print(f"[DEBUG ACCESS]   -> Access GRANTED (owner)")
             return True
-        
+
         # FlowGroup compartilhado
         if flow_group.is_shared:
-            print(f"[DEBUG ACCESS]   -> Access GRANTED (shared group)")
+            if debug_enabled:
+                print(f"[DEBUG ACCESS]   -> Access GRANTED (shared group)")
             return True
-        
+
         # Kids group (PARENT sempre vê)
         if flow_group.is_kids_group:
-            print(f"[DEBUG ACCESS]   -> Access GRANTED (kids group)")
+            if debug_enabled:
+                print(f"[DEBUG ACCESS]   -> Access GRANTED (kids group)")
             return True
-        
+
         # Membro explicitamente atribuído
         if flow_group.assigned_members.filter(id=member.id).exists():
-            print(f"[DEBUG ACCESS]   -> Access GRANTED (assigned member)")
+            if debug_enabled:
+                print(f"[DEBUG ACCESS]   -> Access GRANTED (assigned member)")
             return True
-        
+
         # Transação de criança (PARENT sempre vê)
         if transaction and (transaction.is_child_expense or transaction.is_child_manual_income):
-            print(f"[DEBUG ACCESS]   -> Access GRANTED (child transaction)")
+            if debug_enabled:
+                print(f"[DEBUG ACCESS]   -> Access GRANTED (child transaction)")
             return True
     
     # CHILD verifica critérios específicos
     if member.role == 'CHILD':
         # Kids group onde foi atribuído
         if flow_group.is_kids_group and flow_group.assigned_children.filter(id=member.id).exists():
-            print(f"[DEBUG ACCESS]   -> Access GRANTED (assigned to kids group)")
+            if debug_enabled:
+                print(f"[DEBUG ACCESS]   -> Access GRANTED (assigned to kids group)")
             return True
-        
+
         # Acesso explícito via FlowGroupAccess
         if FlowGroupAccess.objects.filter(member=member, flow_group=flow_group).exists():
-            print(f"[DEBUG ACCESS]   -> Access GRANTED (explicit access)")
+            if debug_enabled:
+                print(f"[DEBUG ACCESS]   -> Access GRANTED (explicit access)")
             return True
-    
-    print(f"[DEBUG ACCESS]   -> Access DENIED")
+
+    if debug_enabled:
+        print(f"[DEBUG ACCESS]   -> Access DENIED")
     return False
 
 

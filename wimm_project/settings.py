@@ -124,6 +124,15 @@ else:
         }
     }
 
+    # Load local settings for development (email configuration, etc.)
+    LOCAL_SETTINGS_PATH = BASE_DIR / 'config' / 'local_settings.py'
+    if os.path.exists(LOCAL_SETTINGS_PATH):
+        print(f"*** Loading local development settings from {LOCAL_SETTINGS_PATH} ***")
+        try:
+            exec(open(LOCAL_SETTINGS_PATH).read())
+        except Exception as e:
+            print(f"Error loading local settings: {e}")
+
 # 1. Configura o seu modelo CustomUser como o modelo padrão de usuário
 AUTH_USER_MODEL = 'finances.CustomUser'
 

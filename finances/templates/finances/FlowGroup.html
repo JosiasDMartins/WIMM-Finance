@@ -63,87 +63,97 @@
                 {% endif %}
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                <div class="md:col-span-2">
+            <div class="flex flex-col gap-6">
+
+                <!-- Group Name - compact width -->
+                <div class="flex flex-col">
                     <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="{{ form.name.id_for_label }}">Group Name</label>
-                    {{ form.name }}
+                    <div class="w-64">
+                        {{ form.name }}
+                    </div>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="{{ form.budgeted_amount.id_for_label }}">
-                        Budgeted Amount ($)
-                        {% if current_member.role == 'CHILD' %}
-                        <span class="text-xs text-gray-500">(Read-only for children)</span>
-                        {% endif %}
-                    </label>
-                    {{ form.budgeted_amount }}
-                </div>
-                
-                <input type="hidden" name="group_type" value="EXPENSE_MAIN">
+                <!-- Budgeted Amount and Checkboxes in same row -->
+                <div class="flex flex-wrap items-end gap-6">
+                    <!-- Budgeted Amount - compact width -->
+                    <div class="flex flex-col">
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="{{ form.budgeted_amount.id_for_label }}">
+                            Budgeted Amount ($)
+                            {% if current_member.role == 'CHILD' %}
+                            <span class="text-xs text-gray-500">(Read-only for children)</span>
+                            {% endif %}
+                        </label>
+                        <div class="w-64">
+                            {{ form.budgeted_amount }}
+                        </div>
+                    </div>
 
-                {% if current_member.role != 'CHILD' %}
-                <div class="flex items-center gap-4 flex-wrap">
-                    <label class="flex items-center p-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-slate-50 dark:bg-slate-700/50 cursor-pointer">
-                        <input class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" 
-                               id="id_is_shared" 
-                               name="is_shared" 
-                               type="checkbox" 
-                               onchange="handleSharedChange()"
-                               {% if flow_group.is_shared or flow_group.is_kids_group %}checked{% endif %}>
-                        <span class="ml-2 text-sm font-medium text-slate-700 dark:text-slate-300">Shared Group</span>
-                    </label>
-                    
-                    <div id="members-selection-container" class="flex items-center gap-2 flex-wrap" style="display: {% if flow_group.is_shared and not flow_group.is_kids_group %}flex{% else %}none{% endif %};">
-                        {% for member in form.assigned_members.field.queryset %}
-                        <label class="flex items-center p-2 border border-green-500/50 dark:border-green-500/30 rounded-lg bg-green-50 dark:bg-green-900/20 cursor-pointer hover:bg-green-100">
-                            <input type="checkbox" 
-                                   name="assigned_members" 
-                                   value="{{ member.id }}" 
-                                   class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                                   {% if member in flow_group.assigned_members.all %}checked{% endif %}>
-                            <span class="ml-2 text-sm text-slate-700 dark:text-slate-200">{{ member.user.username }}</span>
+                    <input type="hidden" name="group_type" value="EXPENSE_MAIN">
+
+                    {% if current_member.role != 'CHILD' %}
+                    <!-- Checkboxes aligned with bottom of Budgeted Amount input -->
+                    <div class="flex items-center gap-3 flex-wrap">
+                            <label class="flex items-center p-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-slate-50 dark:bg-slate-700/50 cursor-pointer">
+                                <input class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                                       id="id_is_shared"
+                                       name="is_shared"
+                                       type="checkbox"
+                                       onchange="handleSharedChange()"
+                                       {% if flow_group.is_shared or flow_group.is_kids_group %}checked{% endif %}>
+                                <span class="ml-2 text-sm font-medium text-slate-700 dark:text-slate-300">Shared Group</span>
+                            </label>
+
+                            <div id="members-selection-container" class="flex items-center gap-2 flex-wrap" style="display: {% if flow_group.is_shared and not flow_group.is_kids_group %}flex{% else %}none{% endif %};">
+                                {% for member in form.assigned_members.field.queryset %}
+                                <label class="flex items-center p-2 border border-green-500/50 dark:border-green-500/30 rounded-lg bg-green-50 dark:bg-green-900/20 cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/30">
+                                    <input type="checkbox"
+                                           name="assigned_members"
+                                           value="{{ member.id }}"
+                                           class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                                           {% if member in flow_group.assigned_members.all %}checked{% endif %}>
+                                    <span class="ml-2 text-sm text-slate-700 dark:text-slate-200">{{ member.user.username }}</span>
+                                </label>
+                                {% empty %}
+                                <span class="text-sm text-gray-500 dark:text-gray-400 p-2">No Parents/Admins</span>
+                                {% endfor %}
+                            </div>
+
+                            <label class="flex items-center p-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-slate-50 dark:bg-slate-700/50 cursor-pointer">
+                                <input class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                                       id="id_is_kids_group"
+                                       name="is_kids_group"
+                                       type="checkbox"
+                                       onchange="handleKidsChange()"
+                                       {% if flow_group.is_kids_group %}checked{% endif %}>
+                                <span class="ml-2 text-sm font-medium text-slate-700 dark:text-slate-300">Kids</span>
+                            </label>
+
+                            <div id="children-selection-container" class="flex items-center gap-2 flex-wrap" style="display: {% if flow_group.is_kids_group %}flex{% else %}none{% endif %};">
+                                {% for child in form.assigned_children.field.queryset %}
+                                <label class="flex items-center p-2 border border-primary/50 dark:border-primary/30 rounded-lg bg-primary/10 dark:bg-primary/20 cursor-pointer hover:bg-primary/20 dark:hover:bg-primary/30">
+                                    <input type="checkbox"
+                                           name="assigned_children"
+                                           value="{{ child.id }}"
+                                           class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                                           {% if child in flow_group.assigned_children.all %}checked{% endif %}>
+                                    <span class="ml-2 text-sm text-slate-700 dark:text-slate-200">{{ child.user.username }}</span>
+                                </label>
+                                {% empty %}
+                                <span class="text-sm text-gray-500 dark:text-gray-400 p-2">No children in family</span>
+                                {% endfor %}
+                            </div>
+
+                        <label class="flex items-center p-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-slate-50 dark:bg-slate-700/50 cursor-pointer">
+                            <input class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                                   id="id_is_investment"
+                                   name="is_investment"
+                                   type="checkbox"
+                                   {% if flow_group.is_investment %}checked{% endif %}>
+                            <span class="ml-2 text-sm font-medium text-slate-700 dark:text-slate-300">Investment</span>
                         </label>
-                        {% empty %}
-                        <span class="text-sm text-gray-500 p-2">No Parents/Admins</span>
-                        {% endfor %}
                     </div>
-                    
-                    <label class="flex items-center p-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-slate-50 dark:bg-slate-700/50 cursor-pointer">
-                        <input class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" 
-                               id="id_is_kids_group" 
-                               name="is_kids_group" 
-                               type="checkbox"
-                               onchange="handleKidsChange()"
-                               {% if flow_group.is_kids_group %}checked{% endif %}>
-                        <span class="ml-2 text-sm font-medium text-slate-700 dark:text-slate-300">Kids</span>
-                    </label>
-                    
-                    <div id="children-selection-container" class="flex items-center gap-2 flex-wrap" style="display: {% if flow_group.is_kids_group %}flex{% else %}none{% endif %};">
-                        {% for child in form.assigned_children.field.queryset %}
-                        <label class="flex items-center p-2 border border-primary/50 dark:border-primary/30 rounded-lg bg-primary/10 dark:bg-primary/20 cursor-pointer hover:bg-primary/20">
-                            <input type="checkbox" 
-                                   name="assigned_children" 
-                                   value="{{ child.id }}" 
-                                   class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                                   {% if child in flow_group.assigned_children.all %}checked{% endif %}>
-                            <span class="ml-2 text-sm text-slate-700 dark:text-slate-200">{{ child.user.username }}</span>
-                        </label>
-                        {% empty %}
-                        <span class="text-sm text-gray-500 p-2">No children in family</span>
-                        {% endfor %}
-                    </div>
-                    
-                    <label class="flex items-center p-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-slate-50 dark:bg-slate-700/50 cursor-pointer">
-                        <input class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" 
-                               id="id_is_investment" 
-                               name="is_investment" 
-                               type="checkbox"
-                               {% if flow_group.is_investment %}checked{% endif %}>
-                        <span class="ml-2 text-sm font-medium text-slate-700 dark:text-slate-300">Investment</span>
-                    </label>
+                    {% endif %}
                 </div>
-                {% endif %}                
             </div>
             
             {% if form.errors %}

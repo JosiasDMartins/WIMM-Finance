@@ -179,7 +179,7 @@ class FlowGroupForm(forms.ModelForm):
         decimal_places=2,
         required=True,
         widget=forms.NumberInput(attrs={
-            'class': 'form-input',
+            'class': 'w-full border rounded-lg bg-white dark:bg-gray-700 border-slate-300 dark:border-slate-600 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2',
             'step': '0.01',
             'min': '0',
             'placeholder': '0.00'
@@ -207,7 +207,7 @@ class FlowGroupForm(forms.ModelForm):
         model = FlowGroup
         fields = ['name', 'budgeted_amount', 'is_shared', 'is_kids_group', 'is_investment', 'assigned_members', 'assigned_children']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-input'}),
+            'name': forms.TextInput(attrs={'class': 'w-full border rounded-lg bg-white dark:bg-gray-700 border-slate-300 dark:border-slate-600 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2'}),
             'is_shared': forms.CheckboxInput(attrs={'class': 'shared-checkbox'}),
             'is_kids_group': forms.CheckboxInput(attrs={'class': 'kids-checkbox'}),
             'is_investment': forms.CheckboxInput(attrs={'class': 'investment-checkbox'}),

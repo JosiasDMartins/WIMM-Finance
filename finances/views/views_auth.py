@@ -21,7 +21,7 @@ from .views_utils import (
     get_base_template_context,
 )
 
-from ..context_processors import VERSION, db_version
+from ..context_processors import VERSION
 
 
 def initial_setup_view(request):
