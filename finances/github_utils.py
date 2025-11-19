@@ -58,26 +58,26 @@ def get_min_container_version_from_github() -> Optional[str]:
     """
     Fetches the minimum version that requires container update from GitHub.
     Reads the need_container_update.txt file from the main branch.
-    
+
     Returns:
         Version string (e.g., "1.0.0-alpha4") or None if failed
     """
     global _cached_container_version
-    
+
     # Return cached version if available
     if _cached_container_version is not None:
         return _cached_container_version
-    
+
     try:
         url = f"{GITHUB_RAW_CONTENT_URL}/need_container_update.txt"
         print(f"Fetching container version requirement from: {url}")
-        
+
         response = requests.get(url, timeout=5)
-        
+
         if response.status_code == 200:
-            # Read version from file (trim whitespace and newlines)
-            version = response.text.strip()
-            
+            # Read version from file (trim whitespace, newlines, and 'v' prefix)
+            version = response.text.strip().lstrip('v')
+
             if version:
                 print(f"Container update required for versions < {version}")
                 _cached_container_version = version
@@ -88,7 +88,7 @@ def get_min_container_version_from_github() -> Optional[str]:
         else:
             print(f"Failed to fetch need_container_update.txt. Status: {response.status_code}")
             return None
-            
+
     except Exception as e:
         print(f"Error fetching container version requirement: {str(e)}")
         return None

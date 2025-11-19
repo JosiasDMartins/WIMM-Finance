@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST, require_http_methods
 from django.db.utils import OperationalError, ProgrammingError
 from django.conf import settings
 
-from ..models import SystemVersion
+from ..models import SystemVersion, SkippedUpdate
 from ..version_utils import Version, needs_update
 from ..github_utils import (
     check_github_update, 
@@ -73,13 +73,23 @@ def check_for_updates(request):
             'can_skip': False
         })
     
-    # Sem atualizações locais, verifica GitHub
+    # No local updates, check GitHub
     has_github_update, github_release = check_github_update(target_version)
-    
+
     if has_github_update:
         github_version = github_release['version']
+
+        # Check if this version was already skipped
+        if SkippedUpdate.is_version_skipped(github_version):
+            print(f"[CHECK_UPDATES] Version {github_version} was skipped, not showing")
+            return JsonResponse({
+                'needs_update': False,
+                'current_version': target_version,
+                'target_version': target_version
+            })
+
         container_required = requires_container_update(target_version, github_version)
-        
+
         return JsonResponse({
             'needs_update': True,
             'update_type': 'github',
@@ -126,14 +136,15 @@ def manual_check_updates(request):
             'can_skip': False
         })
     
-    # Verifica GitHub
+    # Check GitHub (manual check clears skipped versions)
+    SkippedUpdate.clear_skipped_versions()
     has_github_update, github_release = check_github_update(target_version)
-    
-    # Se há update GitHub, retorna dados completos para abrir o modal
+
+    # If there's a GitHub update, return full data to open modal
     if has_github_update:
         github_version = github_release['version']
         container_required = requires_container_update(target_version, github_version)
-        
+
         return JsonResponse({
             'needs_update': True,
             'update_type': 'github',
@@ -477,18 +488,28 @@ def restore_backup(request):
 
 @require_http_methods(["POST"])
 def skip_updates(request):
-    """Skip GitHub updates by marking the current version."""
+    """Skip GitHub updates by marking the version as skipped in the database."""
     try:
         data = json.loads(request.body)
         update_type = data.get('update_type', 'local')
-        
+        version = data.get('version')
+
         if update_type == 'local':
             return JsonResponse({'success': False, 'error': 'Local updates cannot be skipped'}, status=400)
-        
-        target_version = VERSION
-        SystemVersion.set_version(target_version)
-        
-        return JsonResponse({'success': True, 'new_version': target_version})
-        
+
+        if not version:
+            return JsonResponse({'success': False, 'error': 'Version is required'}, status=400)
+
+        # Mark this version as skipped
+        SkippedUpdate.skip_version(version)
+        print(f"[SKIP_UPDATES] Version {version} marked as skipped")
+
+        return JsonResponse({
+            'success': True,
+            'skipped_version': version,
+            'message': f'Version {version} will not be shown again until a newer version is available'
+        })
+
     except Exception as e:
+        print(f"[SKIP_UPDATES] Error: {e}")
         return JsonResponse({'success': False, 'error': str(e)}, status=500)

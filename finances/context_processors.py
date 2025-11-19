@@ -41,7 +41,7 @@ def notifications_processor(request):
             'unread_notifications': []
         }
     
-    # Busca o FamilyMember do usuário atual
+    # Search for the current user's FamilyMember
     from .models import FamilyMember
     
     try:
@@ -55,7 +55,7 @@ def notifications_processor(request):
         
         print(f"[DEBUG CONTEXT] Member found: {member.user.username} (ID: {member.id})")
         
-        # Busca notificações não reconhecidas
+        # Search for unrecognized notifications
         unread = Notification.objects.filter(
             member=member,
             is_acknowledged=False
@@ -64,7 +64,7 @@ def notifications_processor(request):
         count = unread.count()
         print(f"[DEBUG CONTEXT] Unread notifications count: {count}")
         
-        for notif in unread[:5]:  # Log apenas as 5 primeiras
+        for notif in unread[:5]:  # Log only the first 5
             print(f"[DEBUG CONTEXT]   - ID: {notif.id}, Type: {notif.notification_type}, Message: {notif.message}")
         
         return {

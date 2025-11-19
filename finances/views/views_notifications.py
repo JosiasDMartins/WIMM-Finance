@@ -12,7 +12,7 @@ from ..notification_utils import check_and_create_notifications
 @require_http_methods(["GET"])
 def get_notifications_ajax(request):
     """
-    Retorna as notificações não reconhecidas do usuário em formato JSON.
+    Returns unacknowledged user notifications in JSON format.
     """
     print(f"[DEBUG NOTIF API] ========================================")
     print(f"[DEBUG NOTIF API] get_notifications_ajax called by user: {request.user.username}")
@@ -25,12 +25,12 @@ def get_notifications_ajax(request):
         
         print(f"[DEBUG NOTIF API] Member found: {member.user.username} (ID: {member.id})")
         
-        # Verifica e cria novas notificações (overdue, overbudget)
+        # Check and create new notifications (overdue, overbudget)
         print(f"[DEBUG NOTIF API] Checking for new overdue/overbudget notifications...")
         new_notifs = check_and_create_notifications(member.family, member)
         print(f"[DEBUG NOTIF API] Created: {new_notifs}")
         
-        # Busca notificações não reconhecidas - SEM FILTRO DE TIPO
+        # Search for unrecognized notifications - NO TYPE FILTER
         notifications = Notification.objects.filter(
             member=member,
             is_acknowledged=False
@@ -38,7 +38,7 @@ def get_notifications_ajax(request):
         
         print(f"[DEBUG NOTIF API] Total unacknowledged notifications: {notifications.count()}")
         
-        # Log detalhado por tipo
+        # Detailed log by type
         notif_types = {}
         for notif in notifications:
             notif_type = notif.notification_type
@@ -79,7 +79,7 @@ def get_notifications_ajax(request):
 @require_http_methods(["POST"])
 def acknowledge_notification_ajax(request):
     """
-    Marca uma notificação como reconhecida.
+    Mark a notification as acknowledged.
     """
     print(f"[DEBUG NOTIF ACK] acknowledge_notification_ajax called")
     
@@ -107,7 +107,7 @@ def acknowledge_notification_ajax(request):
         print(f"[DEBUG NOTIF ACK] Acknowledging notification {notification_id} (type: {notification.notification_type})")
         notification.acknowledge()
         
-        # Retorna contagem atualizada
+        # Returns updated count
         remaining_count = Notification.objects.filter(
             member=member,
             is_acknowledged=False
@@ -131,7 +131,7 @@ def acknowledge_notification_ajax(request):
 @require_http_methods(["POST"])
 def acknowledge_all_notifications_ajax(request):
     """
-    Marca todas as notificações do usuário como reconhecidas.
+    It marks all user notifications as acknowledged.
     """
     print(f"[DEBUG NOTIF ACK ALL] acknowledge_all_notifications_ajax called")
     

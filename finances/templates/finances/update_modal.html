@@ -72,9 +72,15 @@
                             <div class="text-sm text-green-800 dark:text-green-300 mb-2" id="release-notes">
                                 Loading release notes...
                             </div>
-                            <p class="text-xs text-green-700 dark:text-green-400">
-                                Released: <span id="release-date">-</span>
-                            </p>
+                            <div class="flex justify-between items-center">
+                                <p class="text-xs text-green-700 dark:text-green-400">
+                                    Released: <span id="release-date">-</span>
+                                </p>
+                                <a id="read-more-link" href="#" target="_blank" class="hidden text-xs text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200 font-medium flex items-center gap-1">
+                                    Read full release notes
+                                    <span class="material-symbols-outlined" style="font-size: 14px;">open_in_new</span>
+                                </a>
+                            </div>
                         </div>
                     </div>
                     
@@ -83,9 +89,9 @@
                         <div class="flex">
                             <span class="material-symbols-outlined text-red-500 mr-2">error</span>
                             <div>
-                                <h4 class="text-sm font-medium text-red-800 dark:text-red-200">Container Restart Required</h4>
+                                <h4 class="text-sm font-medium text-red-800 dark:text-red-200">Container Update Required</h4>
                                 <p class="text-sm text-red-700 dark:text-red-300 mt-1">
-                                    This update requires container restart. Please update your Docker image manually.
+                                    This update requires a full container update. Please update your Docker image manually.
                                 </p>
                             </div>
                         </div>

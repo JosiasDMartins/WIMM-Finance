@@ -5,7 +5,7 @@ from django.db.models import Sum, Q
 from django.utils import timezone
 from babel.numbers import get_group_symbol, get_currency_symbol as get_currency_symbol_babel
 
-# Importações relativas do app (.. sobe um nível, de /views/ para /finances/)
+# Relative imports from the app (.. moves up one level, from /views/ to /finances/)
 from ..models import (
     FamilyMember, FlowGroup, Transaction, SystemVersion,
     FLOW_TYPE_INCOME, FLOW_TYPE_EXPENSE
@@ -15,10 +15,8 @@ from ..utils import (
     get_period_currency
 )
 
+#Import global version (only files)
 from ..context_processors import VERSION
-
-# Versão global do App
-
 
 
 def get_thousand_separator():

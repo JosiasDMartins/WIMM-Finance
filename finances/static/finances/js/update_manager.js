@@ -234,63 +234,73 @@ class UpdateManager {
     
     showGithubUpdate(data) {
         console.log('[UpdateManager] Showing GitHub update');
-        
+
         const modalIcon = document.getElementById('modal-icon');
         const updateDesc = document.getElementById('update-description');
         const githubInfo = document.getElementById('github-info');
         const releaseName = document.getElementById('release-name');
         const releaseNotes = document.getElementById('release-notes');
         const releaseDate = document.getElementById('release-date');
+        const readMoreLink = document.getElementById('read-more-link');
         const containerWarning = document.getElementById('container-warning');
         const backupSection = document.getElementById('backup-section');
         const btnSkip = document.getElementById('btn-skip');
         const btnInstall = document.getElementById('btn-install-github');
         const btnViewRelease = document.getElementById('btn-view-release');
-        
+
         if (modalIcon) {
             modalIcon.className = 'material-symbols-outlined text-4xl text-green-500';
             modalIcon.textContent = 'cloud_download';
         }
-        
+
         if (updateDesc) {
             updateDesc.textContent = 'A new version is available on GitHub!';
         }
-        
+
         if (githubInfo) githubInfo.classList.remove('hidden');
         if (releaseName) {
             releaseName.textContent = data.github_release.name || `Version ${data.target_version}`;
         }
-        
-        // Limit release notes to 7 lines with fade effect
+
+        // Limit release notes to 5 lines with fade effect and read more link
         if (releaseNotes) {
             const notes = data.github_release.body || 'No release notes available.';
             const lines = notes.split('\n');
-            const maxLines = 7;
-            
+            const maxLines = 5;
+
             if (lines.length > maxLines) {
                 const limitedNotes = lines.slice(0, maxLines).join('\n');
                 const formattedNotes = this.formatMarkdown(limitedNotes);
-                
+
                 // Create container with fade effect
                 releaseNotes.innerHTML = `
-                    <div class="relative max-h-48 overflow-hidden">
+                    <div class="relative max-h-32 overflow-hidden">
                         <div>${formattedNotes}</div>
-                        <div class="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white dark:from-gray-800 to-transparent"></div>
+                        <div class="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-green-50 dark:from-green-900/20 to-transparent"></div>
                     </div>
                 `;
+
+                // Show read more link
+                if (readMoreLink) {
+                    readMoreLink.href = data.github_release.html_url;
+                    readMoreLink.classList.remove('hidden');
+                }
             } else {
                 releaseNotes.innerHTML = this.formatMarkdown(notes);
+                if (readMoreLink) {
+                    readMoreLink.classList.add('hidden');
+                }
             }
         }
-        
+
         if (releaseDate) {
             const date = new Date(data.github_release.published_at);
             releaseDate.textContent = date.toLocaleDateString();
         }
-        
+
         if (btnViewRelease) btnViewRelease.classList.remove('hidden');
         if (btnSkip) btnSkip.classList.remove('hidden');
-        
+
         if (data.requires_container) {
             // Container update required - manual process
             if (containerWarning) containerWarning.classList.remove('hidden');
@@ -481,10 +491,10 @@ class UpdateManager {
     }
     
     async skipUpdate() {
-        if (!confirm('Are you sure you want to skip this update? You can update later from settings.')) {
+        if (!confirm('Are you sure you want to skip this update? You won\'t be notified about this version again until a newer version is released.')) {
             return;
         }
-        
+
         try {
             const response = await fetch('/skip-updates/', {
                 method: 'POST',
@@ -493,17 +503,21 @@ class UpdateManager {
                     'X-CSRFToken': this.getCookie('csrftoken')
                 },
                 body: JSON.stringify({
-                    update_type: this.updateData.update_type
+                    update_type: this.updateData.update_type,
+                    version: this.updateData.target_version
                 })
             });
-            
+
             const data = await response.json();
-            
+
             if (data.success) {
                 document.getElementById('update-modal').classList.add('hidden');
+            } else {
+                alert('Failed to skip update: ' + (data.error || 'Unknown error'));
             }
         } catch (error) {
             console.error('[UpdateManager] Error skipping update:', error);
+            alert('Failed to skip update. Please try again.');
         }
     }
     

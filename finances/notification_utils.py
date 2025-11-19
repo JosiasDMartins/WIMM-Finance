@@ -7,28 +7,28 @@ from decimal import Decimal
 
 def create_overdue_notifications(family, member):
     """
-    Cria notificações para transações vencidas (realized=False e data passada).
-    Não cria duplicatas para transações já notificadas.
+    Creates notifications for overdue transactions (realized=False and past date).
+    Does not create duplicates for transactions that have already been notified.
     """
     from .models import Transaction, Notification, FlowGroup
     
     today = timezone.localdate()
     
-    # Busca transações não realizadas e vencidas
+    # Search for incomplete and overdue transactions
     overdue_transactions = Transaction.objects.filter(
         flow_group__family=family,
         realized=False,
         date__lt=today
     ).select_related('flow_group', 'member')
     
-    # Filtrar por permissões do membro
+    # Filter by member permissions
     accessible_flow_groups = get_accessible_flow_groups(family, member)
     overdue_transactions = overdue_transactions.filter(flow_group__in=accessible_flow_groups)
     
     notifications_created = 0
     
     for transaction in overdue_transactions:
-        # Verifica se já existe notificação não reconhecida para esta transação
+        # Checks if an unrecognized notification already exists for this transaction.
         existing = Notification.objects.filter(
             member=member,
             transaction=transaction,
@@ -40,7 +40,7 @@ def create_overdue_notifications(family, member):
             days_overdue = (today - transaction.date).days
             message = f"Transaction '{transaction.description}' is {days_overdue} day{'s' if days_overdue > 1 else ''} overdue"
             
-            # URL para o FlowGroup
+            # URL for the FlowGroup
             target_url = reverse('edit_flow_group', kwargs={'group_id': transaction.flow_group.id}) + f"?period={transaction.flow_group.period_start_date.strftime('%Y-%m-%d')}"
             
             Notification.objects.create(
@@ -64,10 +64,10 @@ def create_overbudget_notifications(family, member):
     from .models import FlowGroup, Notification
     from django.db.models import Sum, Q
     
-    # Busca FlowGroups acessíveis ao membro
+    # Search FlowGroups accessible to the member
     accessible_flow_groups = get_accessible_flow_groups(family, member)
     
-    # Filtra apenas FlowGroups de despesa (EXPENSE_MAIN e EXPENSE_SECONDARY)
+    # Filter only Expense Flow Groups (EXPENSE MAIN and EXPENSE SECONDARY)
     expense_groups = accessible_flow_groups.filter(
         Q(group_type='EXPENSE_MAIN') | Q(group_type='EXPENSE_SECONDARY')
     )
@@ -75,7 +75,7 @@ def create_overbudget_notifications(family, member):
     notifications_created = 0
     
     for flow_group in expense_groups:
-        # Calcula total realizado
+        # Calculate total amount spent
         realized_total = flow_group.transactions.filter(realized=True).aggregate(
             total=Sum('amount')
         )['total'] or Decimal('0')
@@ -84,7 +84,7 @@ def create_overbudget_notifications(family, member):
         
         # Verifica se está acima do orçamento
         if realized_total > budgeted:
-            # Verifica se já existe notificação não reconhecida
+            # Check if an unrecognized notification already exists.
             existing = Notification.objects.filter(
                 member=member,
                 flow_group=flow_group,
@@ -113,12 +113,12 @@ def create_overbudget_notifications(family, member):
 
 def create_new_transaction_notification(transaction, exclude_member=None):
     """
-    Cria notificações para uma transação nova ou editada.
-    Remove notificações antigas da mesma transação antes de criar nova.
-    
+    Creates notifications for a new or edited transaction.
+    Removes old notifications from the same transaction before creating a new one.
+
     Args:
-        transaction: Transaction instance
-        exclude_member: FamilyMember que não deve receber notificação (quem criou/editou)
+    transaction: Transaction instance
+    exclude_member: FamilyMember who should not receive notifications (who created/edited)
     """
     from .models import FamilyMember, Notification
     
@@ -137,7 +137,7 @@ def create_new_transaction_notification(transaction, exclude_member=None):
     print(f"[DEBUG NOTIF] Transaction is_child_expense: {transaction.is_child_expense}")
     print(f"[DEBUG NOTIF] Transaction is_child_manual_income: {transaction.is_child_manual_income}")
     
-    # IMPORTANTE: Remove notificações antigas desta transação para evitar duplicatas
+    # IMPORTANT: Remove old notifications for this transaction to avoid duplicates.
     deleted_count = Notification.objects.filter(
         transaction=transaction,
         notification_type='NEW_TRANSACTION',
@@ -145,17 +145,17 @@ def create_new_transaction_notification(transaction, exclude_member=None):
     ).delete()[0]
     print(f"[DEBUG NOTIF] Deleted {deleted_count} old notifications")
     
-    # Determina quem deve receber a notificação
+    # Determines who should receive the notification
     members_to_notify = []
     
-    # Para cada membro da família
+    # For each family member
     all_members = family.members.all()
     print(f"[DEBUG NOTIF] Total family members: {all_members.count()}")
     
     for member in all_members:
         print(f"[DEBUG NOTIF] Checking member: {member.user.username} (role: {member.role}, ID: {member.id})")
         
-        # Não notifica quem criou/editou a transação
+        # Does not notify who created/edited the transaction
         #if exclude_member and member.id == exclude_member.id:
         #    print(f"[DEBUG NOTIF]   -> Skipped (is the editor)")
         #    continue
@@ -204,16 +204,18 @@ def create_new_transaction_notification(transaction, exclude_member=None):
 
 def check_member_access_to_flow_group(member, flow_group, transaction=None):
     """
-    Verifica se um membro tem acesso a um FlowGroup.
-    Considera transações de crianças.
-    
+    Checks if a member has access to a FlowGroup.
+    Considers child transactions.
+
     Args:
-        member: FamilyMember instance
-        flow_group: FlowGroup instance
-        transaction: Transaction instance (opcional, para casos especiais)
-    
+
+    member: FamilyMember instance
+    flow_group: FlowGroup instance
+    transaction: Transaction instance (optional, for special cases)
+
     Returns:
-        bool: True se o membro tem acesso
+    bool: True if the member has access
+
     """
     from .models import FlowGroupAccess
     
@@ -273,7 +275,7 @@ def check_member_access_to_flow_group(member, flow_group, transaction=None):
 
 def get_accessible_flow_groups(family, member):
     """
-    Retorna QuerySet de FlowGroups acessíveis ao membro.
+    Returns a QuerySet of FlowGroups accessible to the member.
     """
     from .models import FlowGroup, FlowGroupAccess
     from django.db.models import Q
@@ -283,7 +285,7 @@ def get_accessible_flow_groups(family, member):
         return FlowGroup.objects.filter(family=family)
     
     elif member.role == 'PARENT':
-        # Parent vê: próprios, shared, kids groups, e onde foi explicitamente adicionado
+        # Parent views: own, shared, kids groups, and where it was explicitly added
         return FlowGroup.objects.filter(
             Q(family=family) & (
                 Q(owner=member.user) |
@@ -294,7 +296,7 @@ def get_accessible_flow_groups(family, member):
         ).distinct()
     
     elif member.role == 'CHILD':
-        # Child vê: kids groups onde foi atribuído e flow groups com acesso explícito
+        # Child sees: kids groups where it was assigned and flow groups with explicit access
         accessible_ids = set()
         
         # Kids groups
@@ -305,7 +307,7 @@ def get_accessible_flow_groups(family, member):
         ).values_list('id', flat=True)
         accessible_ids.update(kids_groups)
         
-        # FlowGroups com acesso explícito
+        # FlowGroups with explicit access
         explicit_access = FlowGroupAccess.objects.filter(
             member=member
         ).values_list('flow_group_id', flat=True)

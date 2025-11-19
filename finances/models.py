@@ -34,20 +34,20 @@ class SystemVersion(models.Model):
         help_text="Current system version (e.g., 1.0.0, 1.0.0-alpha1, 1.0.0-beta1, 2.0.0)"
     )
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         verbose_name = "System Version"
         verbose_name_plural = "System Versions"
-    
+
     def __str__(self):
         return f"v{self.version}"
-    
+
     @classmethod
     def get_current_version(cls):
         """Returns the current version stored in DB, or None if not set."""
         version_obj = cls.objects.first()
         return version_obj.version if version_obj else None
-    
+
     @classmethod
     def set_version(cls, version):
         """Sets or updates the system version in DB."""
@@ -55,6 +55,43 @@ class SystemVersion(models.Model):
         version_obj.version = version
         version_obj.save()
         return version_obj
+
+
+class SkippedUpdate(models.Model):
+    """
+    Tracks GitHub updates that the user chose to skip.
+    When a user skips an update, it won't be shown again until a newer version is available.
+    """
+    version = models.CharField(
+        max_length=50,
+        unique=True,
+        help_text="Version that was skipped (e.g., 1.0.0-alpha5)"
+    )
+    skipped_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Skipped Update"
+        verbose_name_plural = "Skipped Updates"
+        ordering = ['-skipped_at']
+
+    def __str__(self):
+        return f"Skipped v{self.version}"
+
+    @classmethod
+    def is_version_skipped(cls, version):
+        """Check if a specific version was skipped."""
+        return cls.objects.filter(version=version).exists()
+
+    @classmethod
+    def skip_version(cls, version):
+        """Mark a version as skipped."""
+        obj, created = cls.objects.get_or_create(version=version)
+        return obj
+
+    @classmethod
+    def clear_skipped_versions(cls):
+        """Clear all skipped versions (e.g., when user manually checks for updates)."""
+        cls.objects.all().delete()
 
 
 class Family(models.Model):
