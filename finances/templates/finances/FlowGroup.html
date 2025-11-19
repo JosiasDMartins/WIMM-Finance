@@ -184,7 +184,7 @@
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead>
                 <tr>
-                    <th class="px-6 py-3 text-center w-8 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Move</th>
+                    <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 40px;"></th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
                     <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
                     <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
@@ -195,16 +195,17 @@
             </thead>
             <tbody id="expense-items-body" class="divide-y divide-gray-200 dark:divide-gray-700">
                 {% for transaction in transactions %}
-                <tr id="item-{{ transaction.id }}" 
-                    data-item-id="{{ transaction.id }}" 
-                    data-mode="display" 
+                <tr id="item-{{ transaction.id }}"
+                    data-item-id="{{ transaction.id }}"
+                    data-mode="display"
                     data-realized="{{ transaction.realized|yesno:'true,false' }}"
                     data-amount="{{ transaction.amount.amount|default:transaction.amount|default:'0.00' }}"
-                    class="hover:bg-slate-50 dark:hover:bg-gray-700/50">
-                    
-                    <td class="px-6 py-4 text-center whitespace-nowrap">
-                        <button type="button" onclick="moveRow('item-{{ transaction.id }}', 'up')" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">arrow_upward</span></button>
-                        <button type="button" onclick="moveRow('item-{{ transaction.id }}', 'down')" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">arrow_downward</span></button>
+                    data-order="{{ forloop.counter }}"
+                    draggable="true"
+                    class="draggable-row hover:bg-slate-50 dark:hover:bg-gray-700/50">
+
+                    <td class="px-2 py-4 text-center drag-handle-cell">
+                        <span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle cursor-grab active:cursor-grabbing">drag_indicator</span>
                     </td>
                     <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white cell-description-display">{{ transaction.description }}</td>
                     <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white cell-description-edit hidden">
@@ -260,7 +261,7 @@
                 {% endfor %}
                 
                 <tr id="new-item-template" data-item-id="NEW" data-mode="edit" class="hover:bg-slate-50 dark:hover:bg-gray-700/50 hidden">
-                    <td class="px-6 py-4 text-center whitespace-nowrap actions-display"></td>
+                    <td class="px-2 py-4 text-center"></td>
                     <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white cell-description-display hidden"></td>
                     <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white cell-description-edit">
                         <input type="text" data-field="description" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm p-1" placeholder="New Item Description">
@@ -446,6 +447,10 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Set initial state based on existing values
         handleKidsChange();
+        // Initialize drag and drop
+        initializeDragAndDrop();
+        // Initialize toggle for new item
+        initializeNewItemToggle();
     });
 
     // Function to delete flow group
@@ -731,13 +736,119 @@
         toggleCircle.classList.remove('translate-x-4');
     }
 
-    // Function to save the order of items
+    // === DRAG AND DROP REORDERING FOR EXPENSE ITEMS ===
+
+    let draggedRow = null;
+    let draggedOverRow = null;
+
+    function initializeDragAndDrop() {
+        const tbody = document.getElementById('expense-items-body');
+        if (!tbody) return;
+
+        const rows = tbody.querySelectorAll('tr.draggable-row');
+
+        rows.forEach(row => {
+            row.addEventListener('dragstart', handleDragStart);
+            row.addEventListener('dragover', handleDragOver);
+            row.addEventListener('dragenter', handleDragEnter);
+            row.addEventListener('dragleave', handleDragLeave);
+            row.addEventListener('drop', handleDrop);
+            row.addEventListener('dragend', handleDragEnd);
+
+            // Prevent drag on non-drag-handle clicks
+            row.addEventListener('mousedown', function(e) {
+                if (!e.target.closest('.drag-handle-cell') && !e.target.closest('.drag-handle')) {
+                    this.setAttribute('draggable', 'false');
+                } else {
+                    this.setAttribute('draggable', 'true');
+                }
+            });
+        });
+
+        // Enable dragging only from handle
+        const dragHandles = tbody.querySelectorAll('.drag-handle');
+        dragHandles.forEach(handle => {
+            handle.addEventListener('mousedown', function(e) {
+                const row = this.closest('tr');
+                if (row) {
+                    row.setAttribute('draggable', 'true');
+                }
+            });
+        });
+    }
+
+    function handleDragStart(e) {
+        draggedRow = this;
+        this.style.opacity = '0.4';
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', this.innerHTML);
+    }
+
+    function handleDragOver(e) {
+        if (e.preventDefault) {
+            e.preventDefault();
+        }
+        e.dataTransfer.dropEffect = 'move';
+        return false;
+    }
+
+    function handleDragEnter(e) {
+        if (this !== draggedRow && this.id !== 'new-item-template') {
+            this.classList.add('border-t-2', 'border-primary');
+            draggedOverRow = this;
+        }
+    }
+
+    function handleDragLeave(e) {
+        this.classList.remove('border-t-2', 'border-primary');
+    }
+
+    function handleDrop(e) {
+        if (e.stopPropagation) {
+            e.stopPropagation();
+        }
+
+        if (draggedRow !== this && this.id !== 'new-item-template') {
+            // Get the tbody
+            const tbody = document.getElementById('expense-items-body');
+            const allRows = Array.from(tbody.querySelectorAll('tr.draggable-row'));
+
+            const draggedIndex = allRows.indexOf(draggedRow);
+            const targetIndex = allRows.indexOf(this);
+
+            // Move the dragged row
+            if (draggedIndex < targetIndex) {
+                this.parentNode.insertBefore(draggedRow, this.nextSibling);
+            } else {
+                this.parentNode.insertBefore(draggedRow, this);
+            }
+
+            // Save new order to backend
+            saveItemsOrder();
+        }
+
+        return false;
+    }
+
+    function handleDragEnd(e) {
+        this.style.opacity = '1';
+
+        // Remove all drag-related classes
+        const rows = document.querySelectorAll('tr.draggable-row');
+        rows.forEach(row => {
+            row.classList.remove('border-t-2', 'border-primary');
+        });
+
+        draggedRow = null;
+        draggedOverRow = null;
+    }
+
     function saveItemsOrder() {
         const tbody = document.getElementById('expense-items-body');
         if (!tbody) return;
-        
-        const rows = tbody.querySelectorAll('tr[data-item-id]:not(#new-item-template)');
-        
+
+        const rows = tbody.querySelectorAll('tr.draggable-row');
+
         const orderData = [];
         rows.forEach((row, index) => {
             const itemId = row.getAttribute('data-item-id');
@@ -748,9 +859,9 @@
                 });
             }
         });
-        
+
         if (orderData.length === 0) return;
-        
+
         fetch("{% url 'reorder_flow_items_ajax' %}", {
             method: 'POST',
             headers: {
@@ -775,39 +886,8 @@
         });
     }
 
-
-
-
-    function moveRow(rowId, direction) {
-        console.log(`Moving ${rowId} ${direction}`);
-        const row = document.getElementById(rowId);
-        if (!row) return;
-
-        const tbody = row.parentNode;
-        let moved = false;
-
-        if (direction === 'up' && row.previousElementSibling) {
-            const prevRow = row.previousElementSibling;
-            if (prevRow.id !== 'new-item-template') {
-                tbody.insertBefore(row, prevRow);
-                moved = true;
-            }
-        } else if (direction === 'down' && row.nextElementSibling) {
-            const nextRow = row.nextElementSibling;
-            if (nextRow.id !== 'new-item-template' || nextRow.classList.contains('hidden')) {
-                tbody.insertBefore(nextRow, row);
-                moved = true;
-            }
-        }
-
-        // If row was moved, save the new order
-        if (moved) {
-            saveItemsOrder();
-        }
-    }
-        
     // Add click handler for new item toggle
-    document.addEventListener('DOMContentLoaded', function() {
+    function initializeNewItemToggle() {
         const toggleNew = document.querySelector('.realized-toggle-new');
         if (toggleNew) {
             toggleNew.addEventListener('click', function() {
@@ -823,7 +903,7 @@
                 }
             });
         }
-    });
+    }
 
 </script>
 {% endblock content %}

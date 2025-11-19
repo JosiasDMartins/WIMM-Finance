@@ -2,6 +2,7 @@
 
 from django.urls import path
 from . import views
+from finances.views import views_password_reset
 
 urlpatterns = [
     # === SETUP (must be first) ===
@@ -73,6 +74,12 @@ urlpatterns = [
     path('api/notifications/', views.get_notifications_ajax, name='get_notifications_ajax'),
     path('api/notifications/acknowledge/', views.acknowledge_notification_ajax, name='acknowledge_notification_ajax'),
     path('api/notifications/acknowledge-all/', views.acknowledge_all_notifications_ajax, name='acknowledge_all_notifications_ajax'),
+
+    # Password Reset
+    path('password-reset/', views_password_reset.password_reset_request, name='password_reset_request'),
+    path('password-reset/verify/', views_password_reset.password_reset_verify, name='password_reset_verify'),
+    path('password-reset/confirm/', views_password_reset.password_reset_confirm, name='password_reset_confirm'),
+    path('password-reset/resend/', views_password_reset.password_reset_resend_code, name='password_reset_resend'),
 ]
 
 

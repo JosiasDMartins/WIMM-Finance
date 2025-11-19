@@ -429,3 +429,52 @@ class Notification(models.Model):
         self.is_acknowledged = True
         self.acknowledged_at = timezone.now()
         self.save()
+
+
+class PasswordResetCode(models.Model):
+    """
+    Stores password reset verification codes.
+    Each code is valid for a limited time and can only be used once.
+    """
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='password_reset_codes'
+    )
+    code = models.CharField(
+        max_length=10,
+        help_text="5-digit verification code sent to user's email"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    used_at = models.DateTimeField(null=True, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'code', 'is_used']),
+            models.Index(fields=['expires_at']),
+        ]
+
+    def __str__(self):
+        return f"Reset code for {self.user.username} - {'Used' if self.is_used else 'Active'}"
+
+    def is_valid(self):
+        """Check if the code is still valid (not expired and not used)."""
+        return not self.is_used and timezone.now() < self.expires_at
+
+    def mark_as_used(self, ip_address=None):
+        """Mark the code as used."""
+        self.is_used = True
+        self.used_at = timezone.now()
+        if ip_address:
+            self.ip_address = ip_address
+        self.save()
+
+    @classmethod
+    def cleanup_expired(cls):
+        """Remove expired codes older than 24 hours."""
+        cutoff = timezone.now() - timezone.timedelta(hours=24)
+        cls.objects.filter(expires_at__lt=cutoff).delete()

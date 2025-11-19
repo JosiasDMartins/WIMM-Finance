@@ -60,9 +60,9 @@
         </div>
     </div>
     
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <div class="lg:col-span-2 space-y-6">
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+
+        <div class="lg:col-span-3 space-y-6">
 
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
                 <div class="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
@@ -94,25 +94,27 @@
                                     Spent Total
                                 {% endif %}
                             </th>
-                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="expense-groups-tbody" class="divide-y divide-gray-200 dark:divide-gray-700">
                         {% for group in expense_groups %}
-                        <tr {% if group.is_child_group %}style="color: #DAA520;"{% endif %} data-group-id="{{ group.id }}" data-order="{{ group.order }}" draggable="true" class="draggable-row cursor-move hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                            <td class="px-2 py-4 text-center">
+                        <tr {% if group.is_child_group %}style="color: #DAA520;"{% elif not group.is_accessible %}class="opacity-50"{% endif %} data-group-id="{{ group.id }}" data-order="{{ group.order }}" data-accessible="{{ group.is_accessible|yesno:'true,false' }}" data-group-url="{% url 'edit_flow_group' group.id %}{% if selected_period %}?period={{ selected_period }}{% endif %}" draggable="true" class="draggable-row cursor-default hover:bg-gray-50 dark:hover:bg-gray-700/30 {% if group.is_accessible %}group-row-clickable{% endif %}">
+                            <td class="px-2 py-4 text-center drag-handle-cell">
                                 <span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle cursor-grab active:cursor-grabbing">drag_indicator</span>
                             </td>
-                            <td class="py-4 px-4 text-sm {% if not group.is_child_group %}text-[#0d171b] dark:text-white{% endif %}">
+                            <td class="py-4 px-4 text-sm {% if not group.is_child_group and group.is_accessible %}text-[#0d171b] dark:text-white{% elif not group.is_accessible %}text-gray-400 dark:text-gray-500{% endif %}">
                                 {{ group.name }}
                                 {% if group.is_child_group %}
                                     <span class="ml-2 text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 px-2 py-1 rounded-full">Child Group</span>
                                 {% elif group.budget_warning %}
                                 <span class="ml-2 text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 px-2 py-1 rounded-full">⚠ Over budget</span>
                                 {% endif %}
+                                {% if not group.is_accessible %}
+                                    <span class="ml-2 text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-1 rounded-full">No Access</span>
+                                {% endif %}
                             </td>
-                            <td class="py-4 px-4 text-sm {% if group.is_child_group %}font-medium{% elif group.budget_warning %}text-yellow-600 dark:text-yellow-500 font-semibold{% else %}text-gray-500 dark:text-gray-400{% endif %} text-right group-estimated" data-value="{{ group.total_estimated }}">{{ currency_symbol }} {{ group.total_estimated|intcomma }}</td>
-                            <td class="py-4 px-4 text-sm {% if group.is_child_group %}font-medium{% else %}text-red-600 dark:text-red-500{% endif %} text-right group-realized" data-value="{{ group.total_spent|default:'0.00' }}">
+                            <td class="py-4 px-4 text-sm {% if group.is_child_group %}font-medium{% elif group.budget_warning %}text-yellow-600 dark:text-yellow-500 font-semibold{% elif not group.is_accessible %}text-gray-400 dark:text-gray-500{% else %}text-gray-500 dark:text-gray-400{% endif %} text-right group-estimated" data-value="{{ group.total_estimated }}">{{ currency_symbol }} {{ group.total_estimated|intcomma }}</td>
+                            <td class="py-4 px-4 text-sm {% if group.is_child_group %}font-medium{% elif not group.is_accessible %}text-gray-400 dark:text-gray-500{% else %}text-red-600 dark:text-red-500{% endif %} text-right group-realized" data-value="{{ group.total_spent|default:'0.00' }}">
                                 {% if group.is_kids_group and member_role_for_period in 'PARENT,ADMIN' %}
                                     {% if group.realized %}
                                         {{ currency_symbol }} {{ group.budgeted_amount|intcomma }} ({{ currency_symbol }} {{ group.child_expenses|default:"0.00"|intcomma }})
@@ -121,13 +123,6 @@
                                     {% endif %}
                                 {% else %}
                                     {{ currency_symbol }} {{ group.total_spent|default:"0.00"|intcomma }}
-                                {% endif %}
-                            </td>
-                            <td class="py-4 px-4 text-right">
-                                {% if group.is_accessible %}
-                                    <a href="{% url 'edit_flow_group' group.id %}{% if selected_period %}?period={{ selected_period }}{% endif %}" class="{% if group.is_child_group %}text-yellow-600 hover:text-yellow-700{% else %}text-primary hover:text-primary/80{% endif %} text-sm">View Details</a>
-                                {% else %}
-                                    <span class="text-gray-400 dark:text-gray-600 text-sm cursor-not-allowed" title="You don't have access to this group">View Details</span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -140,9 +135,9 @@
                 </table>
             </div>
 
-        </div> 
-        
-        <div class="lg:col-span-1 space-y-6">
+        </div>
+
+        <div class="lg:col-span-2 space-y-6">
 
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
                 <div class="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
@@ -155,11 +150,11 @@
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead>
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
-                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
-                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">✓</th>
-                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
-                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 35%;">Description</th>
+                            <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 20%;">Date</th>
+                            <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 10%;">✓</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 20%;">Amount</th>
+                            <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 15%;">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="income-items-body" class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -167,30 +162,30 @@
                         {% if member_role_for_period == 'CHILD' %}
                             {% for kids_income in kids_income_entries %}
                                 <tr id="income-item-{{ kids_income.id }}" data-item-id="{{ kids_income.id }}" data-realized="{{ kids_income.realized|yesno:'true,false' }}" data-date="{{ kids_income.date|date:'Y-m-d' }}" data-amount="{{ kids_income.amount }}" data-kids-income="true" class="hover:bg-slate-50 dark:hover:bg-gray-700/50">
-                                    
-                                    <td class="py-3 px-4 text-sm text-[#0d171b] dark:text-white">
+
+                                    <td class="py-3 px-3 text-sm text-[#0d171b] dark:text-white">
                                         <div class="cell-description-display">{{ kids_income.description }}</div>
                                     </td>
-                                    
-                                    <td class="py-3 px-4 text-xs text-gray-500 dark:text-gray-400 text-center">
+
+                                    <td class="py-3 px-2 text-xs text-gray-500 dark:text-gray-400 text-center">
                                         <div class="cell-date-display">{{ kids_income.date|date:"d/m" }}</div>
                                     </td>
-                                    
-                                    <td class="py-3 px-4 text-center">
+
+                                    <td class="py-3 px-2 text-center">
                                         <button type="button" onclick="alert('Only Parents/Admins can change this status')" class="income-realized-toggle relative inline-block w-8 h-5 transition duration-200 ease-in-out rounded-full cursor-not-allowed opacity-60 {% if kids_income.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}" title="Only Parents/Admins can change this">
                                             <span class="absolute left-0 inline-block w-3 h-3 mt-1 ml-1 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if kids_income.realized %}translate-x-3{% endif %}"></span>
                                         </button>
                                     </td>
-                                    
-                                    <td class="py-3 px-4 text-sm text-right {% if kids_income.realized %}text-green-600 dark:text-green-500{% else %}text-gray-400 dark:text-gray-500{% endif %}">
+
+                                    <td class="py-3 px-3 text-sm text-right {% if kids_income.realized %}text-green-600 dark:text-green-500{% else %}text-gray-400 dark:text-gray-500{% endif %}">
                                         <div class="cell-amount-display"> {{ kids_income.amount|intcomma }}</div>
                                     </td>
-                                    
-                                    <td class="px-6 py-4 text-center whitespace-nowrap">
+
+                                    <td class="px-2 py-3 text-center whitespace-nowrap">
                                         <div class="actions-display">
                                             <span class="text-xs text-gray-400">Kids Budget</span>
                                         </div>
-                                    </td>                            
+                                    </td>
                                 </tr>
                             {% endfor %}
                         {% endif %}
@@ -198,44 +193,44 @@
                         {% comment %} Regular Income Transactions {% endcomment %}
                         {% for transaction in recent_income_transactions %}
                             <tr id="income-item-{{ transaction.id }}" data-item-id="{{ transaction.id }}" data-realized="{{ transaction.realized|yesno:'true,false' }}" data-date="{{ transaction.date|date:'Y-m-d' }}" data-amount="{{ transaction.amount }}" class="hover:bg-slate-50 dark:hover:bg-gray-700/50">
-                                
-                                <td class="py-3 px-4 text-sm text-[#0d171b] dark:text-white">
+
+                                <td class="py-3 px-3 text-sm text-[#0d171b] dark:text-white">
                                     <div class="cell-description-display">{{ transaction.description }}</div>
                                     <div class="cell-description-edit hidden">
                                         <input type="text" data-field="description" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs p-1" value="{{ transaction.description }}">
                                     </div>
                                 </td>
-                                
-                                <td class="py-3 px-4 text-xs text-gray-500 dark:text-gray-400 text-center">
+
+                                <td class="py-3 px-2 text-xs text-gray-500 dark:text-gray-400 text-center">
                                     <div class="cell-date-display">{{ transaction.date|date:"d/m" }}</div>
                                     <div class="cell-date-edit hidden">
                                         <input type="date" data-field="date" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs p-1" value="{{ transaction.date|date:'Y-m-d' }}">
                                     </div>
                                 </td>
-                                
-                                <td class="py-3 px-4 text-center">
+
+                                <td class="py-3 px-2 text-center">
                                     <button type="button" onclick="toggleIncomeRealized('income-item-{{ transaction.id }}')" class="income-realized-toggle relative inline-block w-8 h-5 transition duration-200 ease-in-out rounded-full cursor-pointer {% if transaction.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}">
                                         <span class="absolute left-0 inline-block w-3 h-3 mt-1 ml-1 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if transaction.realized %}translate-x-3{% endif %}"></span>
                                     </button>
                                 </td>
-                                
-                                <td class="py-3 px-4 text-sm text-right {% if transaction.realized %}text-green-600 dark:text-green-500{% else %}text-gray-400 dark:text-gray-500{% endif %}">
+
+                                <td class="py-3 px-3 text-sm text-right {% if transaction.realized %}text-green-600 dark:text-green-500{% else %}text-gray-400 dark:text-gray-500{% endif %}">
                                     <div class="cell-amount-display"> {{ transaction.amount|intcomma }}</div>
                                     <div class="cell-amount-edit hidden">
                                         <input type="number" step="0.01" data-field="amount" class="w-20 border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs text-right p-1" value="{{ transaction.amount.amount }}">
                                     </div>
                                 </td>
-                                
-                                <td class="px-6 py-4 text-center whitespace-nowrap">
-                                        <div class="actions-display">
+
+                                <td class="px-2 py-3 text-center whitespace-nowrap">
+                                        <div class="actions-display flex justify-center gap-1">
                                             <button type="button" onclick="toggleEditMode('income-item-{{ transaction.id }}', true)" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
                                             <button type="button" onclick="deleteItem('income-item-{{ transaction.id }}')" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
                                         </div>
-                                        <div class="actions-edit hidden space-x-2">
+                                        <div class="actions-edit hidden flex justify-center gap-1">
                                             <button type="button" onclick="saveItem('income-item-{{ transaction.id }}')" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
                                             <button type="button" onclick="toggleEditMode('income-item-{{ transaction.id }}', false)" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
                                         </div>
-                                </td>                            
+                                </td>
                             </tr>
                         {% empty %}
                             {% if member_role_for_period != 'CHILD' or not kids_income_entries %}
@@ -249,19 +244,19 @@
                         {% if member_role_for_period in 'PARENT,ADMIN' %}
                             {% for child_id, child_data in children_manual_income.items %}
                                 <tr class="hover:bg-slate-50 dark:hover:bg-gray-700/50 child-manual-income-row relative" data-child-id="{{ child_id }}">
-                                    <td class="py-3 px-4 text-sm font-medium" style="color: #DAA520;">
+                                    <td class="py-3 px-3 text-sm font-medium" style="color: #DAA520;">
                                         {{ child_data.member.user.first_name|default:child_data.member.user.username }}
                                     </td>
-                                    <td class="py-3 px-4 text-xs text-center" style="color: #DAA520;">
+                                    <td class="py-3 px-2 text-xs text-center" style="color: #DAA520;">
                                         <span class="text-xs">Manual</span>
                                     </td>
-                                    <td class="py-3 px-4 text-center">
+                                    <td class="py-3 px-2 text-center">
                                         <span class="text-xs text-gray-400">-</span>
                                     </td>
-                                    <td class="py-3 px-4 text-sm text-right font-medium" style="color: #DAA520;">
+                                    <td class="py-3 px-3 text-sm text-right font-medium" style="color: #DAA520;">
                                         {{ currency_symbol }} {{ child_data.total|intcomma }}
                                     </td>
-                                    <td class="px-6 py-4 text-center">
+                                    <td class="px-2 py-3 text-center">
                                         <span class="text-xs" style="color: #DAA520;">Child Income</span>
                                     </td>
                                     
@@ -288,21 +283,21 @@
                         {% endif %}
                         
                         <tr id="new-income-template" data-item-id="NEW" data-mode="edit" class="hover:bg-slate-50 dark:hover:bg-gray-700/50 hidden">
-                            <td class="py-3 px-4 text-sm text-[#0d171b] dark:text-white">
+                            <td class="py-3 px-3 text-sm text-[#0d171b] dark:text-white">
                                 <input type="text" data-field="description" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs p-1" placeholder="Description">
                             </td>
-                            
-                            <td class="py-3 px-4 text-xs text-gray-500">
+
+                            <td class="py-3 px-2 text-xs text-gray-500">
                                 <input type="date" data-field="date" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs p-1" value="{{ today_date }}">
                             </td>
-                            
-                            <td class="py-3 px-4 text-center">
+
+                            <td class="py-3 px-2 text-center">
                                 <div class="income-realized-toggle-new relative inline-block w-8 h-5 transition duration-200 ease-in-out rounded-full bg-gray-300 dark:bg-gray-600 cursor-pointer">
                                     <span class="absolute left-0 inline-block w-3 h-3 mt-1 ml-1 transition-transform duration-200 ease-in-out transform bg-white rounded-full"></span>
                                 </div>
                             </td>
-                            
-                            <td class="py-3 px-4 text-right" colspan="2">
+
+                            <td class="py-3 px-3 text-right" colspan="2">
                                 <div class="flex items-center justify-end gap-2">
                                     <input type="number" step="0.01" data-field="amount" class="w-20 border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs text-right p-1" value="0.00">
                                     <button type="button" onclick="saveIncomeItem('new-income-template')" class="p-1 text-green-500 hover:text-green-600"><span class="material-symbols-outlined text-base">check</span></button>
@@ -1042,14 +1037,15 @@
     // Initialize drag and drop on page load
     document.addEventListener('DOMContentLoaded', function() {
         initializeDragAndDrop();
+        initializeClickableRows();
     });
     
     function initializeDragAndDrop() {
         const tbody = document.getElementById('expense-groups-tbody');
         if (!tbody) return;
-        
+
         const rows = tbody.querySelectorAll('tr.draggable-row');
-        
+
         rows.forEach(row => {
             row.addEventListener('dragstart', handleDragStart);
             row.addEventListener('dragover', handleDragOver);
@@ -1057,6 +1053,61 @@
             row.addEventListener('dragleave', handleDragLeave);
             row.addEventListener('drop', handleDrop);
             row.addEventListener('dragend', handleDragEnd);
+        });
+    }
+
+    function initializeClickableRows() {
+        const tbody = document.getElementById('expense-groups-tbody');
+        if (!tbody) return;
+
+        const rows = tbody.querySelectorAll('tr.group-row-clickable');
+
+        rows.forEach(row => {
+            // Make row clickable (except drag handle)
+            row.addEventListener('click', function(e) {
+                // Don't navigate if clicking on drag handle
+                if (e.target.closest('.drag-handle-cell') || e.target.closest('.drag-handle')) {
+                    return;
+                }
+
+                const url = this.getAttribute('data-group-url');
+                if (url) {
+                    window.location.href = url;
+                }
+            });
+
+            // Add cursor pointer on hover (except drag handle)
+            row.addEventListener('mouseover', function(e) {
+                if (!e.target.closest('.drag-handle-cell') && !e.target.closest('.drag-handle')) {
+                    this.style.cursor = 'pointer';
+                }
+            });
+
+            row.addEventListener('mouseout', function(e) {
+                this.style.cursor = 'default';
+            });
+        });
+
+        // Prevent drag on non-drag-handle clicks
+        const dragHandles = tbody.querySelectorAll('.drag-handle');
+        dragHandles.forEach(handle => {
+            handle.addEventListener('mousedown', function(e) {
+                const row = this.closest('tr');
+                if (row) {
+                    row.setAttribute('draggable', 'true');
+                }
+            });
+        });
+
+        // Disable dragging when not on handle
+        rows.forEach(row => {
+            row.addEventListener('mousedown', function(e) {
+                if (!e.target.closest('.drag-handle-cell') && !e.target.closest('.drag-handle')) {
+                    this.setAttribute('draggable', 'false');
+                } else {
+                    this.setAttribute('draggable', 'true');
+                }
+            });
         });
     }
     

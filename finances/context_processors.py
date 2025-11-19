@@ -3,7 +3,7 @@ from .models import SystemVersion
 from .models import Notification
 
 #Files version
-VERSION = "1.0.0-alpha5"
+VERSION = "1.0.0-beta"
 
 
 #Legacy - This is the var name used at views_updater
