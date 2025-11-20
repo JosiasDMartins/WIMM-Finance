@@ -6,3 +6,18 @@ PASSWORD_RESET_SETUP.md
 finances/static/finances/images/README.md
 LOGO_SETUP_INSTRUCTIONS.md
 test_email_config.py
+
+# TailwindCSS binaries (platform-specific)
+tailwindcss-*
+node_modules/
+*.md
+docker_build/build_docker.old
+docker_build/build_docker.sh
+docker_build/build_scripts/docker-compose.yml
+docker_build/build_scripts/Dockerfile
+docker_build/build_scripts/entrypoint.sh
+docker_build/build_scripts/healthcheck.py
+docker_build/build_scripts/requirements.txt
+docker_build/build_scripts/update_monitor.py
+docker_build/docker-compose.example.yml
+docker_build/local_settings.example.py

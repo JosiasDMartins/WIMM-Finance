@@ -24,6 +24,7 @@ from ..github_utils import (
 from ..version_utils import SKIP_LOCAL_UPDATE, FORCE_UPDATE_FOR_TESTING
 
 from ..context_processors import VERSION
+from ..docker_utils import create_reload_flag, create_requirements_flag, create_migrate_flag
 
 
 
@@ -295,13 +296,17 @@ def apply_local_updates(request):
         if all_success:
             SystemVersion.set_version(VERSION)
             print(f"[APPLY_UPDATES] Version updated to {VERSION}")
-        
+
+            # 4. Create reload flag for Docker hot-reload
+            if create_reload_flag():
+                print(f"[APPLY_UPDATES] Reload flag created for Docker")
+
         response_data = {
             'success': all_success,
             'results': results,
             'new_version': VERSION if all_success else SystemVersion.get_current_version()
         }
-        
+
         print(f"[APPLY_UPDATES] Finished. Success: {all_success}")
         return JsonResponse(response_data)
         
@@ -351,12 +356,20 @@ def download_github_update(request):
             return JsonResponse({'success': False, 'error': 'Missing required parameters'}, status=400)
         
         success, message = download_and_extract_release(zipball_url)
-        
+
         if not success:
             return JsonResponse({'success': False, 'error': message})
-        
+
         SystemVersion.set_version(target_version)
-        
+
+        # Create flags for Docker hot-reload
+        # Check if requirements changed and create appropriate flags
+        requirements_changed = False  # TODO: Implement requirements comparison
+        if requirements_changed:
+            create_requirements_flag()
+        else:
+            create_reload_flag()
+
         return JsonResponse({
             'success': True,
             'message': message,

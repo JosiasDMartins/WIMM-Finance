@@ -18,8 +18,8 @@ urlpatterns = [
     # User Profile
     path('profile/', views.user_profile_view, name='user_profile'),
     
-    # Members
-    path('members/', views.members_view, name='members'),
+    # Members (integrated into Settings page - configurations.html)
+    path('members/', views.members_view, name='members'),  # Redirects to Settings for backward compatibility
     path('members/add/', views.add_member_view, name='member_add'),
     path('members/edit/<int:member_id>/', views.edit_member_view, name='member_edit'),
     path('members/remove/<int:member_id>/', views.remove_member_view, name='member_remove'), 

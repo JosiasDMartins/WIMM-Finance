@@ -762,25 +762,14 @@ def edit_flow_group_view(request, group_id):
 
 @login_required
 def members_view(request):
-    """View to manage family members.
-    The template was marged to Configurations, but the view is still in use for redirects.
     """
-    family, current_member, family_members = get_family_context(request.user)
-    if not family:
-        return redirect('dashboard')
-    
+    DEPRECATED: Members management is now integrated into the Settings page.
+    This view redirects to Settings for backward compatibility.
+    """
     query_period = request.GET.get('period')
-    start_date, end_date, _ = get_current_period_dates(family, query_period)
-
-    context = {
-        'family_members': family_members,
-        'add_member_form': NewUserAndMemberForm(),
-        'is_admin': current_member.role == 'ADMIN',
-        'start_date': start_date,
-        'end_date': end_date,
-    }
-    context.update(get_base_template_context(family, query_period, start_date))
-    return render(request, 'finances/members.html', context)
+    if query_period:
+        return redirect(f'/settings/?period={query_period}')
+    return redirect('configuration')
 
 
 @login_required

@@ -88,7 +88,7 @@ ALLOWED_HOSTS = []
 CSRF_TRUSTED_ORIGINS = []
 DEBUG = False
 
-EXTERNAL_SETTINGS_PATH = '/vol/config/local_settings.py'
+EXTERNAL_SETTINGS_PATH = '/app/config/local_settings.py'
 
 if os.path.exists(EXTERNAL_SETTINGS_PATH):
     print(f"*** Loading external settings ***")
@@ -97,11 +97,11 @@ if os.path.exists(EXTERNAL_SETTINGS_PATH):
         # The external file can redefine ALLOWED_HOSTS, DATABASES, CSRF_TRUSTED_ORIGINS, etc.
         #It means that SweetMoney is running from a container - Deployment mode
         exec(open(EXTERNAL_SETTINGS_PATH).read())
-    except Exception as e:        
+    except Exception as e:
         print(f"Critical error when loading external settings: {e}")
 
-    
-    DB_PATH = os.environ.get('DB_PATH', '/vol/db/db.sqlite3')
+
+    DB_PATH = os.environ.get('DB_PATH', '/app/db/db.sqlite3')
 
     DEBUG = False
 

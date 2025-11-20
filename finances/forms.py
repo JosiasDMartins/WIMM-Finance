@@ -321,9 +321,9 @@ class NewUserAndMemberForm(forms.Form):
         widget=forms.TextInput(attrs={'class': 'w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2', 'required': True})
     )
     email = forms.EmailField(
-        label='Email (Optional)',
-        required=False,
-        widget=forms.EmailInput(attrs={'class': 'w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2'})
+        label='Email',
+        required=True,
+        widget=forms.EmailInput(attrs={'class': 'w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2', 'required': True})
     )
     password = forms.CharField(
         label='Password',
@@ -346,9 +346,10 @@ class NewUserAndMemberForm(forms.Form):
 
     def clean_email(self):
         email = self.cleaned_data.get('email')
-        if email:
-            # Get the User model dynamically
-            UserModel = get_user_model() 
-            if UserModel.objects.filter(email__iexact=email).exists():
-                raise forms.ValidationError("An account with this email address already exists.")
+        if not email:
+            raise forms.ValidationError("Email is required.")
+        # Get the User model dynamically
+        UserModel = get_user_model()
+        if UserModel.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError("An account with this email address already exists.")
         return email
