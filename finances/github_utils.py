@@ -284,36 +284,36 @@ def download_and_extract_release(zipball_url: str) -> Tuple[bool, str]:
 def create_database_backup():
     """
     Creates a backup of the database.
-    
+
     Returns:
-        Tuple of (success: bool, backup_path: str or error_message: str)
+        Tuple of (success: bool, message: str, backup_path: Path or None)
     """
     try:
         from django.conf import settings
         import shutil
         from datetime import datetime
-        
+
         # Create backups directory if it doesn't exist
         backups_dir = Path(settings.BASE_DIR) / 'backups'
         backups_dir.mkdir(exist_ok=True)
-        
+
         # Source database file
         db_path = Path(settings.DATABASES['default']['NAME'])
-        
+
         if not db_path.exists():
-            return False, "Database file not found"
-        
+            return False, "Database file not found", None
+
         # Create backup filename with timestamp
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         backup_filename = f'db_backup_{timestamp}.sqlite3'
         backup_path = backups_dir / backup_filename
-        
+
         # Copy database file
         shutil.copy2(db_path, backup_path)
-        
+
         print(f"Database backup created: {backup_path}")
-        return True, str(backup_filename)
-        
+        return True, "Backup created successfully", backup_path
+
     except Exception as e:
         print(f"Error creating backup: {str(e)}")
-        return False, str(e)
+        return False, str(e), None

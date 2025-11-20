@@ -516,14 +516,21 @@ document.addEventListener('DOMContentLoaded', function() {
     
    
     // Backup functionality
-    document.getElementById('btn-create-db-backup')?.addEventListener('click', async function() {
+    const backupBtn = document.getElementById('btn-backup-db');
+    if (!backupBtn) {
+        console.error('Backup button not found! Expected ID: btn-backup-db');
+    }
+
+    backupBtn?.addEventListener('click', async function() {
+        console.log('Backup button clicked');
         const btn = this;
         const originalText = btn.innerHTML;
-        
+
         btn.disabled = true;
         btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Creating backup...';
-        
+
         try {
+            console.log('Sending backup request to /create-backup/');
             const response = await fetch('/create-backup/', {
                 method: 'POST',
                 headers: {
@@ -531,12 +538,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     'X-CSRFToken': getCookie('csrftoken')
                 }
             });
-            
+
+            console.log('Backup response status:', response.status);
             const data = await response.json();
-            
+            console.log('Backup response data:', data);
+
             if (data.success) {
+                console.log('Redirecting to download:', data.filename);
                 window.location.href = `/download-backup/${data.filename}/`;
             } else {
+                console.error('Backup failed:', data.error);
                 alert('Failed to create backup: ' + data.error);
             }
         } catch (error) {

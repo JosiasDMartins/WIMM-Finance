@@ -390,19 +390,25 @@ def create_backup(request):
     """Create a backup of the database."""
     try:
         success, message, backup_path = create_database_backup()
-        
+
         if success and backup_path:
+            # Ensure backup_path is a Path object or convert to string
+            filename = backup_path.name if hasattr(backup_path, 'name') else str(backup_path)
             return JsonResponse({
                 'success': True,
                 'message': message,
-                'filename': backup_path.name,
-                'download_url': f'/download-backup/{backup_path.name}/'
+                'filename': filename,
+                'download_url': f'/download-backup/{filename}/'
             })
         else:
-            return JsonResponse({'success': False, 'error': message}, status=500)
-            
+            error_msg = message if message else "Unknown error creating backup"
+            return JsonResponse({'success': False, 'error': error_msg}, status=500)
+
     except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"Backup error: {error_detail}")
+        return JsonResponse({'success': False, 'error': f'Server error: {str(e)}'}, status=500)
 
 
 @require_http_methods(["GET"])
