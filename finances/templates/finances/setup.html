@@ -547,14 +547,15 @@
             restoreSection.classList.remove('hidden');
             setupSection.classList.add('hidden');
             btnShowRestore.classList.add('bg-teal-50');
-            btnShowSetup.classList.remove('bg-teal-500');
+            btnShowSetup.classList.remove('bg-teal-500', 'text-white');
             btnShowSetup.classList.add('border-2', 'border-teal-500', 'text-teal-600');
         });
-        
+
         btnShowSetup?.addEventListener('click', function() {
             setupSection.classList.remove('hidden');
             restoreSection.classList.add('hidden');
-            btnShowSetup.classList.add('bg-teal-500');
+            btnShowSetup.classList.remove('border-2', 'border-teal-500', 'text-teal-600');
+            btnShowSetup.classList.add('bg-teal-500', 'text-white');
             btnShowRestore.classList.remove('bg-teal-50');
         });
         
@@ -594,14 +595,22 @@
                     },
                     body: formData
                 });
-                
+
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Non-JSON response:', text);
+                    throw new Error('Server returned non-JSON response. Please check server logs.');
+                }
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     // Show backup info
                     restoreInfo.classList.remove('hidden');
                     document.getElementById('family-name').textContent = data.family.name;
-                    
+
                     const usersList = document.getElementById('users-list');
                     usersList.innerHTML = '';
                     data.users.forEach(user => {
@@ -609,21 +618,34 @@
                         li.textContent = `${user.username} (${user.role})${user.email ? ' - ' + user.email : ''}`;
                         usersList.appendChild(li);
                     });
-                    
+
+                    // Log migration results if available
+                    if (data.migration_log) {
+                        console.log('Migration log:', data.migration_log);
+                    }
+
                     // Show success and redirect option
+                    let message = 'Database restored successfully!';
+                    if (data.migration_log && data.migration_log.includes('Warning')) {
+                        message += '\n\nNote: Some migrations encountered warnings. Check console for details.';
+                    } else if (data.migration_log) {
+                        message += '\n\nDatabase structure updated to latest version.';
+                    }
+
                     setTimeout(() => {
-                        if (confirm('Database restored successfully! Click OK to go to login page.')) {
+                        if (confirm(message + '\n\nClick OK to go to login page.')) {
                             window.location.href = '/login/';
                         }
                     }, 1000);
-                    
+
                 } else {
-                    alert('Restore failed: ' + data.error);
+                    alert('Restore failed: ' + (data.error || 'Unknown error'));
                     btnUploadBackup.disabled = false;
                     btnUploadBackup.innerHTML = 'Restore Backup';
                 }
             } catch (error) {
-                alert('Error: ' + error.message);
+                console.error('Restore error:', error);
+                alert('Error restoring database: ' + error.message);
                 btnUploadBackup.disabled = false;
                 btnUploadBackup.innerHTML = 'Restore Backup';
             }

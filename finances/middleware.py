@@ -21,18 +21,21 @@ class SetupRequiredMiddleware:
     def __call__(self, request):
         # Get current path
         current_path = request.path
-        
+
         # Always allow static files and admin
         if current_path.startswith('/static/') or current_path.startswith('/admin/'):
             return self.get_response(request)
-        
-        # Always allow setup page itself
+
+        # Always allow setup page itself and restore-backup API
         try:
             setup_url = reverse('initial_setup')
-            if current_path == setup_url:
+            restore_backup_url = reverse('restore_backup')
+            if current_path == setup_url or current_path == restore_backup_url:
                 return self.get_response(request)
         except:
-            pass
+            # Fallback to direct path check
+            if current_path in ['/setup/', '/restore-backup/']:
+                return self.get_response(request)
         
         # Check if database is accessible and if users exist
         try:

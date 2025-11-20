@@ -195,7 +195,7 @@
 
                         {% comment %} Regular Income Transactions {% endcomment %}
                         {% for transaction in recent_income_transactions %}
-                            <tr id="income-item-{{ transaction.id }}" data-item-id="{{ transaction.id }}" data-realized="{{ transaction.realized|yesno:'true,false' }}" data-date="{{ transaction.date|date:'Y-m-d' }}" data-amount="{{ transaction.amount }}" class="hover:bg-slate-50 dark:hover:bg-gray-700/50">
+                            <tr id="income-item-{{ transaction.id }}" data-item-id="{{ transaction.id }}" data-realized="{{ transaction.realized|yesno:'true,false' }}" data-date="{{ transaction.date|date:'Y-m-d' }}" data-amount="{{ transaction.amount.amount }}" class="hover:bg-slate-50 dark:hover:bg-gray-700/50">
 
                                 <td class="py-3 px-3 text-sm text-[#0d171b] dark:text-white">
                                     <div class="cell-description-display">{{ transaction.description }}</div>

@@ -473,20 +473,31 @@ def restore_backup(request):
                 })
         
         conn.close()
-        
+
         # Backup do banco atual antes de substituir
         if db_path.exists():
             backup_old = db_path.parent / f'{db_path.name}.old'
             shutil.copy2(db_path, backup_old)
-        
+
         # Move o arquivo temporário para o local correto
         shutil.move(str(temp_path), str(db_path))
-        
+
+        # Run migrations to ensure DB structure is up to date
+        migration_output = io.StringIO()
+        try:
+            call_command('migrate', '--noinput', stdout=migration_output, stderr=migration_output)
+            migration_log = migration_output.getvalue()
+        except Exception as migration_error:
+            # If migration fails, we still consider restore successful
+            # but warn the user
+            migration_log = f"Warning: Migrations failed: {str(migration_error)}"
+
         return JsonResponse({
             'success': True,
             'family': family_info,
             'users': users_info,
-            'message': 'Database restored successfully'
+            'message': 'Database restored successfully',
+            'migration_log': migration_log
         })
         
     except Exception as e:
