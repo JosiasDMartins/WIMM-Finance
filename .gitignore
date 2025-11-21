@@ -21,3 +21,7 @@ docker_build/build_scripts/requirements.txt
 docker_build/build_scripts/update_monitor.py
 docker_build/docker-compose.example.yml
 docker_build/local_settings.example.py
+*.sqlite3
+*.old
+*.old
+db/db.sqlite3.old

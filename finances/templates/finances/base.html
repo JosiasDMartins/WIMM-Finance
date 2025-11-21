@@ -161,8 +161,8 @@
                     </div>
 
                     <button id="theme-toggle" class="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors" title="Toggle Dark Mode">
-                        <span class="material-symbols-outlined dark:hidden">dark_mode</span>
-                        <span class="material-symbols-outlined hidden dark:inline">light_mode</span>
+                        <span id="icon-dark" class="material-symbols-outlined block dark:hidden">dark_mode</span>
+                        <span id="icon-light" class="material-symbols-outlined hidden dark:block">light_mode</span>
                     </button>
 
                     <form method="POST" action="{% url 'auth_logout' %}" style="display: inline;">
@@ -195,22 +195,50 @@
     <script src="{% static 'finances/js/notifications.js' %}"></script>
 
     <script>
-        // Dark mode toggle functionality
-        const themeToggle = document.getElementById('theme-toggle');
-        const htmlElement = document.documentElement;
+        // Dark mode toggle functionality - deterministic inline display (avoids FOUC)
+        (function () {
+            const themeToggle = document.getElementById('theme-toggle');
+            const htmlElement = document.documentElement;
+            // remove legacy class if present
+            htmlElement.classList.remove('light');
 
-        // Load saved theme preference or default to light mode
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        if (savedTheme === 'dark') {
-            htmlElement.classList.add('dark');
-        }
+            // Read saved preference or use system preference as fallback
+            const saved = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const initial = saved ? saved : (prefersDark ? 'dark' : 'light');
 
-        // Toggle theme on button click
-        themeToggle.addEventListener('click', () => {
-            htmlElement.classList.toggle('dark');
-            const newTheme = htmlElement.classList.contains('dark') ? 'dark' : 'light';
-            localStorage.setItem('theme', newTheme);
-        });
+            if (initial === 'dark') {
+                htmlElement.classList.add('dark');
+            } else {
+                htmlElement.classList.remove('dark');
+            }
+
+            const iconDark = document.getElementById('icon-dark');
+            const iconLight = document.getElementById('icon-light');
+
+            function setIcons() {
+                if (!iconDark || !iconLight) return;
+                if (htmlElement.classList.contains('dark')) {
+                    iconDark.style.display = 'none';
+                    iconLight.style.display = 'inline-block';
+                } else {
+                    iconDark.style.display = 'inline-block';
+                    iconLight.style.display = 'none';
+                }
+            }
+
+            // apply immediately
+            setIcons();
+
+            if (themeToggle) {
+                themeToggle.addEventListener('click', () => {
+                    htmlElement.classList.toggle('dark');
+                    const newTheme = htmlElement.classList.contains('dark') ? 'dark' : 'light';
+                    localStorage.setItem('theme', newTheme);
+                    setIcons();
+                });
+            }
+        })();
     </script>
 
     {% block extra_js %}

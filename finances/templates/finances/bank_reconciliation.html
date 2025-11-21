@@ -45,7 +45,7 @@
                         </td>
                         <td class="px-4 py-3 text-right">
                             <span class="cell-amount-display text-sm text-green-600 dark:text-green-500 font-semibold">$ {{ balance.amount|intcomma }}</span>
-                            <input type="number" step="0.01" class="cell-amount-edit hidden w-full px-2 py-1 text-sm border rounded text-right dark:bg-gray-700 dark:text-white" value="{{ balance.amount }}">
+                            <input type="number" step="0.01" class="cell-amount-edit hidden w-full px-2 py-1 text-sm border rounded text-right dark:bg-gray-700 dark:text-white" value="{{ balance.amount.amount }}">
                         </td>
                         <td class="px-4 py-3">
                             <span class="cell-date-display text-sm text-gray-600 dark:text-gray-400">{{ balance.date|date:"M d, Y" }}</span>
