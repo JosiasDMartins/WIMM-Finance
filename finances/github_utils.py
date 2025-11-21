@@ -54,23 +54,27 @@ def get_latest_github_release() -> Optional[Dict]:
         return None
 
 
-def get_min_container_version_from_github() -> Optional[str]:
+def get_min_container_version_from_github(force_refresh: bool = False) -> Optional[str]:
     """
     Fetches the minimum version that requires container update from GitHub.
     Reads the need_container_update.txt file from the main branch.
+
+    Args:
+        force_refresh: If True, bypasses cache and fetches fresh data from GitHub
 
     Returns:
         Version string (e.g., "1.0.0-alpha4") or None if failed
     """
     global _cached_container_version
 
-    # Return cached version if available
-    if _cached_container_version is not None:
+    # Return cached version if available and not forcing refresh
+    if not force_refresh and _cached_container_version is not None:
+        print(f"Using cached container version requirement: {_cached_container_version}")
         return _cached_container_version
 
     try:
         url = f"{GITHUB_RAW_CONTENT_URL}/need_container_update.txt"
-        print(f"Fetching container version requirement from: {url}")
+        print(f"Fetching container version requirement from GitHub: {url}")
 
         response = requests.get(url, timeout=5)
 
@@ -170,8 +174,9 @@ def requires_container_update(current_version: str, target_version: str) -> bool
             print(f"[TESTING] FORCE_CONTAINER_UPDATE_SKIP is enabled - allowing web update")
             return False
 
-        # Get minimum version from GitHub
-        min_web_update_version_str = get_min_container_version_from_github()
+        # Get minimum version from GitHub - ALWAYS fetch fresh data
+        # force_refresh=True ensures we always check the latest requirement from GitHub
+        min_web_update_version_str = get_min_container_version_from_github(force_refresh=True)
 
         if min_web_update_version_str:
             # Parse versions
