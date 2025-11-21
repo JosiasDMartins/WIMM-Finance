@@ -7,7 +7,7 @@ from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbid
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.db import transaction as db_transaction
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.shortcuts import get_object_or_404
 from moneyed import Money
 from ..notification_utils import create_new_transaction_notification
@@ -491,15 +491,153 @@ def delete_bank_balance_ajax(request):
     try:
         data = json.loads(request.body)
         balance_id = data.get('id')
-        
+
         family, _, _ = get_family_context(request.user)
         if not family:
             return JsonResponse({'status': 'error', 'error': 'User not in family'}, status=403)
-        
+
         bank_balance = BankBalance.objects.get(id=balance_id, family=family)
         bank_balance.delete()
-        
+
         return JsonResponse({'status': 'success'})
-        
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def validate_period_overlap_ajax(request):
+    """AJAX: Validates if a new period would overlap with existing periods."""
+    try:
+        data = json.loads(request.body)
+        start_date_str = data.get('start_date')
+        end_date_str = data.get('end_date')
+
+        family, current_member, _ = get_family_context(request.user)
+        if not family:
+            return JsonResponse({'status': 'error', 'error': 'User not in family'}, status=403)
+
+        # Only ADMIN and PARENT can create periods
+        if current_member.role not in ['ADMIN', 'PARENT']:
+            return JsonResponse({'status': 'error', 'error': 'Permission denied'}, status=403)
+
+        # Parse dates
+        start_date = dt_datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_date = dt_datetime.strptime(end_date_str, '%Y-%m-%d').date()
+
+        # Validate: end_date must be after start_date
+        if end_date <= start_date:
+            return JsonResponse({
+                'status': 'error',
+                'error': 'End date must be after start date',
+                'has_overlap': False
+            })
+
+        # Check for overlapping periods
+        from ..models import Period
+        overlapping_periods = Period.objects.filter(
+            family=family
+        ).filter(
+            Q(start_date__lte=end_date, end_date__gte=start_date)
+        )
+
+        if overlapping_periods.exists():
+            overlap_details = []
+            for period in overlapping_periods:
+                overlap_details.append({
+                    'start': period.start_date.strftime('%Y-%m-%d'),
+                    'end': period.end_date.strftime('%Y-%m-%d'),
+                    'label': f"{period.start_date.strftime('%b %d')} - {period.end_date.strftime('%b %d, %Y')}"
+                })
+
+            return JsonResponse({
+                'status': 'warning',
+                'has_overlap': True,
+                'message': 'This period overlaps with existing periods',
+                'overlapping_periods': overlap_details
+            })
+
+        return JsonResponse({
+            'status': 'success',
+            'has_overlap': False,
+            'message': 'No overlap detected'
+        })
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+@db_transaction.atomic
+def create_period_ajax(request):
+    """AJAX: Creates a new period."""
+    try:
+        data = json.loads(request.body)
+        start_date_str = data.get('start_date')
+        end_date_str = data.get('end_date')
+
+        family, current_member, _ = get_family_context(request.user)
+        if not family:
+            return JsonResponse({'status': 'error', 'error': 'User not in family'}, status=403)
+
+        # Only ADMIN and PARENT can create periods
+        if current_member.role not in ['ADMIN', 'PARENT']:
+            return JsonResponse({'status': 'error', 'error': 'Permission denied'}, status=403)
+
+        # Parse dates
+        start_date = dt_datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_date = dt_datetime.strptime(end_date_str, '%Y-%m-%d').date()
+
+        # Validate: end_date must be after start_date
+        if end_date <= start_date:
+            return JsonResponse({
+                'status': 'error',
+                'error': 'End date must be after start date'
+            }, status=400)
+
+        # Check for overlapping periods (double-check)
+        from ..models import Period
+        overlapping_periods = Period.objects.filter(
+            family=family
+        ).filter(
+            Q(start_date__lte=end_date, end_date__gte=start_date)
+        )
+
+        if overlapping_periods.exists():
+            return JsonResponse({
+                'status': 'error',
+                'error': 'This period overlaps with existing periods'
+            }, status=400)
+
+        # Get family configuration
+        config = getattr(family, 'configuration', None)
+        if not config:
+            return JsonResponse({
+                'status': 'error',
+                'error': 'Family configuration not found'
+            }, status=400)
+
+        # Create the new period
+        period = Period.objects.create(
+            family=family,
+            start_date=start_date,
+            end_date=end_date,
+            period_type=config.period_type,
+            currency=config.base_currency
+        )
+
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Period created successfully',
+            'period': {
+                'id': period.id,
+                'start_date': period.start_date.strftime('%Y-%m-%d'),
+                'end_date': period.end_date.strftime('%Y-%m-%d'),
+                'label': f"{period.start_date.strftime('%b %d')} - {period.end_date.strftime('%b %d, %Y')}"
+            }
+        })
+
     except Exception as e:
         return JsonResponse({'status': 'error', 'error': str(e)}, status=400)
