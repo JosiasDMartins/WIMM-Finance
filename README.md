@@ -70,7 +70,7 @@ pip install Django python-dateutil django-money==3.4.1 py-moneyed==3.0 requests 
 
 ### Production Deployment
 
-For production deployment, SweetMoney includes Docker support. See or WIKI for more details.
+For production deployment, SweetMoney includes Docker support. See our WIKI for more details.
 
 ---
 
