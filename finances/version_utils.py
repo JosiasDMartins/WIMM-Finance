@@ -6,6 +6,7 @@ from typing import Tuple, Optional
 # Testing flags
 FORCE_UPDATE_FOR_TESTING = False  # Set to True to force update notifications even for equal versions
 SKIP_LOCAL_UPDATE = False  # Set to True to skip local update checks and go directly to GitHub
+FORCE_CONTAINER_UPDATE_SKIP = False  # Set to True to force web updates even when container update would be required
 
 """
 Testing flags usage:
@@ -21,7 +22,13 @@ Testing flags usage:
    - Useful for testing GitHub updates without applying local updates first
    - Example: Test GitHub update flow even if local scripts are pending
 
-IMPORTANT: Both flags should be False in production!
+3. FORCE_CONTAINER_UPDATE_SKIP = True
+   - Forces web-based updates even when container update would normally be required
+   - Bypasses the need_container_update.txt check from GitHub
+   - DANGEROUS: Use only for testing! May cause issues if update truly requires container rebuild
+   - Example: Test update flow on old versions without rebuilding container
+
+IMPORTANT: All flags should be False in production!
 """
 
 

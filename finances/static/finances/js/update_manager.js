@@ -157,27 +157,27 @@ class UpdateManager {
     hideAllSections() {
         // Hide all possible sections
         const sections = [
-            'scripts-info', 'github-info', 'container-warning', 
+            'scripts-info', 'github-info', 'container-warning',
             'backup-section', 'backup-section-local', 'update-progress', 'update-results'
         ];
-        
+
         sections.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.classList.add('hidden');
         });
-        
-        // Hide all buttons
+
+        // Hide all buttons (including backup buttons)
         const buttons = [
             'btn-apply-local', 'btn-install-github', 'btn-skip', 'btn-skip-local',
-            'btn-close', 'btn-view-logs', 'btn-view-release', 'btn-create-backup',
-            'btn-create-backup-local'
+            'btn-close', 'btn-view-logs', 'btn-view-release',
+            'btn-create-backup', 'btn-create-backup-local'
         ];
-        
+
         buttons.forEach(id => {
             const btn = document.getElementById(id);
             if (btn) btn.classList.add('hidden');
         });
-        
+
         // Hide result messages
         const messages = ['success-message', 'error-message'];
         messages.forEach(id => {
@@ -247,6 +247,7 @@ class UpdateManager {
         const btnSkip = document.getElementById('btn-skip');
         const btnInstall = document.getElementById('btn-install-github');
         const btnViewRelease = document.getElementById('btn-view-release');
+        const btnCreateBackup = document.getElementById('btn-create-backup');
 
         if (modalIcon) {
             modalIcon.className = 'material-symbols-outlined text-4xl text-green-500';
@@ -306,9 +307,11 @@ class UpdateManager {
             if (containerWarning) containerWarning.classList.remove('hidden');
             if (btnInstall) btnInstall.classList.add('hidden');
             if (backupSection) backupSection.classList.add('hidden');
+            if (btnCreateBackup) btnCreateBackup.classList.add('hidden');
         } else {
-            // Can install via web interface
+            // Can install via web interface - show backup section and button
             if (backupSection) backupSection.classList.remove('hidden');
+            if (btnCreateBackup) btnCreateBackup.classList.remove('hidden');
             if (btnInstall) {
                 btnInstall.classList.remove('hidden');
                 btnInstall.disabled = true; // Disabled until backup confirmed
@@ -395,13 +398,46 @@ class UpdateManager {
     
     async installGithubUpdate() {
         console.log('[UpdateManager] Installing GitHub update...');
-        
+        console.log('[UpdateManager] Full updateData:', JSON.stringify(this.updateData, null, 2));
+
+        // Validate updateData
+        if (!this.updateData) {
+            console.error('[UpdateManager] No updateData available!');
+            this.showError('Update data is missing. Please refresh and try again.');
+            return;
+        }
+
+        if (!this.updateData.github_release) {
+            console.error('[UpdateManager] No github_release in updateData!');
+            this.showError('GitHub release data is missing. Please refresh and try again.');
+            return;
+        }
+
+        if (!this.updateData.github_release.zipball_url) {
+            console.error('[UpdateManager] No zipball_url in github_release!');
+            this.showError('Download URL is missing. Please refresh and try again.');
+            return;
+        }
+
+        // Get target_version from either updateData or github_release
+        const targetVersion = this.updateData.target_version || this.updateData.github_release.version;
+
+        if (!targetVersion) {
+            console.error('[UpdateManager] No target_version found!');
+            console.error('[UpdateManager] updateData.target_version:', this.updateData.target_version);
+            console.error('[UpdateManager] github_release.version:', this.updateData.github_release.version);
+            this.showError('Target version is missing. Please refresh and try again.');
+            return;
+        }
+
+        console.log('[UpdateManager] Using target_version:', targetVersion);
+
         const backupConfirmed = document.getElementById('backup-confirmed');
         if (!backupConfirmed || !backupConfirmed.checked) {
             alert('Please confirm that you have created a backup before proceeding.');
             return;
         }
-        
+
         const progressSection = document.getElementById('update-progress');
         const progressBar = document.getElementById('progress-bar');
         const progressText = document.getElementById('progress-text');
@@ -409,45 +445,60 @@ class UpdateManager {
         const btnInstall = document.getElementById('btn-install-github');
         const btnSkip = document.getElementById('btn-skip');
         const backupSection = document.getElementById('backup-section');
-        
+
         if (btnInstall) btnInstall.classList.add('hidden');
         if (btnSkip) btnSkip.classList.add('hidden');
         if (backupSection) backupSection.classList.add('hidden');
         if (progressSection) progressSection.classList.remove('hidden');
         if (progressTitle) progressTitle.textContent = 'Installing GitHub Update...';
-        
+
         try {
             if (progressBar) progressBar.style.width = '10%';
             if (progressText) progressText.textContent = 'Downloading release...';
-            
+
+            const requestBody = {
+                zipball_url: this.updateData.github_release.zipball_url,
+                target_version: targetVersion
+            };
+
+            console.log('[UpdateManager] Request body:', requestBody);
+
             const response = await fetch('/download-github-update/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': this.getCookie('csrftoken')
                 },
-                body: JSON.stringify({
-                    zipball_url: this.updateData.github_release.zipball_url
-                })
+                body: JSON.stringify(requestBody)
             });
-            
+
+            console.log('[UpdateManager] Response status:', response.status);
+            console.log('[UpdateManager] Response ok:', response.ok);
+
             if (progressBar) progressBar.style.width = '50%';
             if (progressText) progressText.textContent = 'Extracting files...';
-            
+
             const data = await response.json();
             console.log('[UpdateManager] GitHub update response:', data);
-            
+
             if (progressBar) progressBar.style.width = '100%';
             if (progressText) progressText.textContent = 'Update complete!';
-            
+
+            // Store logs regardless of success/failure
+            this.logsContent = this.formatGithubLogs(data);
+
             if (data.success) {
                 this.showSuccess('GitHub update installed successfully! The page will reload in 3 seconds.');
                 setTimeout(() => location.reload(), 3000);
             } else {
-                this.showError(data.error || 'Update failed.');
+                this.showError(data.error || 'Update failed. Check logs for details.');
             }
         } catch (error) {
             console.error('[UpdateManager] Error installing GitHub update:', error);
+
+            // Store error in logs
+            this.logsContent = `=== GitHub Update Error ===\n\nError: ${error.message}\n\nStack Trace:\n${error.stack || 'No stack trace available'}`;
+
             this.showError('Failed to install update: ' + error.message);
         }
     }
@@ -551,10 +602,12 @@ class UpdateManager {
     
     formatLogs(data) {
         let logs = '=== Update Process Logs ===\n\n';
-        
+
         if (data.results) {
             data.results.forEach(result => {
-                logs += `\n=== ${result.script} ===\n`;
+                // Use 'filename' instead of 'script' (backend sends 'filename')
+                const scriptName = result.filename || result.script || 'Unknown Script';
+                logs += `\n=== ${scriptName} ===\n`;
                 logs += `Status: ${result.status}\n`;
                 if (result.output) {
                     logs += `Output:\n${result.output}\n`;
@@ -572,10 +625,68 @@ class UpdateManager {
         }
         return logs || 'No detailed logs available';
     }
+
+    formatGithubLogs(data) {
+        let logs = '=== GitHub Update Process Logs ===\n\n';
+
+        if (data.success) {
+            logs += 'Status: SUCCESS\n';
+            logs += `Message: ${data.message || 'Update completed successfully'}\n`;
+            if (data.new_version) {
+                logs += `New Version: ${data.new_version}\n`;
+            }
+            logs += '\n=== Update Process Details ===\n';
+            if (data.logs) {
+                logs += data.logs;
+            } else {
+                logs += 'No detailed logs available';
+            }
+        } else {
+            logs += 'Status: FAILED\n';
+            logs += `Error: ${data.error || 'Unknown error'}\n`;
+
+            logs += '\n=== Update Process Details ===\n';
+            if (data.logs) {
+                logs += data.logs;
+            } else if (data.traceback) {
+                logs += `Server Traceback:\n${data.traceback}`;
+            } else {
+                logs += 'No detailed logs available';
+            }
+        }
+
+        return logs;
+    }
     
     showLogs() {
-        document.getElementById('logs-modal').classList.remove('hidden');
-        document.getElementById('logs-content').textContent = this.logsContent;
+        console.log('[UpdateManager] showLogs called');
+        console.log('[UpdateManager] logsContent:', this.logsContent);
+        console.log('[UpdateManager] logsContent length:', this.logsContent.length);
+
+        const logsModal = document.getElementById('logs-modal');
+        const logsContent = document.getElementById('logs-content');
+
+        if (!logsModal) {
+            console.error('[UpdateManager] logs-modal element not found!');
+            alert('Logs modal element not found in the page.');
+            return;
+        }
+
+        if (!logsContent) {
+            console.error('[UpdateManager] logs-content element not found!');
+            alert('Logs content element not found in the page.');
+            return;
+        }
+
+        if (!this.logsContent || this.logsContent.length === 0) {
+            console.warn('[UpdateManager] No logs available');
+            logsContent.textContent = 'No logs available yet. Please apply an update first.';
+        } else {
+            logsContent.textContent = this.logsContent;
+        }
+
+        logsModal.classList.remove('hidden');
+        console.log('[UpdateManager] Logs modal shown');
     }
     
     closeLogs() {

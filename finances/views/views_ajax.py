@@ -7,7 +7,7 @@ from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbid
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.db import transaction as db_transaction
-from django.db.models import Max, Q
+from django.db.models import Max, Q, Sum
 from django.shortcuts import get_object_or_404
 from moneyed import Money
 from ..notification_utils import create_new_transaction_notification
@@ -638,6 +638,220 @@ def create_period_ajax(request):
                 'label': f"{period.start_date.strftime('%b %d')} - {period.end_date.strftime('%b %d, %Y')}"
             }
         })
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'error': str(e)}, status=400)
+
+
+@login_required
+def get_period_details_ajax(request):
+    """AJAX: Returns details and summary of a specific period."""
+    try:
+        period_start_str = request.GET.get('period_start')
+
+        family, current_member, _ = get_family_context(request.user)
+        if not family:
+            return JsonResponse({'status': 'error', 'error': 'User not in family'}, status=403)
+
+        # Only ADMIN and PARENT can view period details for deletion
+        if current_member.role not in ['ADMIN', 'PARENT']:
+            return JsonResponse({'status': 'error', 'error': 'Permission denied'}, status=403)
+
+        # Parse period start date
+        period_start = dt_datetime.strptime(period_start_str, '%Y-%m-%d').date()
+
+        # Get current period to check if this is current
+        current_start, current_end, _ = get_current_period_dates(family, None)
+        is_current_period = (period_start == current_start)
+
+        # Get period dates
+        start_date, end_date, period_label = get_current_period_dates(family, period_start_str)
+
+        # Count FlowGroups
+        flow_groups = FlowGroup.objects.filter(
+            family=family,
+            period_start_date=period_start
+        )
+        flow_group_count = flow_groups.count()
+
+        # Count Transactions
+        transaction_count = Transaction.objects.filter(
+            flow_group__in=flow_groups
+        ).count()
+
+        # Calculate key metrics
+        income_transactions = Transaction.objects.filter(
+            flow_group__family=family,
+            flow_group__period_start_date=period_start,
+            flow_group__group_type=FLOW_TYPE_INCOME,
+            date__range=(start_date, end_date)
+        )
+
+        from ..models import EXPENSE_MAIN, EXPENSE_SECONDARY
+        expense_transactions = Transaction.objects.filter(
+            flow_group__family=family,
+            flow_group__period_start_date=period_start,
+            flow_group__group_type__in=[EXPENSE_MAIN, EXPENSE_SECONDARY],
+            date__range=(start_date, end_date)
+        )
+
+        # Total income
+        total_income_agg = income_transactions.aggregate(
+            estimated=Sum('amount'),
+            realized=Sum('amount', filter=Q(realized=True))
+        )
+
+        total_income_estimated = total_income_agg['estimated']
+        total_income_realized = total_income_agg['realized']
+
+        if total_income_estimated:
+            total_income_estimated = Decimal(str(total_income_estimated.amount)) if hasattr(total_income_estimated, 'amount') else total_income_estimated
+        else:
+            total_income_estimated = Decimal('0.00')
+
+        if total_income_realized:
+            total_income_realized = Decimal(str(total_income_realized.amount)) if hasattr(total_income_realized, 'amount') else total_income_realized
+        else:
+            total_income_realized = Decimal('0.00')
+
+        # Total expenses
+        total_expense_agg = expense_transactions.aggregate(
+            estimated=Sum('amount'),
+            realized=Sum('amount', filter=Q(realized=True))
+        )
+
+        total_expense_estimated = total_expense_agg['estimated']
+        total_expense_realized = total_expense_agg['realized']
+
+        if total_expense_estimated:
+            total_expense_estimated = Decimal(str(total_expense_estimated.amount)) if hasattr(total_expense_estimated, 'amount') else total_expense_estimated
+        else:
+            total_expense_estimated = Decimal('0.00')
+
+        if total_expense_realized:
+            total_expense_realized = Decimal(str(total_expense_realized.amount)) if hasattr(total_expense_realized, 'amount') else total_expense_realized
+        else:
+            total_expense_realized = Decimal('0.00')
+
+        # Get currency
+        period_currency = get_period_currency(family, period_start)
+        currency_symbol = get_currency_symbol(period_currency)
+
+        return JsonResponse({
+            'status': 'success',
+            'period': {
+                'start_date': start_date.strftime('%Y-%m-%d'),
+                'end_date': end_date.strftime('%Y-%m-%d'),
+                'label': period_label,
+                'is_current': is_current_period
+            },
+            'summary': {
+                'flow_group_count': flow_group_count,
+                'transaction_count': transaction_count,
+                'total_income_estimated': str(total_income_estimated),
+                'total_income_realized': str(total_income_realized),
+                'total_expense_estimated': str(total_expense_estimated),
+                'total_expense_realized': str(total_expense_realized),
+                'currency_symbol': currency_symbol
+            }
+        })
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'error': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+@db_transaction.atomic
+def delete_period_ajax(request):
+    """AJAX: Deletes a period or clears current period data."""
+    try:
+        data = json.loads(request.body)
+        period_start_str = data.get('period_start')
+
+        family, current_member, _ = get_family_context(request.user)
+        if not family:
+            return JsonResponse({'status': 'error', 'error': 'User not in family'}, status=403)
+
+        # Only ADMIN and PARENT can delete periods
+        if current_member.role not in ['ADMIN', 'PARENT']:
+            return JsonResponse({'status': 'error', 'error': 'Permission denied'}, status=403)
+
+        # Parse period start date
+        period_start = dt_datetime.strptime(period_start_str, '%Y-%m-%d').date()
+
+        # Get current period to check if this is current
+        current_start, current_end, _ = get_current_period_dates(family, None)
+        is_current_period = (period_start == current_start)
+
+        if is_current_period:
+            # Current period: Clear all FlowGroups and Transactions, but keep Period entry
+            flow_groups = FlowGroup.objects.filter(
+                family=family,
+                period_start_date=period_start
+            )
+
+            # Delete transactions first
+            transaction_count = Transaction.objects.filter(
+                flow_group__in=flow_groups
+            ).count()
+
+            Transaction.objects.filter(flow_group__in=flow_groups).delete()
+
+            # Delete flow groups
+            flow_group_count = flow_groups.count()
+            flow_groups.delete()
+
+            # Delete bank balances for this period
+            BankBalance.objects.filter(
+                family=family,
+                period_start_date=period_start
+            ).delete()
+
+            return JsonResponse({
+                'status': 'success',
+                'action': 'cleared',
+                'message': f'Current period cleared: {flow_group_count} flow groups and {transaction_count} transactions removed',
+                'redirect': '/'
+            })
+        else:
+            # Past period: Delete everything including Period entry
+            flow_groups = FlowGroup.objects.filter(
+                family=family,
+                period_start_date=period_start
+            )
+
+            # Count before deleting
+            transaction_count = Transaction.objects.filter(
+                flow_group__in=flow_groups
+            ).count()
+            flow_group_count = flow_groups.count()
+
+            # Delete transactions
+            Transaction.objects.filter(flow_group__in=flow_groups).delete()
+
+            # Delete flow groups
+            flow_groups.delete()
+
+            # Delete bank balances
+            BankBalance.objects.filter(
+                family=family,
+                period_start_date=period_start
+            ).delete()
+
+            # Delete the Period entry itself
+            from ..models import Period
+            Period.objects.filter(
+                family=family,
+                start_date=period_start
+            ).delete()
+
+            return JsonResponse({
+                'status': 'success',
+                'action': 'deleted',
+                'message': f'Period deleted: {flow_group_count} flow groups and {transaction_count} transactions removed',
+                'redirect': '/'
+            })
 
     except Exception as e:
         return JsonResponse({'status': 'error', 'error': str(e)}, status=400)

@@ -346,42 +346,143 @@ def execute_update_script(script_path):
 
 @require_http_methods(["POST"])
 def download_github_update(request):
-    """Baixa e instala a atualização do GitHub."""
+    """
+    Baixa e instala a atualização do GitHub.
+
+    SECURITY: The backend determines which version to download based on the latest
+    GitHub release, NOT from frontend input. This prevents malicious version injection.
+    """
     try:
+        print(f"[DOWNLOAD_GITHUB_UPDATE] Request received")
+        print(f"[DOWNLOAD_GITHUB_UPDATE] Content-Type: {request.content_type}")
+        print(f"[DOWNLOAD_GITHUB_UPDATE] Request body: {request.body[:500]}")
+
         data = json.loads(request.body)
+        print(f"[DOWNLOAD_GITHUB_UPDATE] Parsed data: {data}")
+
         zipball_url = data.get('zipball_url')
-        target_version = data.get('target_version')
-        
-        if not zipball_url or not target_version:
-            return JsonResponse({'success': False, 'error': 'Missing required parameters'}, status=400)
-        
-        success, message = download_and_extract_release(zipball_url)
+        print(f"[DOWNLOAD_GITHUB_UPDATE] zipball_url from request: {zipball_url}")
+
+        if not zipball_url:
+            error_msg = f'Missing required parameter: zipball_url'
+            print(f"[DOWNLOAD_GITHUB_UPDATE ERROR] {error_msg}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Missing required parameter: zipball_url',
+                'details': error_msg
+            }, status=400)
+
+        # SECURITY: Determine target version from GitHub, not from frontend
+        # Check the latest release to get the correct version
+        print(f"[DOWNLOAD_GITHUB_UPDATE] Fetching latest release from GitHub to verify version...")
+        has_github_update, github_release = check_github_update(VERSION)
+
+        if not has_github_update or not github_release:
+            error_msg = "Could not verify GitHub release information"
+            print(f"[DOWNLOAD_GITHUB_UPDATE ERROR] {error_msg}")
+            return JsonResponse({
+                'success': False,
+                'error': error_msg
+            }, status=400)
+
+        # Extract version from the verified GitHub release
+        target_version = github_release.get('version')
+        expected_zipball_url = github_release.get('zipball_url')
+
+        print(f"[DOWNLOAD_GITHUB_UPDATE] Verified target_version from GitHub: {target_version}")
+        print(f"[DOWNLOAD_GITHUB_UPDATE] Expected zipball_url: {expected_zipball_url}")
+
+        # SECURITY: Verify that the requested URL matches the official GitHub release URL
+        if zipball_url != expected_zipball_url:
+            error_msg = f"Security: Requested URL does not match official GitHub release URL"
+            print(f"[DOWNLOAD_GITHUB_UPDATE ERROR] {error_msg}")
+            print(f"[DOWNLOAD_GITHUB_UPDATE ERROR] Requested: {zipball_url}")
+            print(f"[DOWNLOAD_GITHUB_UPDATE ERROR] Expected: {expected_zipball_url}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid download URL',
+                'details': error_msg
+            }, status=403)
+
+        if not target_version:
+            error_msg = f'Could not determine target version from GitHub'
+            print(f"[DOWNLOAD_GITHUB_UPDATE ERROR] {error_msg}")
+            return JsonResponse({
+                'success': False,
+                'error': error_msg
+            }, status=400)
+
+        print(f"[DOWNLOAD_GITHUB_UPDATE] Starting download and extraction...")
+        success, message, update_logs = download_and_extract_release(zipball_url)
+        print(f"[DOWNLOAD_GITHUB_UPDATE] Download result: success={success}, message={message}")
+        print(f"[DOWNLOAD_GITHUB_UPDATE] Logs captured: {len(update_logs)} lines")
+
+        # Format logs for frontend
+        logs_text = "\n".join(update_logs) if update_logs else "No detailed logs available"
 
         if not success:
-            return JsonResponse({'success': False, 'error': message})
+            print(f"[DOWNLOAD_GITHUB_UPDATE ERROR] Download failed: {message}")
+            return JsonResponse({
+                'success': False,
+                'error': message,
+                'filename': 'GitHub Update',
+                'logs': logs_text
+            })
 
+        print(f"[DOWNLOAD_GITHUB_UPDATE] Setting version to {target_version}")
         SystemVersion.set_version(target_version)
 
-        # Create flags for Docker hot-reload
-        # Check if requirements changed and create appropriate flags
-        requirements_changed = False  # TODO: Implement requirements comparison
-        if requirements_changed:
-            create_requirements_flag()
-        else:
-            create_reload_flag()
+        # Run migrations in development environment
+        # In production (Docker), create flag for update_monitor to run migrations
+        from ..docker_utils import is_running_in_docker
 
+        if is_running_in_docker():
+            print(f"[DOWNLOAD_GITHUB_UPDATE] Running in Docker - creating flags")
+            create_migrate_flag()  # Create migrate flag
+            create_reload_flag()   # Create reload flag
+            reload_msg = "Docker flags created. Container will apply migrations and reload automatically."
+        else:
+            print(f"[DOWNLOAD_GITHUB_UPDATE] Running in development - applying migrations now")
+            try:
+                migration_success, migration_output = run_migrations()
+                if migration_success:
+                    reload_msg = "Migrations applied successfully. Please restart the development server."
+                    print(f"[DOWNLOAD_GITHUB_UPDATE] Migrations applied: {migration_output}")
+                else:
+                    reload_msg = f"Warning: Migrations failed: {migration_output}"
+                    print(f"[DOWNLOAD_GITHUB_UPDATE] Migration error: {migration_output}")
+            except Exception as e:
+                reload_msg = f"Warning: Migrations failed: {str(e)}"
+                print(f"[DOWNLOAD_GITHUB_UPDATE] Migration exception: {e}")
+
+        print(f"[DOWNLOAD_GITHUB_UPDATE] Update completed successfully")
         return JsonResponse({
             'success': True,
-            'message': message,
+            'message': f"{message}\n{reload_msg}",
             'new_version': target_version,
-            'needs_reload': True
+            'needs_reload': True,
+            'filename': 'GitHub Update',
+            'logs': logs_text
         })
-        
-    except Exception as e:
+
+    except json.JSONDecodeError as e:
+        error_msg = f"Invalid JSON in request body: {str(e)}"
+        print(f"[DOWNLOAD_GITHUB_UPDATE ERROR] {error_msg}")
+        print(f"[DOWNLOAD_GITHUB_UPDATE ERROR] Request body was: {request.body[:500]}")
         return JsonResponse({
             'success': False,
-            'error': str(e),
+            'error': error_msg,
             'traceback': traceback.format_exc()
+        }, status=400)
+    except Exception as e:
+        error_msg = f"Unexpected error: {str(e)}"
+        error_trace = traceback.format_exc()
+        print(f"[DOWNLOAD_GITHUB_UPDATE ERROR] {error_msg}")
+        print(f"[DOWNLOAD_GITHUB_UPDATE ERROR] Traceback:\n{error_trace}")
+        return JsonResponse({
+            'success': False,
+            'error': error_msg,
+            'traceback': error_trace
         }, status=500)
 
 

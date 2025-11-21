@@ -55,6 +55,8 @@ urlpatterns = [
     # Create and validate periods
     path('api/period/validate-overlap/', views.validate_period_overlap_ajax, name='validate_period_overlap_ajax'),
     path('api/period/create/', views.create_period_ajax, name='create_period_ajax'),
+    path('api/period/details/', views.get_period_details_ajax, name='get_period_details_ajax'),
+    path('api/period/delete/', views.delete_period_ajax, name='delete_period_ajax'),
     
     # Reorder items at the dashboard
     path('ajax/reorder-flow-groups/', views.reorder_flow_groups_ajax, name='reorder_flow_groups_ajax'),

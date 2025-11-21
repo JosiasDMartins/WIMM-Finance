@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>{% block title %}SweetMoney | Family Financial Flow{% endblock title %}</title>
 
-    <!-- Favicons -->
     <link rel="icon" type="image/x-icon" href="{% static 'finances/images/favicons/favicon.ico' %}">
     <link rel="icon" type="image/svg+xml" href="{% static 'finances/images/favicons/favicon.svg' %}">
     <link rel="icon" type="image/png" sizes="96x96" href="{% static 'finances/images/favicons/favicon-96x96.png' %}">
@@ -15,11 +14,9 @@
     <link rel="icon" type="image/png" sizes="512x512" href="{% static 'finances/images/favicons/android-chrome-512x512.png' %}">
     <link rel="manifest" href="{% static 'finances/images/favicons/site.webmanifest' %}">
 
-    <!-- Local CSS -->
     <link href="{% static 'finances/css/tailwind.css' %}" rel="stylesheet"/>
     <link href="{% static 'finances/css/fonts.css' %}" rel="stylesheet"/>
 
-    <!-- Local JavaScript -->
     <script defer src="{% static 'finances/js/alpine.min.js' %}"></script>
 </head>
 <body class="h-full bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200" x-data="{ sidebarOpen: false }">
@@ -89,20 +86,24 @@
                 
                 <div class="flex items-center space-x-4">
                     <div class="flex items-center space-x-3">
-                        <!--
-                        <span class="text-sm text-gray-600 dark:text-gray-400 hidden md:block">
-                            {% if start_date and end_date %}
-                            {{ start_date|date:"F d" }} - {{ end_date|date:"F d, Y" }}
-                            {% endif %}
-                        </span>
-                        -->
-
-                        <!-- Create New Period Button -->
+                        
                         <button onclick="openCreatePeriodModal()"
                                 class="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                                 title="Create New Period">
                             <span class="material-symbols-outlined text-sm">add</span>
                             <span class="text-sm font-medium hidden md:inline">New Period</span>
+                        </button>
+
+                        <button type="button"
+                                onclick="openDeletePeriodModal()"
+                                style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background-color: #dc2626; color: white; border-radius: 8px; border: none; cursor: pointer; line-height: 1.25rem;"
+                                title="Delete Current Period">
+                            
+                            <svg style="width: 20px; height: 20px; flex-shrink: 0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.054.68-.11 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+
+                            <span style="font-size: 14px; font-weight: 500;" class="hidden md:inline">Delete Period</span>
                         </button>
 
                         <div x-data="{ periodDropdownOpen: false }" class="relative">
@@ -202,7 +203,6 @@
     </div>
     {% include 'finances/update_modal.html' %}
 
-    <!-- Create Period Modal -->
     <div id="createPeriodModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
             <div class="p-6">
@@ -251,6 +251,114 @@
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="deletePeriodModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-3xl mx-4 border-4 border-orange-500">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-semibold text-red-600 dark:text-red-400">
+                        <span class="material-symbols-outlined inline align-text-bottom mr-2">warning</span>
+                        Delete Period
+                    </h3>
+                    <button onclick="closeDeletePeriodModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+
+                <div id="deletePeriodContent" class="space-y-4">
+                    <div id="deletePeriodLoading" class="text-center py-8">
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">Loading period details...</p>
+                    </div>
+
+                    <div id="deletePeriodDetails" class="hidden">
+                        <div id="deleteWarningBox" class="p-4 bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-600 rounded-lg mb-4">
+                            <p class="text-sm font-semibold text-red-800 dark:text-red-300">
+                                <span class="material-symbols-outlined text-sm align-text-bottom mr-1">warning</span>
+                                <span id="deleteWarningText">This action cannot be undone!</span>
+                            </p>
+                            <p id="deleteActionDescription" class="text-sm text-red-700 dark:text-red-400 mt-1"></p>
+                        </div>
+
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
+                            <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Period Information</h4>
+                            <p class="text-sm text-gray-700 dark:text-gray-300">
+                                <span class="font-medium">Period:</span> <span id="deletePeriodLabel"></span>
+                            </p>
+                        </div>
+
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
+                            <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Period Summary</h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600 dark:text-gray-400">Flow Groups:</span>
+                                    <span class="font-semibold text-gray-900 dark:text-white" id="deleteFlowGroupCount">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600 dark:text-gray-400">Transactions:</span>
+                                    <span class="font-semibold text-gray-900 dark:text-white" id="deleteTransactionCount">0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
+                            <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Key Metrics</h4>
+                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <p class="text-gray-600 dark:text-gray-400 mb-1">Income (Estimated)</p>
+                                    <p class="font-semibold text-green-600 dark:text-green-400">
+                                        <span id="deleteCurrencySymbol1"></span><span id="deleteIncomeEstimated">0.00</span>
+                                    </p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-600 dark:text-gray-400 mb-1">Income (Realized)</p>
+                                    <p class="font-semibold text-green-700 dark:text-green-500">
+                                        <span id="deleteCurrencySymbol2"></span><span id="deleteIncomeRealized">0.00</span>
+                                    </p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-600 dark:text-gray-400 mb-1">Expenses (Estimated)</p>
+                                    <p class="font-semibold text-red-600 dark:text-red-400">
+                                        <span id="deleteCurrencySymbol3"></span><span id="deleteExpenseEstimated">0.00</span>
+                                    </p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-600 dark:text-gray-400 mb-1">Expenses (Realized)</p>
+                                    <p class="font-semibold text-red-700 dark:text-red-500">
+                                        <span id="deleteCurrencySymbol4"></span><span id="deleteExpenseRealized">0.00</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-6">
+                            <div class="flex items-center mb-4">
+                                <input id="deleteConsentCheckbox" 
+                                       type="checkbox" 
+                                       onchange="toggleDeleteButton()"
+                                       class="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500 cursor-pointer">
+                                <label for="deleteConsentCheckbox" class="ml-2 block text-sm text-gray-900 dark:text-gray-300 cursor-pointer">
+                                    I understand the consequences and want to proceed.
+                                </label>
+                            </div>
+
+                            <div class="flex space-x-3">
+                                <button type="button" onclick="closeDeletePeriodModal()"
+                                        class="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                                    Cancel
+                                </button>
+                                <button type="button" onclick="confirmDeletePeriod()" id="confirmDeleteBtn" disabled
+                                        style="background-color: #d1d5db; color: #6b7280; cursor: not-allowed; transition: all 0.2s;"
+                                        class="flex-1 px-4 py-2 rounded-lg shadow-sm flex items-center justify-center font-medium">
+                                    <span id="deleteButtonText">Delete Period</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -382,6 +490,151 @@
                 }
             }
             return cookieValue;
+        }
+
+        // Delete Period Modal Functions
+        let currentPeriodToDelete = null;
+
+        // NOVA FUNÇÃO: Controla estado do botão baseado no checkbox
+        function toggleDeleteButton() {
+            const checkbox = document.getElementById('deleteConsentCheckbox');
+            const btn = document.getElementById('confirmDeleteBtn');
+
+            if (checkbox && checkbox.checked) {
+                btn.disabled = false;
+                btn.style.backgroundColor = '#dc2626'; // Vermelho
+                btn.style.color = 'white';
+                btn.style.cursor = 'pointer';
+            } else if (btn) {
+                btn.disabled = true;
+                btn.style.backgroundColor = '#d1d5db'; // Cinza
+                btn.style.color = '#6b7280';
+                btn.style.cursor = 'not-allowed';
+            }
+        }
+
+        function openDeletePeriodModal() {
+            const modal = document.getElementById('deletePeriodModal');
+            modal.classList.remove('hidden');
+
+            // RESET: Desmarcar checkbox e travar botão
+            const checkbox = document.getElementById('deleteConsentCheckbox');
+            if (checkbox) {
+                checkbox.checked = false;
+                toggleDeleteButton(); // Aplica o estado visual de travado
+            }
+
+            // Show loading, hide content
+            document.getElementById('deletePeriodLoading').classList.remove('hidden');
+            document.getElementById('deletePeriodDetails').classList.add('hidden');
+
+            // Get current period from URL or use default
+            const urlParams = new URLSearchParams(window.location.search);
+            const periodParam = urlParams.get('period');
+
+            // Fetch period details
+            const periodUrl = periodParam
+                ? `/api/period/details/?period_start=${periodParam}`
+                : `/api/period/details/?period_start={{ start_date|date:"Y-m-d" }}`;
+
+            fetch(periodUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        currentPeriodToDelete = data.period.start_date;
+
+                        // Populate modal with period data
+                        document.getElementById('deletePeriodLabel').textContent = data.period.label;
+                        document.getElementById('deleteFlowGroupCount').textContent = data.summary.flow_group_count;
+                        document.getElementById('deleteTransactionCount').textContent = data.summary.transaction_count;
+
+                        // Set currency symbols
+                        const currencySymbol = data.summary.currency_symbol;
+                        document.getElementById('deleteCurrencySymbol1').textContent = currencySymbol;
+                        document.getElementById('deleteCurrencySymbol2').textContent = currencySymbol;
+                        document.getElementById('deleteCurrencySymbol3').textContent = currencySymbol;
+                        document.getElementById('deleteCurrencySymbol4').textContent = currencySymbol;
+
+                        // Set metrics
+                        document.getElementById('deleteIncomeEstimated').textContent = parseFloat(data.summary.total_income_estimated).toFixed(2);
+                        document.getElementById('deleteIncomeRealized').textContent = parseFloat(data.summary.total_income_realized).toFixed(2);
+                        document.getElementById('deleteExpenseEstimated').textContent = parseFloat(data.summary.total_expense_estimated).toFixed(2);
+                        document.getElementById('deleteExpenseRealized').textContent = parseFloat(data.summary.total_expense_realized).toFixed(2);
+
+                        // Update warning message based on whether it's current period
+                        if (data.period.is_current) {
+                            document.getElementById('deleteActionDescription').textContent =
+                                'This is the CURRENT period. All flow groups and transactions will be CLEARED, but the period entry will be kept.';
+                            document.getElementById('deleteButtonText').textContent = 'Clear Period';
+                        } else {
+                            document.getElementById('deleteActionDescription').textContent =
+                                'This period will be PERMANENTLY DELETED along with all its flow groups and transactions.';
+                            document.getElementById('deleteButtonText').textContent = 'Delete Period';
+                        }
+
+                        // Hide loading, show content
+                        document.getElementById('deletePeriodLoading').classList.add('hidden');
+                        document.getElementById('deletePeriodDetails').classList.remove('hidden');
+                    } else {
+                        alert('Error loading period details: ' + data.error);
+                        closeDeletePeriodModal();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching period details:', error);
+                    alert('An error occurred while loading period details');
+                    closeDeletePeriodModal();
+                });
+        }
+
+        function closeDeletePeriodModal() {
+            document.getElementById('deletePeriodModal').classList.add('hidden');
+            currentPeriodToDelete = null;
+        }
+
+        function confirmDeletePeriod() {
+            if (!currentPeriodToDelete) return;
+
+            const confirmBtn = document.getElementById('confirmDeleteBtn');
+            const originalText = confirmBtn.querySelector('#deleteButtonText').textContent;
+
+            // Disable button
+            confirmBtn.disabled = true;
+            confirmBtn.querySelector('#deleteButtonText').textContent = 'Processing...';
+            confirmBtn.style.cursor = 'wait';
+
+            fetch('/api/period/delete/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    period_start: currentPeriodToDelete
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Show success message
+                    alert(data.message);
+                    // Redirect
+                    window.location.href = data.redirect;
+                } else {
+                    alert('Error: ' + data.error);
+                    confirmBtn.disabled = false;
+                    confirmBtn.querySelector('#deleteButtonText').textContent = originalText;
+                    // Restaura estilo vermelho pois o erro ocorreu
+                    btn.style.cursor = 'pointer';
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting period:', error);
+                alert('An error occurred while deleting the period');
+                confirmBtn.disabled = false;
+                confirmBtn.querySelector('#deleteButtonText').textContent = originalText;
+                confirmBtn.style.cursor = 'pointer';
+            });
         }
     </script>
 
