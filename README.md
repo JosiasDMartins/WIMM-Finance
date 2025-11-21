@@ -1,6 +1,5 @@
 <div align="center">
   <img src="finances/static/finances/images/logo.png" alt="SweetMoney Logo" width="200">
-  <h1>SweetMoney</h1>
   <p><strong>A family-oriented personal finance management application</strong></p>
 </div>
 
