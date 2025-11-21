@@ -71,7 +71,10 @@
                     </div>
                     
                     <div class="px-4 py-2">
-                        <span class="text-xs text-gray-500 dark:text-gray-600">Version {{ db_version }}</span>
+                        <span id="sidebar-version" class="text-xs text-gray-500 dark:text-gray-600">Version {{ db_version }}</span>
+                        <div id="sidebar-update-indicator" class="hidden text-xs text-orange-500 dark:text-orange-400 mt-1">
+                            (Update Available)
+                        </div>
                     </div>
                 </div>
             </nav>

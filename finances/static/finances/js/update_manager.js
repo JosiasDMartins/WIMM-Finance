@@ -33,7 +33,8 @@ class UpdateManager {
         document.getElementById('btn-create-backup')?.addEventListener('click', () => this.createBackup());
         document.getElementById('btn-create-backup-local')?.addEventListener('click', () => this.createBackup());
         document.getElementById('close-logs')?.addEventListener('click', () => this.closeLogs());
-        
+        document.getElementById('btn-logout')?.addEventListener('click', () => this.logout());
+
         // Backup confirmation checkboxes
         document.getElementById('backup-confirmed')?.addEventListener('change', (e) => {
             const installBtn = document.getElementById('btn-install-github');
@@ -55,17 +56,51 @@ class UpdateManager {
             console.log('[UpdateManager] Checking for updates...');
             const response = await fetch('/check-updates/');
             const data = await response.json();
-            
+
             console.log('[UpdateManager] Update data:', data);
-            
-            if (data.needs_update || forceShow) {
-                this.updateData = data;
-                this.showUpdateModal(data);
+
+            // Update sidebar indicator if updates are available
+            if (data.needs_update) {
+                this.showSidebarUpdateIndicator();
+
+                // For local updates, always show modal (blocks non-admin users)
+                // For GitHub updates, only show modal if admin or if forceShow is true
+                if (data.update_type === 'local' || data.is_admin || forceShow) {
+                    this.updateData = data;
+                    this.showUpdateModal(data);
+                } else {
+                    console.log('[UpdateManager] GitHub update available but user is not admin - showing sidebar indicator only');
+                }
             } else {
+                this.hideSidebarUpdateIndicator();
                 console.log('[UpdateManager] No updates needed');
             }
         } catch (error) {
             console.error('[UpdateManager] Error checking for updates:', error);
+        }
+    }
+
+    showSidebarUpdateIndicator() {
+        const indicator = document.getElementById('sidebar-update-indicator');
+        const versionSpan = document.getElementById('sidebar-version');
+        if (indicator) {
+            indicator.classList.remove('hidden');
+        }
+        if (versionSpan) {
+            versionSpan.classList.add('text-orange-500', 'dark:text-orange-400');
+            versionSpan.classList.remove('text-gray-500', 'dark:text-gray-600');
+        }
+    }
+
+    hideSidebarUpdateIndicator() {
+        const indicator = document.getElementById('sidebar-update-indicator');
+        const versionSpan = document.getElementById('sidebar-version');
+        if (indicator) {
+            indicator.classList.add('hidden');
+        }
+        if (versionSpan) {
+            versionSpan.classList.remove('text-orange-500', 'dark:text-orange-400');
+            versionSpan.classList.add('text-gray-500', 'dark:text-gray-600');
         }
     }
     
@@ -170,7 +205,7 @@ class UpdateManager {
         const buttons = [
             'btn-apply-local', 'btn-install-github', 'btn-skip', 'btn-skip-local',
             'btn-close', 'btn-view-logs', 'btn-view-release',
-            'btn-create-backup', 'btn-create-backup-local'
+            'btn-create-backup', 'btn-create-backup-local', 'btn-logout'
         ];
 
         buttons.forEach(id => {
@@ -188,7 +223,7 @@ class UpdateManager {
     
     showLocalUpdate(data) {
         console.log('[UpdateManager] Showing local update');
-        
+
         const modalIcon = document.getElementById('modal-icon');
         const updateDesc = document.getElementById('update-description');
         const scriptsInfo = document.getElementById('scripts-info');
@@ -197,12 +232,45 @@ class UpdateManager {
         const btnApply = document.getElementById('btn-apply-local');
         const btnSkip = document.getElementById('btn-skip-local');
         const btnBackup = document.getElementById('btn-create-backup-local');
-        
+
         if (modalIcon) {
             modalIcon.className = 'material-symbols-outlined text-4xl text-orange-500';
             modalIcon.textContent = 'construction';
         }
-        
+
+        // Check if user is admin
+        const isAdmin = data.is_admin;
+
+        if (!isAdmin) {
+            // Non-admin user - show info only, no actions allowed
+            if (updateDesc) {
+                updateDesc.textContent = 'A local update is pending and must be applied before the system can be used. Only administrators can apply updates. Please contact an administrator to complete this update.';
+            }
+
+            // Show scripts info but no buttons
+            if (data.has_scripts) {
+                if (scriptsInfo) scriptsInfo.classList.remove('hidden');
+                if (scriptsList) {
+                    scriptsList.innerHTML = '';
+                    data.update_scripts.forEach(script => {
+                        const li = document.createElement('li');
+                        li.textContent = `v${script.version}: ${script.description}`;
+                        scriptsList.appendChild(li);
+                    });
+                }
+            }
+
+            // Show logout button for non-admin users
+            const btnLogout = document.getElementById('btn-logout');
+            if (btnLogout) {
+                btnLogout.classList.remove('hidden');
+            }
+
+            // Hide all other action buttons for non-admin
+            return;
+        }
+
+        // Admin user - show full update interface
         if (data.has_scripts) {
             if (updateDesc) {
                 updateDesc.textContent = 'Local updates are available and must be applied before continuing.';
@@ -221,15 +289,15 @@ class UpdateManager {
                 updateDesc.textContent = 'System files have been updated. Database migrations will be applied.';
             }
         }
-        
-        // Show backup section and buttons
+
+        // Show backup section and buttons (admin only)
         if (backupSection) backupSection.classList.remove('hidden');
         if (btnBackup) btnBackup.classList.remove('hidden');
         if (btnApply) {
             btnApply.classList.remove('hidden');
             btnApply.disabled = true; // Disabled until backup confirmed
         }
-        if (btnSkip) btnSkip.classList.remove('hidden');
+        // Note: btnSkip (Remind Me Later) removed for local updates
     }
     
     showGithubUpdate(data) {
@@ -300,7 +368,14 @@ class UpdateManager {
         }
 
         if (btnViewRelease) btnViewRelease.classList.remove('hidden');
-        if (btnSkip) btnSkip.classList.remove('hidden');
+
+        // Check if user is admin
+        const isAdmin = data.is_admin;
+
+        // Show skip button only for admins
+        if (isAdmin && btnSkip) {
+            btnSkip.classList.remove('hidden');
+        }
 
         if (data.requires_container) {
             // Container update required - manual process
@@ -308,14 +383,23 @@ class UpdateManager {
             if (btnInstall) btnInstall.classList.add('hidden');
             if (backupSection) backupSection.classList.add('hidden');
             if (btnCreateBackup) btnCreateBackup.classList.add('hidden');
-        } else {
-            // Can install via web interface - show backup section and button
+        } else if (isAdmin) {
+            // Admin user - can install via web interface
             if (backupSection) backupSection.classList.remove('hidden');
             if (btnCreateBackup) btnCreateBackup.classList.remove('hidden');
             if (btnInstall) {
                 btnInstall.classList.remove('hidden');
                 btnInstall.disabled = true; // Disabled until backup confirmed
             }
+        } else {
+            // Non-admin user - show information only
+            if (updateDesc) {
+                updateDesc.textContent = 'A new version is available on GitHub. Only administrators can install updates. Please contact an administrator to apply this update.';
+            }
+            // Hide backup and install options for non-admin
+            if (backupSection) backupSection.classList.add('hidden');
+            if (btnCreateBackup) btnCreateBackup.classList.add('hidden');
+            if (btnInstall) btnInstall.classList.add('hidden');
         }
     }
     
@@ -702,7 +786,36 @@ class UpdateManager {
     closeAndReload() {
         location.reload();
     }
-    
+
+    async logout() {
+        console.log('[UpdateManager] Logging out user');
+
+        try {
+            // Create form and submit POST request
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/auth/logout/';
+
+            // Add CSRF token
+            const csrfToken = this.getCookie('csrftoken');
+            if (csrfToken) {
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrfmiddlewaretoken';
+                csrfInput.value = csrfToken;
+                form.appendChild(csrfInput);
+            }
+
+            // Add form to document and submit
+            document.body.appendChild(form);
+            form.submit();
+        } catch (error) {
+            console.error('[UpdateManager] Error during logout:', error);
+            // Fallback: try direct navigation
+            window.location.href = '/auth/logout/';
+        }
+    }
+
     getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {

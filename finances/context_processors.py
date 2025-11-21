@@ -4,7 +4,7 @@ from .models import SystemVersion
 from .models import Notification
 
 #Files version
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 
 #General contect for the entire system
 def database_version(request):
@@ -22,6 +22,25 @@ def database_version(request):
 
 def app_version(request):
     return {'app_version': VERSION}
+
+
+def user_role_processor(request):
+    """
+    Context processor that provides user role information.
+    Adds 'is_admin' boolean to all templates.
+    """
+    if not request.user.is_authenticated:
+        return {'is_admin': False}
+
+    from .models import FamilyMember
+
+    try:
+        member = FamilyMember.objects.filter(user=request.user).first()
+        if member and member.role == 'ADMIN':
+            return {'is_admin': True}
+        return {'is_admin': False}
+    except Exception:
+        return {'is_admin': False}
 
 
 def notifications_processor(request):

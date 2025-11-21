@@ -45,13 +45,17 @@ def check_for_updates(request):
     Check for local and GitHub updates.
     Priority: Local > GitHub
     """
-
-    
+    # Check if user is admin
+    from ..models import FamilyMember
+    is_admin = False
+    if request.user.is_authenticated:
+        member = FamilyMember.objects.filter(user=request.user).first()
+        is_admin = member and member.role == 'ADMIN'
 
     target_version = VERSION
-    
-    print(f"[CHECK_UPDATES] DB: {get_db_version()}, Code: {target_version}")
-    
+
+    print(f"[CHECK_UPDATES] DB: {get_db_version()}, Code: {target_version}, User: {request.user.username}, Is Admin: {is_admin}")
+
     # Verifica atualizações locais primeiro
     local_update_needed = False
     if not SKIP_LOCAL_UPDATE:
@@ -59,11 +63,11 @@ def check_for_updates(request):
             local_update_needed = needs_update(get_db_version(), target_version)
         except ValueError:
             local_update_needed = True
-    
+
     if local_update_needed:
         local_scripts = get_available_update_scripts(get_db_version(), target_version)
         print(f"[CHECK_UPDATES] Local update needed. Scripts: {len(local_scripts)}")
-        
+
         return JsonResponse({
             'needs_update': True,
             'update_type': 'local',
@@ -71,7 +75,8 @@ def check_for_updates(request):
             'target_version': target_version,
             'has_scripts': len(local_scripts) > 0,
             'update_scripts': local_scripts,
-            'can_skip': False
+            'can_skip': False,
+            'is_admin': is_admin
         })
     
     # No local updates, check GitHub
@@ -86,7 +91,8 @@ def check_for_updates(request):
             return JsonResponse({
                 'needs_update': False,
                 'current_version': target_version,
-                'target_version': target_version
+                'target_version': target_version,
+                'is_admin': is_admin
             })
 
         container_required = requires_container_update(target_version, github_version)
@@ -98,35 +104,44 @@ def check_for_updates(request):
             'target_version': github_version,
             'github_release': github_release,
             'requires_container': container_required,
-            'can_skip': True
+            'can_skip': True,
+            'is_admin': is_admin
         })
-    
+
     print(f"[CHECK_UPDATES] No updates needed")
     return JsonResponse({
         'needs_update': False,
         'current_version': target_version,
-        'target_version': target_version
+        'target_version': target_version,
+        'is_admin': is_admin
     })
 
 
 @require_http_methods(["GET"])
 def manual_check_updates(request):
     """Manually check for updates on the settings page."""
+    # Check if user is admin
+    from ..models import FamilyMember
+    is_admin = False
+    if request.user.is_authenticated:
+        member = FamilyMember.objects.filter(user=request.user).first()
+        is_admin = member and member.role == 'ADMIN'
+
     target_version = VERSION
-    
-    print(f"[MANUAL_CHECK] DB: {get_db_version()}, Code: {target_version}")
-    
+
+    print(f"[MANUAL_CHECK] DB: {get_db_version()}, Code: {target_version}, User: {request.user.username}, Is Admin: {is_admin}")
+
     local_update_needed = False
     if not SKIP_LOCAL_UPDATE:
         try:
             local_update_needed = needs_update(get_db_version(), target_version)
         except ValueError:
             local_update_needed = True
-    
+
     # Se há update local, retorna dados completos para abrir o modal
     if local_update_needed:
         local_scripts = get_available_update_scripts(get_db_version(), target_version)
-        
+
         return JsonResponse({
             'needs_update': True,
             'update_type': 'local',
@@ -134,9 +149,10 @@ def manual_check_updates(request):
             'target_version': target_version,
             'has_scripts': len(local_scripts) > 0,
             'update_scripts': local_scripts,
-            'can_skip': False
+            'can_skip': False,
+            'is_admin': is_admin
         })
-    
+
     # Check GitHub (manual check clears skipped versions)
     SkippedUpdate.clear_skipped_versions()
     has_github_update, github_release = check_github_update(target_version)
@@ -153,14 +169,16 @@ def manual_check_updates(request):
             'target_version': github_version,
             'github_release': github_release,
             'requires_container': container_required,
-            'can_skip': True
+            'can_skip': True,
+            'is_admin': is_admin
         })
-    
+
     # Nenhuma atualização disponível
     return JsonResponse({
         'needs_update': False,
         'current_version': target_version,
-        'target_version': target_version
+        'target_version': target_version,
+        'is_admin': is_admin
     })
 
 

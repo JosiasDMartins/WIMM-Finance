@@ -28,6 +28,7 @@
                         </span>
                     </button>
 
+                    {% if is_admin %}
                     <button @click="activeTab = 'backup'"
                             :class="activeTab === 'backup' ? 'border-primary text-primary' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
                             class="border-b-2 py-4 px-1 text-sm font-medium transition-colors">
@@ -45,6 +46,7 @@
                             Updates
                         </span>
                     </button>
+                    {% endif %}
                 </nav>
             </div>
             
@@ -331,6 +333,7 @@
             </div>
 
             <!-- Backup & Restore Tab -->
+            {% if is_admin %}
             <div x-show="activeTab === 'backup'" class="mt-6 space-y-6" x-cloak>
                 <!-- Database Backup Section -->
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
@@ -412,8 +415,10 @@
                     </div>
                 </div>
             </div>
-            
+            {% endif %}
+
             <!-- Updates Tab -->
+            {% if is_admin %}
             <div x-show="activeTab === 'updates'" class="mt-6 space-y-6" x-cloak>
                 <!-- Current Version Info -->
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
@@ -485,6 +490,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 </main>
