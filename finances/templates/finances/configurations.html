@@ -110,8 +110,15 @@
 
             <!-- Members Tab -->
             <div x-show="activeTab === 'members'" class="mt-6" x-cloak x-data="{ editMemberId: null, editUsername: '', editEmail: '', editRole: '', showPasswordModal: false, passwordMemberId: null }">
+                {% if is_admin or is_parent %}
                 <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-10 border border-primary/20">
                     <h2 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">Add New Member</h2>
+
+                    {% if is_parent %}
+                    <div class="p-3 mb-4 text-sm text-blue-700 bg-blue-100 rounded-lg dark:bg-blue-200 dark:text-blue-800" role="alert">
+                        <p><strong>Note:</strong> As a Parent, you can only add Child users.</p>
+                    </div>
+                    {% endif %}
 
                     {% if add_member_form.non_field_errors %}
                         <div class="p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg dark:bg-red-200 dark:text-red-800" role="alert">
@@ -157,7 +164,13 @@
                                 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="{{ add_member_form.role.id_for_label }}">
                                     {{ add_member_form.role.label }}
                                 </label>
-                                {{ add_member_form.role }}
+                                {% if is_parent %}
+                                    <select name="role" id="{{ add_member_form.role.id_for_label }}" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2">
+                                        <option value="CHILD">Child</option>
+                                    </select>
+                                {% else %}
+                                    {{ add_member_form.role }}
+                                {% endif %}
                                 {% for error in add_member_form.role.errors %}
                                     <p class="mt-1 text-xs text-red-500">{{ error }}</p>
                                 {% endfor %}
@@ -172,6 +185,7 @@
                         </div>
                     </form>
                 </div>
+                {% endif %}
 
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -184,41 +198,47 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                            {% for member in family_members %}
+                            {% for item in members_with_permissions %}
                             <tr class="hover:bg-slate-50 dark:hover:bg-gray-700/50">
-                                <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white">{{ member.user.username }}</td>
-                                <td class="px-6 py-4 text-sm text-gray-500">{{ member.user.email|default:"-" }}</td>
+                                <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white">{{ item.member.user.username }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-500">{{ item.member.user.email|default:"-" }}</td>
                                 <td class="px-6 py-4 text-sm text-gray-500">
-                                    <span class="px-2 py-1 text-sm font-medium rounded-full bg-primary/20 text-primary">{{ member.get_role_display }}</span>
+                                    <span class="px-2 py-1 text-sm font-medium rounded-full bg-primary/20 text-primary">{{ item.member.get_role_display }}</span>
                                 </td>
                                 <td class="px-6 py-4 text-center whitespace-nowrap">
                                     <div class="flex justify-center gap-2">
-                                        {% if is_admin %}
+                                        {% if item.can_edit %}
                                         <button type="button"
-                                                @click="editMemberId = {{ member.id }}; editUsername = '{{ member.user.username }}'; editEmail = '{{ member.user.email }}'; editRole = '{{ member.role }}'"
+                                                @click="editMemberId = {{ item.member.id }}; editUsername = '{{ item.member.user.username }}'; editEmail = '{{ item.member.user.email }}'; editRole = '{{ item.member.role }}'"
                                                 class="p-1 text-slate-500 hover:text-primary"
                                                 title="Edit">
                                             <span class="material-symbols-outlined text-lg">edit</span>
                                         </button>
+                                        {% endif %}
 
+                                        {% if item.can_change_password %}
                                         <button type="button"
-                                                @click="passwordMemberId = {{ member.id }}; showPasswordModal = true"
+                                                @click="passwordMemberId = {{ item.member.id }}; showPasswordModal = true"
                                                 class="p-1 text-slate-500 hover:text-blue-500"
                                                 title="Change Password">
                                             <span class="material-symbols-outlined text-lg">key</span>
                                         </button>
+                                        {% endif %}
 
-                                        {% if member.user != request.user %}
-                                        <form method="POST" action="{% url 'member_remove' member_id=member.id %}{% if selected_period %}?period={{ selected_period }}{% endif %}" style="display: inline;">
+                                        {% if item.can_delete %}
+                                        <form method="POST" action="{% url 'member_remove' member_id=item.member.id %}{% if selected_period %}?period={{ selected_period }}{% endif %}" style="display: inline;">
                                             {% csrf_token %}
                                             <button type="submit"
-                                                    onclick="return confirm('Are you sure you want to remove {{ member.user.username }} from the family?')"
+                                                    onclick="return confirm('Are you sure you want to remove {{ item.member.user.username }} from the family?')"
                                                     class="p-1 text-slate-500 hover:text-red-500"
                                                     title="Remove">
                                                 <span class="material-symbols-outlined text-lg">delete</span>
                                             </button>
                                         </form>
                                         {% endif %}
+
+                                        {% if not item.can_edit and not item.can_change_password and not item.can_delete %}
+                                        <span class="text-xs text-gray-400 dark:text-gray-500">View only</span>
                                         {% endif %}
                                     </div>
                                 </td>
@@ -263,6 +283,7 @@
                                         <input type="email" name="email" x-model="editEmail" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2">
                                     </div>
 
+                                    {% if is_admin %}
                                     <div>
                                         <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Role</label>
                                         <select name="role" x-model="editRole" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2">
@@ -271,6 +292,9 @@
                                             <option value="CHILD">Child</option>
                                         </select>
                                     </div>
+                                    {% else %}
+                                    <input type="hidden" name="role" x-model="editRole">
+                                    {% endif %}
                                 </div>
 
                                 <div class="mt-6 flex justify-end space-x-3">

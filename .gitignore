@@ -25,3 +25,4 @@ docker_build/local_settings.example.py
 *.old
 *.old
 db/db.sqlite3.old
+finances/tests_permissions.py

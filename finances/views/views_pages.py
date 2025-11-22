@@ -451,12 +451,27 @@ def configuration_view(request):
             form = FamilyConfigurationForm(instance=config)
 
     # Add members data for the Members tab
+    # Add permission checks for each member
+    from ..permissions import can_edit_user, can_change_password, can_delete_user
+
+    # Create a list of members with their permission info
+    members_with_permissions = []
+    for member in family_members:
+        members_with_permissions.append({
+            'member': member,
+            'can_edit': can_edit_user(current_member, member),
+            'can_change_password': can_change_password(current_member, member),
+            'can_delete': can_delete_user(current_member, member),
+        })
+
     context = {
         'form': form,
         'family': family,
         'family_members': family_members,
+        'members_with_permissions': members_with_permissions,
         'add_member_form': NewUserAndMemberForm(),
         'is_admin': current_member.role == 'ADMIN',
+        'is_parent': current_member.role == 'PARENT',
         'selected_period': selected_period,
         'start_date': start_date,
         'end_date': end_date,
@@ -777,20 +792,29 @@ def members_view(request):
 @db_transaction.atomic
 def add_member_view(request):
     """View (POST) to add a new member."""
+    from ..permissions import can_create_user
+
     family, current_member, _ = get_family_context(request.user)
     if not family:
         messages.error(request, 'User is not associated with a family.')
-        return redirect('members')
-    
-    if current_member.role != 'ADMIN':
-        messages.error(request, 'Only admins can add new members.')
-        return redirect('members')
-    
-    form = NewUserAndMemberForm(request.POST)
+        return redirect('configuration')
+
     query_period = request.GET.get('period')
-    redirect_url = f"/members/?period={query_period}" if query_period else "/members/"
-    
+    redirect_url = f"/settings/?period={query_period}" if query_period else "/settings/"
+
+    form = NewUserAndMemberForm(request.POST)
+
     if form.is_valid():
+        target_role = form.cleaned_data['role']
+
+        # Check permission to create this type of user
+        if not can_create_user(current_member, target_role):
+            if current_member.role == 'PARENT':
+                messages.error(request, 'Parents can only create CHILD users.')
+            else:
+                messages.error(request, 'You do not have permission to create users.')
+            return redirect(redirect_url)
+
         try:
             UserModel = get_user_model()
             new_user = UserModel.objects.create_user(
@@ -798,47 +822,50 @@ def add_member_view(request):
                 email=form.cleaned_data.get('email', ''),
                 password=form.cleaned_data['password']
             )
-            
+
             FamilyMember.objects.create(
                 user=new_user,
                 family=family,
-                role=form.cleaned_data['role']
+                role=target_role
             )
             messages.success(request, f"Member '{new_user.username}' added successfully!")
-            
+
         except Exception as e:
             messages.error(request, f"Error creating member: {str(e)}")
     else:
         for field, errors in form.errors.items():
             for error in errors:
                 messages.error(request, f"{field}: {error}")
-                
+
     return redirect(redirect_url)
 
 
 @login_required
 def edit_member_view(request, member_id):
     """View (POST-redirect) to edit a member."""
+    from ..permissions import can_edit_user, can_change_password
+
     family, current_member, _ = get_family_context(request.user)
     if not family:
         return redirect('dashboard')
-    
-    if current_member.role != 'ADMIN':
-        messages.error(request, 'Only admins can edit members.')
-        return redirect('members')
-    
+
     member = get_object_or_404(FamilyMember, id=member_id, family=family)
     query_period = request.GET.get('period')
-    redirect_url = f"/members/?period={query_period}" if query_period else "/members/"
-    
+    redirect_url = f"/settings/?period={query_period}" if query_period else "/settings/"
+
     if request.method == 'POST':
         action = request.POST.get('action')
-        
+
         if action == 'update_info':
+            # Check permission to edit user info
+            if not can_edit_user(current_member, member):
+                messages.error(request, 'You do not have permission to edit this user.')
+                return redirect(redirect_url)
+
             username = request.POST.get('username')
             email = request.POST.get('email', '')
             role = request.POST.get('role')
-            
+
             if username:
                 UserModel = get_user_model()
                 if UserModel.objects.filter(username=username).exclude(id=member.user.id).exists():
@@ -847,21 +874,40 @@ def edit_member_view(request, member_id):
                     member.user.username = username
                     member.user.email = email
                     member.user.save()
-                    member.role = role
-                    member.save()
-                    messages.success(request, 'Member information updated successfully.')
-            
+
+                    # Only allow role changes if user has permission
+                    # Admin can change any role, Parent can change Child roles
+                    if current_member.role == 'ADMIN':
+                        member.role = role
+                        member.save()
+                        messages.success(request, 'Member information updated successfully.')
+                    elif current_member.role == 'PARENT' and member.role == 'CHILD':
+                        # Parents cannot change role, only edit name/email
+                        messages.success(request, 'Member information updated successfully.')
+                    elif current_member.id == member.id:
+                        # User editing themselves cannot change role
+                        messages.success(request, 'Profile updated successfully.')
+                    else:
+                        messages.success(request, 'Member information updated successfully.')
+
         elif action == 'change_password':
+            # Check permission to change password
+            if not can_change_password(current_member, member):
+                messages.error(request, 'You do not have permission to change this user\'s password.')
+                return redirect(redirect_url)
+
             new_password = request.POST.get('new_password')
             confirm_password = request.POST.get('confirm_password')
-            
-            if new_password and new_password == confirm_password:
+
+            if len(new_password) < 6:
+                messages.error(request, 'Password must be at least 6 characters long.')
+            elif new_password and new_password == confirm_password:
                 member.user.set_password(new_password)
                 member.user.save()
                 messages.success(request, 'Password changed successfully.')
             else:
                 messages.error(request, 'Passwords do not match.')
-        
+
     return redirect(redirect_url)
 
 
@@ -869,28 +915,35 @@ def edit_member_view(request, member_id):
 @require_POST
 def remove_member_view(request, member_id):
     """View (POST) to remove a member."""
+    from ..permissions import can_delete_user
+
     family, current_member, _ = get_family_context(request.user)
     if not family:
         messages.error(request, 'User is not associated with a family.')
-        return redirect('members')
-    
-    if current_member.role != 'ADMIN':
-        messages.error(request, 'Only admins can remove members.')
-        return redirect('members')
-    
+        return redirect('configuration')
+
     member_to_remove = get_object_or_404(FamilyMember, id=member_id, family=family)
-    
-    if member_to_remove.user == request.user:
-        messages.error(request, 'You cannot remove yourself from the family.')
-        return redirect('members')
-    
+
+    # Check permission to delete this user
+    if not can_delete_user(current_member, member_to_remove):
+        if current_member.id == member_to_remove.id:
+            messages.error(request, 'You cannot remove yourself from the family.')
+        elif current_member.role == 'PARENT':
+            messages.error(request, 'Parents can only remove CHILD users.')
+        else:
+            messages.error(request, 'You do not have permission to remove this user.')
+
+        query_period = request.GET.get('period')
+        redirect_url = f"/settings/?period={query_period}" if query_period else "/settings/"
+        return redirect(redirect_url)
+
     username = member_to_remove.user.username
     member_to_remove.delete()
-    
+
     messages.success(request, f'Member {username} has been removed from the family.')
-    
+
     query_period = request.GET.get('period')
-    redirect_url = f"/members/?period={query_period}" if query_period else "/members/"
+    redirect_url = f"/settings/?period={query_period}" if query_period else "/settings/"
     return redirect(redirect_url)
 
 
