@@ -152,11 +152,18 @@ def user_profile_view(request):
     
     if request.method == 'POST':
         action = request.POST.get('action')
-        
+
+        # Block all profile editing in demo mode
+        from django.conf import settings
+        if getattr(settings, 'DEMO_MODE', False):
+            messages.error(request, 'Profile editing is disabled in demo mode.')
+            redirect_url = f"?period={query_period}" if query_period else ""
+            return redirect(f"/profile/{redirect_url}")
+
         if action == 'update_profile':
             username = request.POST.get('username', '').strip()
             email = request.POST.get('email', '').strip()
-            
+
             if username:
                 UserModel = get_user_model()
                 if UserModel.objects.filter(username=username).exclude(id=request.user.id).exists():
@@ -168,12 +175,12 @@ def user_profile_view(request):
                     messages.success(request, 'Profile updated successfully.')
             else:
                 messages.error(request, 'Username cannot be empty.')
-        
+
         elif action == 'change_password':
             current_password = request.POST.get('current_password')
             new_password = request.POST.get('new_password')
             confirm_password = request.POST.get('confirm_password')
-            
+
             if not request.user.check_password(current_password):
                 messages.error(request, 'Current password is incorrect.')
             elif len(new_password) < 6:

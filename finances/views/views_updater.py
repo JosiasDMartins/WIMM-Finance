@@ -507,6 +507,11 @@ def download_github_update(request):
 @require_http_methods(["POST"])
 def create_backup(request):
     """Create a backup of the database."""
+    # Block backups in demo mode
+    from django.conf import settings
+    if getattr(settings, 'DEMO_MODE', False):
+        return JsonResponse({'success': False, 'error': 'Database backups are disabled in demo mode.'}, status=403)
+
     try:
         success, message, backup_path = create_database_backup()
 
@@ -533,6 +538,11 @@ def create_backup(request):
 @require_http_methods(["GET"])
 def download_backup(request, filename):
     """Provides a downloadable backup file."""
+    # Block backup downloads in demo mode
+    from django.conf import settings
+    if getattr(settings, 'DEMO_MODE', False):
+        return JsonResponse({'error': 'Backup downloads are disabled in demo mode.'}, status=403)
+
     try:
         backup_path = Path(settings.BASE_DIR) / 'backups' / filename
         
@@ -554,6 +564,11 @@ def download_backup(request, filename):
 @require_http_methods(["POST"])
 def restore_backup(request):
     """Restores the database from a backup file."""
+    # Block database restore in demo mode
+    from django.conf import settings
+    if getattr(settings, 'DEMO_MODE', False):
+        return JsonResponse({'success': False, 'error': 'Database restore is disabled in demo mode.'}, status=403)
+
     try:
         if 'backup_file' not in request.FILES:
             return JsonResponse({'success': False, 'error': 'No backup file provided'}, status=400)

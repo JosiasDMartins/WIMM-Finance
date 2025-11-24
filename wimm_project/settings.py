@@ -69,6 +69,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'finances.context_processors.database_version',
                 'finances.context_processors.app_version',
+                'finances.context_processors.demo_mode_processor',
                 'finances.context_processors.user_role_processor',
                 'finances.context_processors.notifications_processor',
             ],
@@ -187,4 +188,23 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 #Deploy CFG
 STATIC_ROOT = os.path.join(Path(__file__).resolve().parent.parent, 'staticfiles')
+
+# Demo mode settings (defaults to False if not set in local_settings)
+DEMO_MODE = False
+DEMO_REPO_URL = ''
+
+# Import local settings if available
+# First try config/local_settings.py (Docker production setup)
+# Then try wimm_project/local_settings.py (local development)
+try:
+    import sys
+    config_path = BASE_DIR / 'config'
+    if config_path.exists() and str(config_path) not in sys.path:
+        sys.path.insert(0, str(config_path))
+    from local_settings import *
+except ImportError:
+    try:
+        from .local_settings import *
+    except ImportError:
+        pass
 

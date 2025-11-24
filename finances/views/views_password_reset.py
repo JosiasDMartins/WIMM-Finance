@@ -49,6 +49,12 @@ def password_reset_request(request):
     """
     Step 1: User enters their username or email to request password reset.
     """
+    # Block password reset in demo mode
+    from django.conf import settings
+    if getattr(settings, 'DEMO_MODE', False):
+        messages.error(request, 'Password reset is disabled in demo mode.')
+        return redirect('login')
+
     # Check if email is configured
     if not is_email_configured():
         messages.error(request, 'Password reset is not available. Email system is not configured.')

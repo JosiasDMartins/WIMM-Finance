@@ -793,6 +793,14 @@ def members_view(request):
 def add_member_view(request):
     """View (POST) to add a new member."""
     from ..permissions import can_create_user
+    from django.conf import settings
+
+    # Block user creation in demo mode
+    if getattr(settings, 'DEMO_MODE', False):
+        messages.error(request, 'User creation is disabled in demo mode.')
+        query_period = request.GET.get('period')
+        redirect_url = f"/settings/?period={query_period}" if query_period else "/settings/"
+        return redirect(redirect_url)
 
     family, current_member, _ = get_family_context(request.user)
     if not family:
@@ -857,6 +865,12 @@ def edit_member_view(request, member_id):
         action = request.POST.get('action')
 
         if action == 'update_info':
+            # Block user editing in demo mode
+            from django.conf import settings
+            if getattr(settings, 'DEMO_MODE', False):
+                messages.error(request, 'User editing is disabled in demo mode.')
+                return redirect(redirect_url)
+
             # Check permission to edit user info
             if not can_edit_user(current_member, member):
                 messages.error(request, 'You do not have permission to edit this user.')
@@ -891,6 +905,12 @@ def edit_member_view(request, member_id):
                         messages.success(request, 'Member information updated successfully.')
 
         elif action == 'change_password':
+            # Block password changes in demo mode
+            from django.conf import settings
+            if getattr(settings, 'DEMO_MODE', False):
+                messages.error(request, 'Password changes are disabled in demo mode.')
+                return redirect(redirect_url)
+
             # Check permission to change password
             if not can_change_password(current_member, member):
                 messages.error(request, 'You do not have permission to change this user\'s password.')
@@ -916,6 +936,14 @@ def edit_member_view(request, member_id):
 def remove_member_view(request, member_id):
     """View (POST) to remove a member."""
     from ..permissions import can_delete_user
+    from django.conf import settings
+
+    # Block user deletion in demo mode
+    if getattr(settings, 'DEMO_MODE', False):
+        messages.error(request, 'User deletion is disabled in demo mode.')
+        query_period = request.GET.get('period')
+        redirect_url = f"/settings/?period={query_period}" if query_period else "/settings/"
+        return redirect(redirect_url)
 
     family, current_member, _ = get_family_context(request.user)
     if not family:

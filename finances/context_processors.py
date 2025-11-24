@@ -23,6 +23,15 @@ def database_version(request):
 def app_version(request):
     return {'app_version': VERSION}
 
+def demo_mode_processor(request):
+    """
+    Context processor that provides demo mode settings to all templates.
+    """
+    return {
+        'DEMO_MODE': getattr(settings, 'DEMO_MODE', False),
+        'DEMO_REPO_URL': getattr(settings, 'DEMO_REPO_URL', '')
+    }
+
 
 def user_role_processor(request):
     """
