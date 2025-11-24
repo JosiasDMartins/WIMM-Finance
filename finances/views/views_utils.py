@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.utils import translation
 from django.db.models import Sum, Q
 from django.utils import timezone
-from babel.numbers import get_group_symbol, get_currency_symbol as get_currency_symbol_babel
+from babel.numbers import get_group_symbol, get_decimal_symbol, get_currency_symbol as get_currency_symbol_babel
 
 # Relative imports from the app (.. moves up one level, from /views/ to /finances/)
 from ..models import (
@@ -26,6 +26,15 @@ def get_thousand_separator():
     lang = translation.get_language()
     locale_para_babel = translation.to_locale(lang)
     return get_group_symbol(locale_para_babel)
+
+
+def get_decimal_separator():
+    """
+    Returns the decimal separator for the active language.
+    """
+    lang = translation.get_language()
+    locale_para_babel = translation.to_locale(lang)
+    return get_decimal_symbol(locale_para_babel)
 
 
 def get_currency_symbol(currency_code):
@@ -69,7 +78,7 @@ def get_default_income_flow_group(family, user, period_start_date):
     if created:
         config = getattr(family, 'configuration', None)
         if config:
-            _, end_date, _ = get_current_period_dates(family, period_start_date.strftime('%Y-%m-%d'))
+            _unused1, end_date, _unused2 = get_current_period_dates(family, period_start_date.strftime('%Y-%m-%d'))
             ensure_period_exists(family, period_start_date, end_date, config.period_type)
     
     return income_group

@@ -29,7 +29,8 @@ from .views_utils import (
     get_family_context,
     can_access_flow_group,
     get_currency_symbol,
-    get_thousand_separator
+    get_thousand_separator,
+    get_decimal_separator
 )
 
 
@@ -41,7 +42,7 @@ def reorder_flow_items_ajax(request):
     if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return HttpResponseBadRequest(_("Not an AJAX request."))
 
-    family, current_member, _ = get_family_context(request.user)
+    family, current_member, _unused = get_family_context(request.user)
     if not family:
         return HttpResponseForbidden(_("User is not associated with a family."))
     
@@ -81,7 +82,7 @@ def save_flow_item_ajax(request):
     if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return HttpResponseBadRequest(_("Not an AJAX request."))
 
-    family, current_member, _ = get_family_context(request.user)
+    family, current_member, _unused = get_family_context(request.user)
     if not family:
         return HttpResponseForbidden(_("User is not associated with a family."))
 
@@ -110,7 +111,12 @@ def save_flow_item_ajax(request):
             amount_clean = str(amount_str).strip()
             amount_clean = amount_clean.replace(get_currency_symbol(currency), '')
             amount_clean = amount_clean.replace(get_thousand_separator(), '')
-            
+
+            # Replace decimal separator with standard dot for Decimal conversion
+            decimal_sep = get_decimal_separator()
+            if decimal_sep != '.':
+                amount_clean = amount_clean.replace(decimal_sep, '.')
+
             if not amount_clean:
                 return JsonResponse({'error': _('Amount cannot be empty.')}, status=400)
             amount = Decimal(amount_clean)
@@ -181,7 +187,7 @@ def save_flow_item_ajax(request):
         
         config = getattr(family, 'configuration', None)
         if config:
-            start_date, end_date, _ = get_current_period_dates(family, flow_group.period_start_date.strftime('%Y-%m-%d'))
+            start_date, end_date, _unused = get_current_period_dates(family, flow_group.period_start_date.strftime('%Y-%m-%d'))
             ensure_period_exists(family, start_date, end_date, config.period_type)
 
         amount_value = str(transaction.amount.amount)
@@ -218,7 +224,7 @@ def delete_flow_item_ajax(request):
     if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return HttpResponseBadRequest("Not an AJAX request.")
 
-    family, current_member, _ = get_family_context(request.user)
+    family, current_member, _unused = get_family_context(request.user)
     if not family:
         return HttpResponseForbidden("User is not associated with a family.")
 
@@ -250,7 +256,7 @@ def toggle_kids_group_realized_ajax(request):
     if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return HttpResponseBadRequest(_("Not an AJAX request."))
 
-    family, current_member, _ = get_family_context(request.user)
+    family, current_member, _unused = get_family_context(request.user)
     if not family:
         return HttpResponseForbidden(_("User is not associated with a family."))
     
@@ -294,7 +300,7 @@ def reorder_flow_groups_ajax(request):
     if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return HttpResponseBadRequest(_("Not an AJAX request."))
 
-    family, current_member, _ = get_family_context(request.user)
+    family, current_member, _unused = get_family_context(request.user)
     if not family:
         return HttpResponseForbidden(_("User is not associated with a family."))
     
@@ -328,7 +334,7 @@ def reorder_flow_groups_ajax(request):
 @db_transaction.atomic
 def delete_flow_group_view(request, group_id):
     """AJAX: Deletes a FlowGroup and all its transactions."""
-    family, current_member, _ = get_family_context(request.user)
+    family, current_member, _unused = get_family_context(request.user)
     if not family:
         return JsonResponse({'error': _('User is not associated with a family.')}, status=403)
     
@@ -358,7 +364,7 @@ def copy_previous_period_ajax(request):
     if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return HttpResponseBadRequest(_("Not an AJAX request."))
 
-    family, current_member, _ = get_family_context(request.user)
+    family, current_member, _unused = get_family_context(request.user)
     if not family:
         return HttpResponseForbidden(_("User is not associated with a family."))
     
@@ -391,7 +397,7 @@ def check_period_empty_ajax(request):
     if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return HttpResponseBadRequest(_("Not an AJAX request."))
 
-    family, current_member, _ = get_family_context(request.user)
+    family, current_member, _unused = get_family_context(request.user)
     if not family:
         return HttpResponseForbidden(_("User is not associated with a family."))
     
@@ -411,7 +417,7 @@ def check_period_empty_ajax(request):
 @login_required
 def get_periods_ajax(request):
     """AJAX: Returns the available time periods in JSON format."""
-    family, _, _ = get_family_context(request.user)
+    family, _unused1, _unused2 = get_family_context(request.user)
     if not family:
         return JsonResponse({'error': 'User is not associated with a family.'}, status=403)
     
@@ -434,24 +440,32 @@ def save_bank_balance_ajax(request):
     try:
         data = json.loads(request.body)
         
-        family, _, _ = get_family_context(request.user)
+        family, _unused1, _unused2 = get_family_context(request.user)
         if not family:
             return JsonResponse({'status': 'error', 'error': _('User not in family')}, status=403)
         
         description = data.get('description', '').strip()
-        amount = Decimal(data.get('amount', '0'))
+        amount_str = data.get('amount', '0')
         date_str = data.get('date')
         member_id = data.get('member_id')
         period_start_date_str = data.get('period_start_date')
         balance_id = data.get('id')
-        
+
+        # Clean and parse amount with locale support
+        amount_clean = str(amount_str).strip()
+        amount_clean = amount_clean.replace(get_thousand_separator(), '')
+        decimal_sep = get_decimal_separator()
+        if decimal_sep != '.':
+            amount_clean = amount_clean.replace(decimal_sep, '.')
+        amount = Decimal(amount_clean)
+
         date = dt_datetime.strptime(date_str, '%Y-%m-%d').date()
         period_start_date = dt_datetime.strptime(period_start_date_str, '%Y-%m-%d').date()
-        
+
         member = None
         if member_id and member_id != 'null':
             member = FamilyMember.objects.get(id=member_id, family=family)
-        
+
         currency = get_period_currency(family, period_start_date)
         money_amount = Money(amount, currency)
         
@@ -496,7 +510,7 @@ def delete_bank_balance_ajax(request):
         data = json.loads(request.body)
         balance_id = data.get('id')
 
-        family, _, _ = get_family_context(request.user)
+        family, _unused1, _unused2 = get_family_context(request.user)
         if not family:
             return JsonResponse({'status': 'error', 'error': _('User not in family')}, status=403)
 
@@ -518,7 +532,7 @@ def validate_period_overlap_ajax(request):
         start_date_str = data.get('start_date')
         end_date_str = data.get('end_date')
 
-        family, current_member, _ = get_family_context(request.user)
+        family, current_member, _unused = get_family_context(request.user)
         if not family:
             return JsonResponse({'status': 'error', 'error': _('User not in family')}, status=403)
 
@@ -582,7 +596,7 @@ def create_period_ajax(request):
         start_date_str = data.get('start_date')
         end_date_str = data.get('end_date')
 
-        family, current_member, _ = get_family_context(request.user)
+        family, current_member, _unused = get_family_context(request.user)
         if not family:
             return JsonResponse({'status': 'error', 'error': _('User not in family')}, status=403)
 
@@ -653,7 +667,7 @@ def get_period_details_ajax(request):
     try:
         period_start_str = request.GET.get('period_start')
 
-        family, current_member, _ = get_family_context(request.user)
+        family, current_member, _unused = get_family_context(request.user)
         if not family:
             return JsonResponse({'status': 'error', 'error': _('User not in family')}, status=403)
 
@@ -665,7 +679,7 @@ def get_period_details_ajax(request):
         period_start = dt_datetime.strptime(period_start_str, '%Y-%m-%d').date()
 
         # Get current period to check if this is current
-        current_start, current_end, _ = get_current_period_dates(family, None)
+        current_start, current_end, _unused = get_current_period_dates(family, None)
         is_current_period = (period_start == current_start)
 
         # Get period dates
@@ -773,7 +787,7 @@ def delete_period_ajax(request):
         data = json.loads(request.body)
         period_start_str = data.get('period_start')
 
-        family, current_member, _ = get_family_context(request.user)
+        family, current_member, _unused = get_family_context(request.user)
         if not family:
             return JsonResponse({'status': 'error', 'error': _('User not in family')}, status=403)
 
@@ -785,7 +799,7 @@ def delete_period_ajax(request):
         period_start = dt_datetime.strptime(period_start_str, '%Y-%m-%d').date()
 
         # Get current period to check if this is current
-        current_start, current_end, _ = get_current_period_dates(family, None)
+        current_start, current_end, _unused = get_current_period_dates(family, None)
         is_current_period = (period_start == current_start)
 
         if is_current_period:

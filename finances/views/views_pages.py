@@ -370,7 +370,7 @@ def configuration_view(request):
     if config_obj:
         ensure_period_exists(family, start_date, end_date, config_obj.period_type)
     
-    current_start, _, _ = get_current_period_dates(family, None)
+    current_start, _unused1, _unused2 = get_current_period_dates(family, None)
     is_current_period = (start_date == current_start)
     
     if request.method == 'POST':
@@ -505,7 +505,7 @@ def bank_reconciliation_view(request):
     tolerance = config.bank_reconciliation_tolerance
 
     query_period = request.GET.get('period')
-    start_date, end_date, _ = get_current_period_dates(family, query_period)
+    start_date, end_date, _unused = get_current_period_dates(family, query_period)
 
     member_role_for_period = get_member_role_for_period(current_member, start_date)
     mode = request.GET.get('mode', 'general')
@@ -614,7 +614,7 @@ def create_flow_group_view(request):
         return redirect('dashboard')
 
     query_period = request.GET.get('period') or request.POST.get('period')
-    start_date, end_date, _ = get_current_period_dates(family, query_period)
+    start_date, end_date, _unused = get_current_period_dates(family, query_period)
 
     if request.method == 'POST':
         form = FlowGroupForm(request.POST, family=family)
@@ -715,7 +715,7 @@ def edit_flow_group_view(request, group_id):
         return redirect('dashboard')
     
     query_period = request.GET.get('period') or group.period_start_date.strftime('%Y-%m-%d')
-    start_date, end_date, _ = get_current_period_dates(family, query_period)
+    start_date, end_date, _unused = get_current_period_dates(family, query_period)
     
     member_role_for_period = get_member_role_for_period(current_member, start_date)
     
@@ -809,7 +809,7 @@ def add_member_view(request):
         redirect_url = f"/settings/?period={query_period}" if query_period else "/settings/"
         return redirect(redirect_url)
 
-    family, current_member, _ = get_family_context(request.user)
+    family, current_member, _unused = get_family_context(request.user)
     if not family:
         messages.error(request, _('User is not associated with a family.'))
         return redirect('configuration')
@@ -860,7 +860,7 @@ def edit_member_view(request, member_id):
     """View (POST-redirect) to edit a member."""
     from ..permissions import can_edit_user, can_change_password
 
-    family, current_member, _ = get_family_context(request.user)
+    family, current_member, _unused = get_family_context(request.user)
     if not family:
         return redirect('dashboard')
 
@@ -952,7 +952,7 @@ def remove_member_view(request, member_id):
         redirect_url = f"/settings/?period={query_period}" if query_period else "/settings/"
         return redirect(redirect_url)
 
-    family, current_member, _ = get_family_context(request.user)
+    family, current_member, _unused = get_family_context(request.user)
     if not family:
         messages.error(request, _('User is not associated with a family.'))
         return redirect('configuration')
@@ -985,7 +985,7 @@ def remove_member_view(request, member_id):
 @login_required
 def investments_view(request):
     """View for managing investments."""
-    family, _, _ = get_family_context(request.user)
+    family, _unused1, _unused2 = get_family_context(request.user)
     if not family:
         return redirect('dashboard')
     
@@ -1004,7 +1004,7 @@ def investments_view(request):
         form = InvestmentForm()
 
     investments = Investment.objects.filter(family=family).order_by('name')
-    start_date, end_date, _ = get_current_period_dates(family, query_period)
+    start_date, end_date, _unused = get_current_period_dates(family, query_period)
     
     context = {
         'investment_form': form,
@@ -1020,9 +1020,9 @@ def investments_view(request):
 @login_required
 def add_receipt_view(request):
     """Shortcut to add a recipe (redirects to the income group)."""
-    family, _, _ = get_family_context(request.user)
+    family, _unused1, _unused2 = get_family_context(request.user)
     query_period = request.GET.get('period')
-    start_date, _, _ = get_current_period_dates(family, query_period)
+    start_date, _unused1, _unused2 = get_current_period_dates(family, query_period)
     income_group = get_default_income_flow_group(family, request.user, start_date)
     
     redirect_url = f"?period={query_period}" if query_period else ""
