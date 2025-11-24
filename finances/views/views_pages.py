@@ -6,6 +6,7 @@ from django.db.models import Sum, Q
 from django.db import transaction as db_transaction
 from django.contrib.auth import get_user_model
 from django.contrib import messages
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 from moneyed import Money
 
@@ -343,11 +344,11 @@ def configuration_view(request):
     try:
         member = FamilyMember.objects.select_related('family', 'family__configuration').get(user=request.user)
     except FamilyMember.DoesNotExist:
-        messages.error(request, "You are not associated with any family.")
+        messages.error(request, _("You are not associated with any family."))
         return redirect('dashboard')
-    
+
     if member.role not in ['ADMIN', 'PARENT']:
-        messages.error(request, "Only Admins and Parents can access configuration.")
+        messages.error(request, _("Only Admins and Parents can access configuration."))
         return redirect('dashboard')
     
     family = member.family
@@ -389,12 +390,11 @@ def configuration_view(request):
                 if has_data:
                     messages.warning(
                         request,
-                        f"Period configuration updated. Your current period has {data_count} items. "
-                        f"This period will be preserved as-is, and the new configuration will apply to future periods."
+                        _("Period configuration updated. Your current period has %(count)s items. This period will be preserved as-is, and the new configuration will apply to future periods.") % {'count': data_count}
                     )
                     close_current_period(family)
                 else:
-                    messages.info(request, "Period configuration updated. Changes will apply to the current and future periods.")
+                    messages.info(request, _("Period configuration updated. Changes will apply to the current and future periods."))
 
             if currency_changed:
                 new_currency = new_config['base_currency']
@@ -414,9 +414,13 @@ def configuration_view(request):
                     
                     messages.success(
                         request,
-                        f"Currency updated to {new_currency} for current period. "
-                        f"Updated {updated_groups} groups, {updated_transactions} transactions, "
-                        f"{updated_balances} bank balances, and {updated_investments} investments."
+                        _("Currency updated to %(currency)s for current period. Updated %(groups)s groups, %(transactions)s transactions, %(balances)s bank balances, and %(investments)s investments.") % {
+                            'currency': new_currency,
+                            'groups': updated_groups,
+                            'transactions': updated_transactions,
+                            'balances': updated_balances,
+                            'investments': updated_investments
+                        }
                     )
                 else:
                     # Período passado: Atualiza APENAS Período
@@ -430,9 +434,12 @@ def configuration_view(request):
 
                     messages.success(
                         request,
-                        f"Currency updated to {new_currency} for selected period only. "
-                        f"Updated {updated_groups} groups, {updated_transactions} transactions, "
-                        f"and {updated_balances} bank balances."
+                        _("Currency updated to %(currency)s for selected period only. Updated %(groups)s groups, %(transactions)s transactions, and %(balances)s bank balances.") % {
+                            'currency': new_currency,
+                            'groups': updated_groups,
+                            'transactions': updated_transactions,
+                            'balances': updated_balances
+                        }
                     )
             
             # Nota: O código original tinha uma lógica complexa de atualização de Money
@@ -440,8 +447,8 @@ def configuration_view(request):
             # Se não funcionar, a lógica de loop (como no original) será necessária.
             # Mantendo o save() principal
             form.save()
-            
-            messages.success(request, "Configuration updated successfully!")
+
+            messages.success(request, _("Configuration updated successfully!"))
             return redirect(f'/settings/?period={start_date.strftime("%Y-%m-%d")}')
     else:
         if not is_current_period:
@@ -633,9 +640,9 @@ def create_flow_group_view(request):
                 
                 child_manual_income_total = Decimal(str(child_manual_sum.amount)) if hasattr(child_manual_sum, 'amount') else child_manual_sum
                 budget_value = flow_group.budgeted_amount.amount
-                
+
                 if budget_value > child_manual_income_total:
-                    messages.error(request, f"Budget cannot exceed your available balance (${child_manual_income_total}).")
+                    messages.error(request, _("Budget cannot exceed your available balance (%(balance)s).") % {'balance': f'${child_manual_income_total}'})
                     context = {
                         'form': form, 'start_date': start_date, 'end_date': end_date,
                         'current_member': current_member, 'child_max_budget': child_manual_income_total,
@@ -659,8 +666,8 @@ def create_flow_group_view(request):
                 flow_group.assigned_members.set(parents_admins)
             else:
                 form.save_m2m()
-            
-            messages.success(request, f"Flow Group '{flow_group.name}' created.")
+
+            messages.success(request, _("Flow Group '%(name)s' created.") % {'name': flow_group.name})
             redirect_url = f"?period={start_date.strftime('%Y-%m-%d')}"
             return redirect(f"/flow-group/{flow_group.id}/edit/{redirect_url}")
     else:
@@ -702,9 +709,9 @@ def edit_flow_group_view(request, group_id):
         return redirect('dashboard')
         
     group = get_object_or_404(FlowGroup, id=group_id, family=family)
-    
+
     if not can_access_flow_group(group, current_member):
-        messages.error(request, "You don't have permission to access this group.")
+        messages.error(request, _("You don't have permission to access this group."))
         return redirect('dashboard')
     
     query_period = request.GET.get('period') or group.period_start_date.strftime('%Y-%m-%d')
@@ -731,8 +738,8 @@ def edit_flow_group_view(request, group_id):
             
             flow_group.save()
             form.save_m2m()
-            
-            messages.success(request, f"Flow Group '{group.name}' updated.")
+
+            messages.success(request, _("Flow Group '%(name)s' updated.") % {'name': group.name})
             redirect_url = f"?period={query_period}" if query_period else ""
             return redirect(f"/flow-group/{group_id}/edit/{redirect_url}")
     else:
@@ -797,14 +804,14 @@ def add_member_view(request):
 
     # Block user creation in demo mode
     if getattr(settings, 'DEMO_MODE', False):
-        messages.error(request, 'User creation is disabled in demo mode.')
+        messages.error(request, _('User creation is disabled in demo mode.'))
         query_period = request.GET.get('period')
         redirect_url = f"/settings/?period={query_period}" if query_period else "/settings/"
         return redirect(redirect_url)
 
     family, current_member, _ = get_family_context(request.user)
     if not family:
-        messages.error(request, 'User is not associated with a family.')
+        messages.error(request, _('User is not associated with a family.'))
         return redirect('configuration')
 
     query_period = request.GET.get('period')
@@ -818,9 +825,9 @@ def add_member_view(request):
         # Check permission to create this type of user
         if not can_create_user(current_member, target_role):
             if current_member.role == 'PARENT':
-                messages.error(request, 'Parents can only create CHILD users.')
+                messages.error(request, _('Parents can only create CHILD users.'))
             else:
-                messages.error(request, 'You do not have permission to create users.')
+                messages.error(request, _('You do not have permission to create users.'))
             return redirect(redirect_url)
 
         try:
@@ -836,10 +843,10 @@ def add_member_view(request):
                 family=family,
                 role=target_role
             )
-            messages.success(request, f"Member '{new_user.username}' added successfully!")
+            messages.success(request, _("Member '%(username)s' added successfully!") % {'username': new_user.username})
 
         except Exception as e:
-            messages.error(request, f"Error creating member: {str(e)}")
+            messages.error(request, _("Error creating member: %(error)s") % {'error': str(e)})
     else:
         for field, errors in form.errors.items():
             for error in errors:
@@ -868,12 +875,12 @@ def edit_member_view(request, member_id):
             # Block user editing in demo mode
             from django.conf import settings
             if getattr(settings, 'DEMO_MODE', False):
-                messages.error(request, 'User editing is disabled in demo mode.')
+                messages.error(request, _('User editing is disabled in demo mode.'))
                 return redirect(redirect_url)
 
             # Check permission to edit user info
             if not can_edit_user(current_member, member):
-                messages.error(request, 'You do not have permission to edit this user.')
+                messages.error(request, _('You do not have permission to edit this user.'))
                 return redirect(redirect_url)
 
             username = request.POST.get('username')
@@ -883,7 +890,7 @@ def edit_member_view(request, member_id):
             if username:
                 UserModel = get_user_model()
                 if UserModel.objects.filter(username=username).exclude(id=member.user.id).exists():
-                    messages.error(request, 'Username already taken.')
+                    messages.error(request, _('Username already taken.'))
                 else:
                     member.user.username = username
                     member.user.email = email
@@ -894,39 +901,39 @@ def edit_member_view(request, member_id):
                     if current_member.role == 'ADMIN':
                         member.role = role
                         member.save()
-                        messages.success(request, 'Member information updated successfully.')
+                        messages.success(request, _('Member information updated successfully.'))
                     elif current_member.role == 'PARENT' and member.role == 'CHILD':
                         # Parents cannot change role, only edit name/email
-                        messages.success(request, 'Member information updated successfully.')
+                        messages.success(request, _('Member information updated successfully.'))
                     elif current_member.id == member.id:
                         # User editing themselves cannot change role
-                        messages.success(request, 'Profile updated successfully.')
+                        messages.success(request, _('Profile updated successfully.'))
                     else:
-                        messages.success(request, 'Member information updated successfully.')
+                        messages.success(request, _('Member information updated successfully.'))
 
         elif action == 'change_password':
             # Block password changes in demo mode
             from django.conf import settings
             if getattr(settings, 'DEMO_MODE', False):
-                messages.error(request, 'Password changes are disabled in demo mode.')
+                messages.error(request, _('Password changes are disabled in demo mode.'))
                 return redirect(redirect_url)
 
             # Check permission to change password
             if not can_change_password(current_member, member):
-                messages.error(request, 'You do not have permission to change this user\'s password.')
+                messages.error(request, _("You do not have permission to change this user's password."))
                 return redirect(redirect_url)
 
             new_password = request.POST.get('new_password')
             confirm_password = request.POST.get('confirm_password')
 
             if len(new_password) < 6:
-                messages.error(request, 'Password must be at least 6 characters long.')
+                messages.error(request, _('Password must be at least 6 characters long.'))
             elif new_password and new_password == confirm_password:
                 member.user.set_password(new_password)
                 member.user.save()
-                messages.success(request, 'Password changed successfully.')
+                messages.success(request, _('Password changed successfully.'))
             else:
-                messages.error(request, 'Passwords do not match.')
+                messages.error(request, _('Passwords do not match.'))
 
     return redirect(redirect_url)
 
@@ -940,14 +947,14 @@ def remove_member_view(request, member_id):
 
     # Block user deletion in demo mode
     if getattr(settings, 'DEMO_MODE', False):
-        messages.error(request, 'User deletion is disabled in demo mode.')
+        messages.error(request, _('User deletion is disabled in demo mode.'))
         query_period = request.GET.get('period')
         redirect_url = f"/settings/?period={query_period}" if query_period else "/settings/"
         return redirect(redirect_url)
 
     family, current_member, _ = get_family_context(request.user)
     if not family:
-        messages.error(request, 'User is not associated with a family.')
+        messages.error(request, _('User is not associated with a family.'))
         return redirect('configuration')
 
     member_to_remove = get_object_or_404(FamilyMember, id=member_id, family=family)
@@ -955,11 +962,11 @@ def remove_member_view(request, member_id):
     # Check permission to delete this user
     if not can_delete_user(current_member, member_to_remove):
         if current_member.id == member_to_remove.id:
-            messages.error(request, 'You cannot remove yourself from the family.')
+            messages.error(request, _('You cannot remove yourself from the family.'))
         elif current_member.role == 'PARENT':
-            messages.error(request, 'Parents can only remove CHILD users.')
+            messages.error(request, _('Parents can only remove CHILD users.'))
         else:
-            messages.error(request, 'You do not have permission to remove this user.')
+            messages.error(request, _('You do not have permission to remove this user.'))
 
         query_period = request.GET.get('period')
         redirect_url = f"/settings/?period={query_period}" if query_period else "/settings/"
@@ -968,7 +975,7 @@ def remove_member_view(request, member_id):
     username = member_to_remove.user.username
     member_to_remove.delete()
 
-    messages.success(request, f'Member {username} has been removed from the family.')
+    messages.success(request, _('Member %(username)s has been removed from the family.') % {'username': username})
 
     query_period = request.GET.get('period')
     redirect_url = f"/settings/?period={query_period}" if query_period else "/settings/"
@@ -990,7 +997,7 @@ def investments_view(request):
             investment = form.save(commit=False)
             investment.family = family
             investment.save()
-            messages.success(request, 'Investment added.')
+            messages.success(request, _('Investment added.'))
             redirect_url = f"/investments/?period={query_period}" if query_period else "/investments/"
             return redirect(redirect_url)
     else:

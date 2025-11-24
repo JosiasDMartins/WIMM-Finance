@@ -1,11 +1,12 @@
 {% extends "finances/base.html" %}
 {% load static %}
+{% load i18n %}
 
 {% block content %}
 <main class="p-6 md:p-10 lg:p-12">
     <div class="max-w-4xl mx-auto">
-        <h1 class="text-[#0d171b] dark:text-white text-2xl font-bold tracking-[-0.015em] mb-8">Application Settings</h1>
-        
+        <h1 class="text-[#0d171b] dark:text-white text-2xl font-bold tracking-[-0.015em] mb-8">{% trans "Application Settings" %}</h1>
+
         <!-- Navigation Tabs -->
         <div x-data="{ activeTab: 'configuration' }" class="mb-6">
             <div class="border-b border-gray-200 dark:border-gray-700">
@@ -15,7 +16,7 @@
                             class="border-b-2 py-4 px-1 text-sm font-medium transition-colors">
                         <span class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-lg">settings</span>
-                            Configuration
+                            {% trans "Configuration" %}
                         </span>
                     </button>
 
@@ -24,7 +25,7 @@
                             class="border-b-2 py-4 px-1 text-sm font-medium transition-colors">
                         <span class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-lg">group</span>
-                            Members
+                            {% trans "Members" %}
                         </span>
                     </button>
 
@@ -34,7 +35,7 @@
                             class="border-b-2 py-4 px-1 text-sm font-medium transition-colors">
                         <span class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-lg">backup</span>
-                            Backup & Restore
+                            {% trans "Backup & Restore" %}
                         </span>
                     </button>
 
@@ -43,7 +44,7 @@
                             class="border-b-2 py-4 px-1 text-sm font-medium transition-colors">
                         <span class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-lg">cloud_sync</span>
-                            Updates
+                            {% trans "Updates" %}
                         </span>
                     </button>
                     {% endif %}
@@ -58,14 +59,14 @@
                         
                         <!-- Base Currency Selection -->
                         <div class="flex flex-col">
-                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.base_currency.id_for_label }}">Base Currency</label>
+                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.base_currency.id_for_label }}">{% trans "Base Currency" %}</label>
                             {{ form.base_currency }}
-                            <p class="text-xs text-gray-500 mt-1">All financial values will be stored and displayed in this currency. Changing this will not convert existing values.</p>
+                            <p class="text-xs text-gray-500 mt-1">{% trans "All financial values will be stored and displayed in this currency. Changing this will not convert existing values." %}</p>
                         </div>
-                        
+
                         <!-- Period Type Selection -->
                         <div class="flex flex-col">
-                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2">Period Frequency</label>
+                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2">{% trans "Period Frequency" %}</label>
                             <div class="space-y-3">
                                 {% for radio in form.period_type %}
                                 <label class="flex items-center gap-3 border border-[#cfdfe7] dark:border-gray-600 p-[15px] rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-gray-700">
@@ -80,29 +81,29 @@
 
                         <!-- Starting Day - Only for Monthly -->
                         <div id="starting-day-field" class="flex flex-col">
-                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.starting_day.id_for_label }}">Starting Day of Month</label>
+                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.starting_day.id_for_label }}">{% trans "Starting Day of Month" %}</label>
                             <input type="number" name="starting_day" id="{{ form.starting_day.id_for_label }}" value="{{ form.starting_day.value|default:'' }}" min="1" max="31" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                            <p class="text-xs text-gray-500 mt-1">Day of the month (1-31) that defines the cycle start.</p>
+                            <p class="text-xs text-gray-500 mt-1">{% trans "Day of the month (1-31) that defines the cycle start." %}</p>
                         </div>
 
                         <!-- Base Date - Only for Bi-weekly/Weekly -->
                         <div id="base-date-field" class="flex flex-col" style="display: none;">
-                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.base_date.id_for_label }}">Base Date for Cycle</label>
+                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.base_date.id_for_label }}">{% trans "Base Date for Cycle" %}</label>
                             <input type="date" name="base_date" id="{{ form.base_date.id_for_label }}" value="{{ form.base_date.value|default:'' }}" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent">
-                            <p class="text-xs text-gray-500 mt-1">Reference date used to calculate bi-weekly or weekly periods.</p>
+                            <p class="text-xs text-gray-500 mt-1">{% trans "Reference date used to calculate bi-weekly or weekly periods." %}</p>
                         </div>
 
                         <!-- Bank Reconciliation Tolerance -->
                         <div class="flex flex-col">
-                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.bank_reconciliation_tolerance.id_for_label }}">Bank Reconciliation Tolerance (%)</label>
+                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.bank_reconciliation_tolerance.id_for_label }}">{% trans "Bank Reconciliation Tolerance (%)" %}</label>
                             {{ form.bank_reconciliation_tolerance }}
-                            <p class="text-xs text-gray-500 mt-1">Percentage tolerance for bank reconciliation discrepancy warnings (e.g., 5.00 for 5%).</p>
+                            <p class="text-xs text-gray-500 mt-1">{% trans "Percentage tolerance for bank reconciliation discrepancy warnings (e.g., 5.00 for 5%)." %}</p>
                         </div>
                     </div>
                     
                     <div class="mt-8 pt-6 border-t border-[#dee2e6] dark:border-gray-700 flex justify-end gap-4 p-6">
                         <button type="submit" class="rounded-lg bg-primary text-white text-sm font-medium leading-normal p-3 hover:bg-primary/90">
-                            Save Configuration
+                            {% trans "Save Configuration" %}
                         </button>
                     </div>
                 </form>
@@ -112,17 +113,17 @@
             <div x-show="activeTab === 'members'" class="mt-6" x-cloak x-data="{ editMemberId: null, editUsername: '', editEmail: '', editRole: '', showPasswordModal: false, passwordMemberId: null }">
                 {% if is_admin or is_parent %}
                 <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-10 border border-primary/20">
-                    <h2 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">Add New Member</h2>
+                    <h2 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">{% trans "Add New Member" %}</h2>
 
                     {% if is_parent %}
                     <div class="p-3 mb-4 text-sm text-blue-700 bg-blue-100 rounded-lg dark:bg-blue-200 dark:text-blue-800" role="alert">
-                        <p><strong>Note:</strong> As a Parent, you can only add Child users.</p>
+                        <p><strong>{% trans "Note:" %}</strong> {% trans "As a Parent, you can only add Child users." %}</p>
                     </div>
                     {% endif %}
 
                     {% if add_member_form.non_field_errors %}
                         <div class="p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg dark:bg-red-200 dark:text-red-800" role="alert">
-                            <p><strong>Error:</strong> {{ add_member_form.non_field_errors }}</p>
+                            <p><strong>{% trans "Error:" %}</strong> {{ add_member_form.non_field_errors }}</p>
                         </div>
                     {% endif %}
 
@@ -179,7 +180,7 @@
                             <div class="w-full">
                                 <button type="submit" class="w-full rounded-lg bg-primary text-white text-base font-bold p-3 h-12 flex items-center justify-center hover:bg-primary/90 transition-colors shadow-lg">
                                     <span class="material-symbols-outlined mr-1">add</span>
-                                    Add
+                                    {% trans "Add" %}
                                 </button>
                             </div>
                         </div>
@@ -191,10 +192,10 @@
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                         <thead class="bg-gray-50 dark:bg-gray-700">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Member</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Role</th>
-                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Member" %}</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Email" %}</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Role" %}</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Actions" %}</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -211,7 +212,7 @@
                                         <button type="button"
                                                 @click="editMemberId = {{ item.member.id }}; editUsername = '{{ item.member.user.username }}'; editEmail = '{{ item.member.user.email }}'; editRole = '{{ item.member.role }}'"
                                                 class="p-1 text-slate-500 hover:text-primary"
-                                                title="Edit">
+                                                title="{% trans 'Edit' %}">
                                             <span class="material-symbols-outlined text-lg">edit</span>
                                         </button>
                                         {% endif %}
@@ -220,7 +221,7 @@
                                         <button type="button"
                                                 @click="passwordMemberId = {{ item.member.id }}; showPasswordModal = true"
                                                 class="p-1 text-slate-500 hover:text-blue-500"
-                                                title="Change Password">
+                                                title="{% trans 'Change Password' %}">
                                             <span class="material-symbols-outlined text-lg">key</span>
                                         </button>
                                         {% endif %}
@@ -229,23 +230,23 @@
                                         <form method="POST" action="{% url 'member_remove' member_id=item.member.id %}{% if selected_period %}?period={{ selected_period }}{% endif %}" style="display: inline;">
                                             {% csrf_token %}
                                             <button type="submit"
-                                                    onclick="return confirm('Are you sure you want to remove {{ item.member.user.username }} from the family?')"
+                                                    onclick="return confirm('{% trans "Are you sure you want to remove" %} {{ item.member.user.username }} {% trans "from the family?" %}')"
                                                     class="p-1 text-slate-500 hover:text-red-500"
-                                                    title="Remove">
+                                                    title="{% trans 'Remove' %}">
                                                 <span class="material-symbols-outlined text-lg">delete</span>
                                             </button>
                                         </form>
                                         {% endif %}
 
                                         {% if not item.can_edit and not item.can_change_password and not item.can_delete %}
-                                        <span class="text-xs text-gray-400 dark:text-gray-500">View only</span>
+                                        <span class="text-xs text-gray-400 dark:text-gray-500">{% trans "View only" %}</span>
                                         {% endif %}
                                     </div>
                                 </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="4" class="px-6 py-4 text-sm text-gray-500 text-center">No members found in the family.</td>
+                                <td colspan="4" class="px-6 py-4 text-sm text-gray-500 text-center">{% trans "No members found in the family." %}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -266,7 +267,7 @@
                         <div class="fixed inset-0 bg-black opacity-50" @click="editMemberId = null"></div>
 
                         <div class="relative bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 z-10">
-                            <h3 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">Edit Member</h3>
+                            <h3 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">{% trans "Edit Member" %}</h3>
 
                             <form method="POST" :action="`/members/edit/${editMemberId}/{% if selected_period %}?period={{ selected_period }}{% endif %}`">
                                 {% csrf_token %}
@@ -274,22 +275,22 @@
 
                                 <div class="space-y-4">
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Username</label>
+                                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{% trans "Username" %}</label>
                                         <input type="text" name="username" x-model="editUsername" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2" required>
                                     </div>
 
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
+                                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{% trans "Email" %}</label>
                                         <input type="email" name="email" x-model="editEmail" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2">
                                     </div>
 
                                     {% if is_admin %}
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Role</label>
+                                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{% trans "Role" %}</label>
                                         <select name="role" x-model="editRole" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2">
-                                            <option value="ADMIN">Admin</option>
-                                            <option value="PARENT">Parent</option>
-                                            <option value="CHILD">Child</option>
+                                            <option value="ADMIN">{% trans "Admin" %}</option>
+                                            <option value="PARENT">{% trans "Parent" %}</option>
+                                            <option value="CHILD">{% trans "Child" %}</option>
                                         </select>
                                     </div>
                                     {% else %}
@@ -299,10 +300,10 @@
 
                                 <div class="mt-6 flex justify-end space-x-3">
                                     <button type="button" @click="editMemberId = null" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
-                                        Cancel
+                                        {% trans "Cancel" %}
                                     </button>
                                     <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">
-                                        Save Changes
+                                        {% trans "Save Changes" %}
                                     </button>
                                 </div>
                             </form>
@@ -324,7 +325,7 @@
                         <div class="fixed inset-0 bg-black opacity-50" @click="showPasswordModal = false"></div>
 
                         <div class="relative bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 z-10">
-                            <h3 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">Change Password</h3>
+                            <h3 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">{% trans "Change Password" %}</h3>
 
                             <form method="POST" :action="`/members/edit/${passwordMemberId}/{% if selected_period %}?period={{ selected_period }}{% endif %}`">
                                 {% csrf_token %}
@@ -332,22 +333,22 @@
 
                                 <div class="space-y-4">
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">New Password</label>
+                                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{% trans "New Password" %}</label>
                                         <input type="password" name="new_password" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2" required>
                                     </div>
 
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Confirm Password</label>
+                                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{% trans "Confirm Password" %}</label>
                                         <input type="password" name="confirm_password" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2" required>
                                     </div>
                                 </div>
 
                                 <div class="mt-6 flex justify-end space-x-3">
                                     <button type="button" @click="showPasswordModal = false; passwordMemberId = null" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
-                                        Cancel
+                                        {% trans "Cancel" %}
                                     </button>
                                     <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">
-                                        Change Password
+                                        {% trans "Change Password" %}
                                     </button>
                                 </div>
                             </form>
@@ -365,17 +366,17 @@
                         <div class="flex items-start gap-3 mb-4">
                             <span class="material-symbols-outlined text-amber-600 text-2xl">backup</span>
                             <div class="flex-1">
-                                <h3 class="font-semibold text-gray-900 dark:text-white text-lg">Backup Database</h3>
+                                <h3 class="font-semibold text-gray-900 dark:text-white text-lg">{% trans "Backup Database" %}</h3>
                                 <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                    Download a complete backup of your database. Keep this file safe for recovery purposes.
+                                    {% trans "Download a complete backup of your database. Keep this file safe for recovery purposes." %}
                                 </p>
                             </div>
                         </div>
-                        
-                        <button id="btn-backup-db" 
+
+                        <button id="btn-backup-db"
                                 class="w-full px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium transition-colors flex items-center justify-center gap-2">
                             <span class="material-symbols-outlined">download</span>
-                            Download Database Backup
+                            {% trans "Download Database Backup" %}
                         </button>
                     </div>
                 </div>
@@ -386,53 +387,53 @@
                         <div class="flex items-start gap-3 mb-4">
                             <span class="material-symbols-outlined text-blue-600 text-2xl">upload_file</span>
                             <div class="flex-1">
-                                <h3 class="font-semibold text-gray-900 dark:text-white text-lg">Restore Database</h3>
+                                <h3 class="font-semibold text-gray-900 dark:text-white text-lg">{% trans "Restore Database" %}</h3>
                                 <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                    Restore your database from a previously saved backup file.
+                                    {% trans "Restore your database from a previously saved backup file." %}
                                 </p>
                             </div>
                         </div>
-                        
+
                         <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-4">
                             <div class="flex">
                                 <span class="material-symbols-outlined text-red-500 mr-2">warning</span>
                                 <div>
-                                    <h4 class="font-semibold text-red-900 dark:text-red-200">Warning</h4>
+                                    <h4 class="font-semibold text-red-900 dark:text-red-200">{% trans "Warning" %}</h4>
                                     <p class="text-sm text-red-800 dark:text-red-300 mt-1">
-                                        Restoring a backup will replace your current database. This action cannot be undone.
+                                        {% trans "Restoring a backup will replace your current database. This action cannot be undone." %}
                                     </p>
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
                             <input type="file" id="restore-file-input" accept=".sqlite3" class="hidden">
                             <label for="restore-file-input" class="cursor-pointer">
                                 <span class="material-symbols-outlined text-4xl text-gray-400 mb-2 block">cloud_upload</span>
                                 <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                                    Click to select a backup file
+                                    {% trans "Click to select a backup file" %}
                                 </p>
-                                <p class="text-xs text-gray-500">SQLite3 database files only</p>
+                                <p class="text-xs text-gray-500">{% trans "SQLite3 database files only" %}</p>
                             </label>
                         </div>
-                        
+
                         <p id="restore-file-name" class="text-sm text-gray-600 dark:text-gray-400 mt-2 text-center">
-                            No file selected
+                            {% trans "No file selected" %}
                         </p>
-                        
+
                         <button id="btn-restore-db" disabled
                                 class="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                             <span class="material-symbols-outlined">restore</span>
-                            Restore Database
+                            {% trans "Restore Database" %}
                         </button>
-                        
+
                         <!-- Restore Preview (shown after restore) -->
                         <div id="restore-preview" class="hidden mt-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                            <h4 class="font-semibold text-green-900 dark:text-green-200 mb-2">Restore Complete</h4>
+                            <h4 class="font-semibold text-green-900 dark:text-green-200 mb-2">{% trans "Restore Complete" %}</h4>
                             <p class="text-sm text-green-800 dark:text-green-300 mb-2">
-                                Family: <span id="restore-family-name" class="font-semibold"></span>
+                                {% trans "Family:" %} <span id="restore-family-name" class="font-semibold"></span>
                             </p>
-                            <p class="text-sm text-green-800 dark:text-green-300 mb-1">Users:</p>
+                            <p class="text-sm text-green-800 dark:text-green-300 mb-1">{% trans "Users:" %}</p>
                             <ul id="restore-users-list" class="list-disc list-inside text-sm text-green-700 dark:text-green-400">
                             </ul>
                         </div>
@@ -450,7 +451,7 @@
                         <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <p class="text-sm text-blue-900 dark:text-blue-200 font-medium">Current System Version</p>
+                                    <p class="text-sm text-blue-900 dark:text-blue-200 font-medium">{% trans "Current System Version" %}</p>
                                     <p class="text-2xl font-mono text-blue-700 dark:text-blue-300 mt-1">
                                         {{ VERSION }}
                                     </p>
@@ -460,29 +461,29 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- GitHub Update Check -->
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
                     <div class="p-6">
                         <div class="flex items-start gap-3 mb-4">
                             <span class="material-symbols-outlined text-green-600 text-2xl">cloud_download</span>
                             <div class="flex-1">
-                                <h3 class="font-semibold text-gray-900 dark:text-white text-lg">Check for Online Updates</h3>
+                                <h3 class="font-semibold text-gray-900 dark:text-white text-lg">{% trans "Check for Online Updates" %}</h3>
                                 <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                    Check GitHub repository for the latest available release.
+                                    {% trans "Check GitHub repository for the latest available release." %}
                                 </p>
                             </div>
                         </div>
-                        
+
                         <!--
                         CORREÇÃO: O ID deste botão foi alterado de 'btn-check-online-updates'
                         para 'manualCheckUpdates' para que o script global update_manager.js
                         possa encontrá-lo e anexar o listener correto.
                         -->
-                        <button id="manualCheckUpdates" 
+                        <button id="manualCheckUpdates"
                                 class="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors flex items-center justify-center gap-2">
                             <span class="material-symbols-outlined">refresh</span>
-                            Check for Updates
+                            {% trans "Check for Updates" %}
                         </button>
                         
                         <!-- 
@@ -557,7 +558,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const originalText = btn.innerHTML;
 
         btn.disabled = true;
-        btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Creating backup...';
+        btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> {% trans "Creating backup..." %}';
 
         try {
             console.log('Sending backup request to /create-backup/');
@@ -578,11 +579,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.location.href = `/download-backup/${data.filename}/`;
             } else {
                 console.error('Backup failed:', data.error);
-                alert('Failed to create backup: ' + data.error);
+                alert("{% trans 'Failed to create backup:' %} " + data.error);
             }
         } catch (error) {
             console.error('Error creating backup:', error);
-            alert('Failed to create backup: ' + error.message);
+            alert("{% trans 'Failed to create backup:' %} " + error.message);
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalText;
@@ -600,27 +601,27 @@ document.addEventListener('DOMContentLoaded', function() {
             restoreFileName.textContent = file.name;
             btnRestore.disabled = false;
         } else {
-            restoreFileName.textContent = 'No file selected';
+            restoreFileName.textContent = "{% trans 'No file selected' %}";
             btnRestore.disabled = true;
         }
     });
-    
+
     btnRestore?.addEventListener('click', async function() {
         const file = restoreFileInput.files[0];
         if (!file) {
-            alert('Please select a backup file first');
+            alert("{% trans 'Please select a backup file first' %}");
             return;
         }
-        
-        if (!confirm('WARNING: This will replace your current database. All current data will be lost. Continue?')) {
+
+        if (!confirm("{% trans 'WARNING: This will replace your current database. All current data will be lost. Continue?' %}")) {
             return;
         }
-        
+
         const btn = this;
         const originalText = btn.innerHTML;
-        
+
         btn.disabled = true;
-        btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Restoring...';
+        btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> {% trans "Restoring..." %}';
         
         try {
             const formData = new FormData();
@@ -650,19 +651,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 
                 preview.classList.remove('hidden');
-                
-                alert('Database restored successfully! Please log out and log in again.');
+
+                alert("{% trans 'Database restored successfully! Please log out and log in again.' %}");
             } else {
-                alert('Failed to restore backup: ' + data.error);
+                alert("{% trans 'Failed to restore backup:' %} " + data.error);
             }
         } catch (error) {
             console.error('Error restoring backup:', error);
-            alert('Failed to restore backup: ' + error.message);
+            alert("{% trans 'Failed to restore backup:' %} " + error.message);
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalText;
             restoreFileInput.value = '';
-            restoreFileName.textContent = 'No file selected';
+            restoreFileName.textContent = "{% trans 'No file selected' %}";
             btn.disabled = true;
         }
     });

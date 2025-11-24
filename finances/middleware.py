@@ -5,6 +5,27 @@ from django.urls import reverse, resolve, Resolver404
 from django.contrib.auth import get_user_model
 from django.db import connection
 from django.db.utils import OperationalError
+from django.utils import translation
+
+
+class UserLanguageMiddleware:
+    """
+    Middleware to activate the user's preferred language.
+    Must be placed after AuthenticationMiddleware in settings.
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.user.is_authenticated and hasattr(request.user, 'language'):
+            user_language = request.user.language
+            if user_language:
+                translation.activate(user_language)
+                request.LANGUAGE_CODE = user_language
+
+        response = self.get_response(request)
+        return response
+
 
 class SetupRequiredMiddleware:
     """

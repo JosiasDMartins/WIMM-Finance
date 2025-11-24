@@ -1,12 +1,13 @@
 {% extends "finances/base.html" %}
 {% load static %}
+{% load i18n %}
 
-{% block title %}My Profile{% endblock title %}
+{% block title %}{% trans "My Profile" %}{% endblock title %}
 
 {% block content %}
 <div class="p-6 md:p-10 lg:p-12">
     <div class="max-w-4xl mx-auto">
-        <h1 class="text-3xl font-bold text-[#0d171b] dark:text-white mb-8">My Profile</h1>
+        <h1 class="text-3xl font-bold text-[#0d171b] dark:text-white mb-8">{% trans "My Profile" %}</h1>
 
         <!-- Profile Information Card -->
         <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-6">
@@ -26,15 +27,15 @@
                 
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Username</label>
-                        <input type="text" name="username" value="{{ request.user.username }}" 
-                               class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-3" 
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{% trans "Username" %}</label>
+                        <input type="text" name="username" value="{{ request.user.username }}"
+                               class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-3"
                                required>
                     </div>
-                    
+
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email (Optional)</label>
-                        <input type="email" name="email" value="{{ request.user.email }}" 
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{% trans "Email (Optional)" %}</label>
+                        <input type="email" name="email" value="{{ request.user.email }}"
                                class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-3">
                     </div>
                 </div>
@@ -42,7 +43,35 @@
                 <div class="mt-6 flex justify-end">
                     <button type="submit" class="rounded-lg bg-primary text-white text-base font-medium p-3 hover:bg-primary/90 transition-colors shadow-lg">
                         <span class="material-symbols-outlined text-lg mr-2 align-middle">save</span>
-                        Save Profile
+                        {% trans "Save Profile" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Language Preference Card -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-6">
+            <h2 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">{% trans "Language Preference" %}</h2>
+
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="change_language">
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{% trans "Preferred Language" %}</label>
+                        <select name="language"
+                                class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-3">
+                            <option value="en" {% if request.user.language == 'en' %}selected{% endif %}>English</option>
+                            <option value="pt-br" {% if request.user.language == 'pt-br' %}selected{% endif %}>Português (Brasil)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end">
+                    <button type="submit" class="rounded-lg bg-primary text-white text-base font-medium p-3 hover:bg-primary/90 transition-colors shadow-lg">
+                        <span class="material-symbols-outlined text-lg mr-2 align-middle">language</span>
+                        {% trans "Update Language" %}
                     </button>
                 </div>
             </form>
@@ -50,7 +79,7 @@
 
         <!-- Change Password Card -->
         <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
-            <h2 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">Change Password</h2>
+            <h2 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">{% trans "Change Password" %}</h2>
             
             <form method="POST">
                 {% csrf_token %}
@@ -58,24 +87,24 @@
                 
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Current Password</label>
-                        <input type="password" name="current_password" 
-                               class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-3" 
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{% trans "Current Password" %}</label>
+                        <input type="password" name="current_password"
+                               class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-3"
                                required>
                     </div>
-                    
+
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">New Password</label>
-                        <input type="password" name="new_password" 
-                               class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-3" 
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{% trans "New Password" %}</label>
+                        <input type="password" name="new_password"
+                               class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-3"
                                required>
-                        <p class="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+                        <p class="text-xs text-gray-500 mt-1">{% trans "Minimum 6 characters" %}</p>
                     </div>
-                    
+
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Confirm New Password</label>
-                        <input type="password" name="confirm_password" 
-                               class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-3" 
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{% trans "Confirm New Password" %}</label>
+                        <input type="password" name="confirm_password"
+                               class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-3"
                                required>
                     </div>
                 </div>
@@ -83,7 +112,7 @@
                 <div class="mt-6 flex justify-end">
                     <button type="submit" class="rounded-lg bg-primary text-white text-base font-medium p-3 hover:bg-primary/90 transition-colors shadow-lg">
                         <span class="material-symbols-outlined text-lg mr-2 align-middle">key</span>
-                        Change Password
+                        {% trans "Change Password" %}
                     </button>
                 </div>
             </form>

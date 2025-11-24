@@ -1,6 +1,7 @@
 {% extends "finances/base.html" %}
 {% load static %}
-{% load humanize %} 
+{% load humanize %}
+{% load i18n %}
 
 {% block content %}
 <div class="p-6 md:p-8 lg:p-10">
@@ -10,17 +11,17 @@
             <div class="lg:col-span-2 flex flex-col">
                 <div class="grid grid-cols-3 gap-3">
                     <div class="flex flex-col">
-                        <h3 class="text-lg font-semibold text-[#0d171b] dark:text-white mb-3 text-center">Top Expenses</h3>
+                        <h3 class="text-lg font-semibold text-[#0d171b] dark:text-white mb-3 text-center">{% trans "Top Expenses" %}</h3>
                         <div class="flex items-center justify-center" style="height: 220px; width: 100%; overflow: visible;">
                             <div style="position: relative; height: 200px; width: 100%; max-width: 280px;">
                                 <canvas id="expensesPieChart"></canvas>
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Bar Chart -->
                     <div class="flex flex-col col-span-2">
-                        <h3 class="text-lg font-semibold text-[#0d171b] dark:text-white mb-3 text-center">Expense History (Last 12 Periods)</h3>
+                        <h3 class="text-lg font-semibold text-[#0d171b] dark:text-white mb-3 text-center">{% trans "Expense History (Last 12 Periods)" %}</h3>
                         <div class="flex items-center justify-center" style="height: 220px; width: 100%;">
                             <div style="position: relative; height: 200px; width: 100%;">
                                 <canvas id="expensesBarChart"></canvas>
@@ -32,30 +33,30 @@
             
             <!-- Metrics Card -->
             <div class="flex flex-col">
-                <h3 class="text-lg font-semibold text-[#0d171b] dark:text-white mb-3">Key Metrics (YTD)</h3>
+                <h3 class="text-lg font-semibold text-[#0d171b] dark:text-white mb-3">{% trans "Key Metrics (YTD)" %}</h3>
                 <div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 space-y-2" style="height: 220px;">
                     <div class="flex justify-between items-center">
-                        <span class="text-xs text-gray-600 dark:text-gray-400">YTD Income</span>
+                        <span class="text-xs text-gray-600 dark:text-gray-400">{% trans "YTD Income" %}</span>
                         <span class="text-sm font-bold text-green-600 dark:text-green-500">{{ currency_symbol }} {{ ytd_metrics.ytd_income|floatformat:2|intcomma }}</span>
                     </div>
                     <div class="h-px bg-gray-300 dark:bg-gray-600"></div>
                     <div class="flex justify-between items-center">
-                        <span class="text-xs text-gray-600 dark:text-gray-400">YTD Savings</span>
+                        <span class="text-xs text-gray-600 dark:text-gray-400">{% trans "YTD Savings" %}</span>
                         <span class="text-sm font-bold {% if ytd_metrics.ytd_savings >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %}">{{ currency_symbol }} {{ ytd_metrics.ytd_savings|floatformat:2|intcomma }}</span>
                     </div>
                     <div class="h-px bg-gray-300 dark:bg-gray-600"></div>
                     <div class="flex justify-between items-center">
-                        <span class="text-xs text-gray-600 dark:text-gray-400">YTD Investments</span>
+                        <span class="text-xs text-gray-600 dark:text-gray-400">{% trans "YTD Investments" %}</span>
                         <span class="text-sm font-bold text-blue-600 dark:text-blue-500">{{ currency_symbol }} {{ ytd_metrics.ytd_investments|floatformat:2|intcomma }}</span>
                     </div>
                     <div class="h-px bg-gray-300 dark:bg-gray-600"></div>
                     <div class="flex justify-between items-center">
-                        <span class="text-xs text-gray-600 dark:text-gray-400">Highest Expense</span>
+                        <span class="text-xs text-gray-600 dark:text-gray-400">{% trans "Highest Expense" %}</span>
                         <span class="text-sm font-bold text-red-600 dark:text-red-500" id="metric-highest">$ 0.00</span>
                     </div>
                     <div class="h-px bg-gray-300 dark:bg-gray-600"></div>
                     <div class="flex justify-between items-center">
-                        <span class="text-xs text-gray-600 dark:text-gray-400">Income Commitment</span>
+                        <span class="text-xs text-gray-600 dark:text-gray-400">{% trans "Income Commitment" %}</span>
                         <span class="text-sm font-bold" id="metric-commitment">0%</span>
                     </div>
                 </div>
@@ -69,18 +70,18 @@
 
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
                 <div class="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
-                    <h2 class="text-xl font-bold text-[#0d171b] dark:text-white">Expense Flow Groups</h2>
+                    <h2 class="text-xl font-bold text-[#0d171b] dark:text-white">{% trans "Expense Flow Groups" %}</h2>
                     {% if member_role_for_period == 'CHILD' %}
                         {% if child_can_create_groups %}
                             <a href="{% url 'add_flow_group' %}{% if selected_period %}?period={{ selected_period }}{% endif %}" class="flex items-center rounded-lg bg-red-500 text-white text-sm font-medium leading-normal p-2 hover:bg-red-600 transition-colors shadow-sm">
                                 <span class="material-symbols-outlined text-lg mr-1">add_circle</span>
-                                Add Group
+                                {% trans "Add Group" %}
                             </a>
                         {% endif %}
                     {% else %}
                         <a href="{% url 'add_flow_group' %}{% if selected_period %}?period={{ selected_period }}{% endif %}" class="flex items-center rounded-lg bg-red-500 text-white text-sm font-medium leading-normal p-2 hover:bg-red-600 transition-colors shadow-sm">
                             <span class="material-symbols-outlined text-lg mr-1">add_circle</span>
-                            Add Group
+                            {% trans "Add Group" %}
                         </a>
                     {% endif %}
                 </div>
@@ -88,13 +89,13 @@
                     <thead>
                         <tr>
                             <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 40px;"></th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Group</th>
-                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Estimated</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Group" %}</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Estimated" %}</th>
                             <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                 {% if member_role_for_period in 'PARENT,ADMIN' %}
-                                    Realized
+                                    {% trans "Realized" %}
                                 {% else %}
-                                    Spent Total
+                                    {% trans "Spent Total" %}
                                 {% endif %}
                             </th>
                         </tr>
@@ -108,12 +109,12 @@
                             <td class="py-4 px-4 text-sm {% if not group.is_child_group and group.is_accessible %}text-[#0d171b] dark:text-white{% elif not group.is_accessible %}text-gray-400 dark:text-gray-500{% endif %}">
                                 {{ group.name }}
                                 {% if group.is_child_group %}
-                                    <span class="ml-2 text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 px-2 py-1 rounded-full">Child Group</span>
+                                    <span class="ml-2 text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 px-2 py-1 rounded-full">{% trans "Child Group" %}</span>
                                 {% elif group.budget_warning %}
-                                <span class="ml-2 text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 px-2 py-1 rounded-full">⚠ Over budget</span>
+                                <span class="ml-2 text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 px-2 py-1 rounded-full">{% trans "⚠ Over budget" %}</span>
                                 {% endif %}
                                 {% if not group.is_accessible %}
-                                    <span class="ml-2 text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-1 rounded-full">No Access</span>
+                                    <span class="ml-2 text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-1 rounded-full">{% trans "No Access" %}</span>
                                 {% endif %}
                             </td>
                             <td class="py-4 px-4 text-sm {% if group.is_child_group %}font-medium{% elif group.budget_warning %}text-yellow-600 dark:text-yellow-500 font-semibold{% elif not group.is_accessible %}text-gray-400 dark:text-gray-500{% else %}text-gray-500 dark:text-gray-400{% endif %} text-right group-estimated" data-value="{{ group.total_estimated }}">{{ currency_symbol }} {{ group.total_estimated|intcomma }}</td>
@@ -131,7 +132,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="4" class="py-4 px-4 text-center text-gray-500">No expense groups defined. Click "Add Group" to start.</td>
+                            <td colspan="4" class="py-4 px-4 text-center text-gray-500">{% trans "No expense groups defined. Click \"Add Group\" to start." %}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -144,20 +145,20 @@
 
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
                 <div class="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
-                    <h2 class="text-xl font-bold text-[#0d171b] dark:text-white">Recent Income</h2>
+                    <h2 class="text-xl font-bold text-[#0d171b] dark:text-white">{% trans "Recent Income" %}</h2>
                     <button type="button" onclick="addNewIncomeRow()" class="flex items-center rounded-lg bg-green-500 text-white text-sm font-medium leading-normal p-2 hover:bg-green-600 transition-colors shadow-sm">
                         <span class="material-symbols-outlined text-lg mr-1">add_circle</span>
-                        Add Income
+                        {% trans "Add Income" %}
                     </button>
                 </div>
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead>
                         <tr>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 35%;">Description</th>
-                            <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 20%;">Date</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 35%;">{% trans "Description" %}</th>
+                            <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 20%;">{% trans "Date" %}</th>
                             <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 10%;">✓</th>
-                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 20%;">Amount</th>
-                            <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 15%;">Actions</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 20%;">{% trans "Amount" %}</th>
+                            <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 15%;">{% trans "Actions" %}</th>
                         </tr>
                     </thead>
                     <tbody id="income-items-body" class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -175,7 +176,7 @@
                                     </td>
 
                                     <td class="py-3 px-2 text-center">
-                                        <button type="button" onclick="alert('Only Parents/Admins can change this status')" class="income-realized-toggle relative inline-block w-8 h-5 transition duration-200 ease-in-out rounded-full cursor-not-allowed opacity-60 {% if kids_income.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}" title="Only Parents/Admins can change this">
+                                        <button type="button" onclick="alert('{% trans "Only Parents/Admins can change this status" %}')" class="income-realized-toggle relative inline-block w-8 h-5 transition duration-200 ease-in-out rounded-full cursor-not-allowed opacity-60 {% if kids_income.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}" title="{% trans "Only Parents/Admins can change this" %}">
                                             <span class="absolute left-0 inline-block w-3 h-3 mt-1 ml-1 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if kids_income.realized %}translate-x-3{% endif %}"></span>
                                         </button>
                                     </td>
@@ -186,7 +187,7 @@
 
                                     <td class="px-2 py-3 text-center whitespace-nowrap">
                                         <div class="actions-display">
-                                            <span class="text-xs text-gray-400">Kids Budget</span>
+                                            <span class="text-xs text-gray-400">{% trans "Kids Budget" %}</span>
                                         </div>
                                     </td>
                                 </tr>
@@ -238,7 +239,7 @@
                         {% empty %}
                             {% if member_role_for_period != 'CHILD' or not kids_income_entries %}
                                 <tr id="income-empty-row">
-                                    <td colspan="5" class="py-4 px-4 text-center text-gray-500">No income transactions recorded yet.</td>
+                                    <td colspan="5" class="py-4 px-4 text-center text-gray-500">{% trans "No income transactions recorded yet." %}</td>
                                 </tr>
                             {% endif %}
                         {% endfor %}
@@ -251,7 +252,7 @@
                                         {{ child_data.member.user.first_name|default:child_data.member.user.username }}
                                     </td>
                                     <td class="py-3 px-2 text-xs text-center" style="color: #DAA520;">
-                                        <span class="text-xs">Manual</span>
+                                        <span class="text-xs">{% trans "Manual" %}</span>
                                     </td>
                                     <td class="py-3 px-2 text-center">
                                         <span class="text-xs text-gray-400">-</span>
@@ -260,12 +261,12 @@
                                         {{ currency_symbol }} {{ child_data.total|intcomma }}
                                     </td>
                                     <td class="px-2 py-3 text-center">
-                                        <span class="text-xs" style="color: #DAA520;">Child Income</span>
+                                        <span class="text-xs" style="color: #DAA520;">{% trans "Child Income" %}</span>
                                     </td>
                                     
                                     {% comment %} Tooltip with transaction details {% endcomment %}
                                     <div class="child-income-tooltip absolute z-50 hidden bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg" style="top: 100%; left: 0; min-width: 300px; margin-top: 4px;">
-                                        <div class="font-semibold mb-2 border-b border-gray-700 pb-1">{{ child_data.member.user.first_name|default:child_data.member.user.username }}'s Manual Income:</div>
+                                        <div class="font-semibold mb-2 border-b border-gray-700 pb-1">{% blocktrans with name=child_data.member.user.first_name|default:child_data.member.user.username %}{{ name }}'s Manual Income:{% endblocktrans %}</div>
                                         {% for trans in child_data.transactions %}
                                             <div class="flex justify-between py-1">
                                                 <span>{{ trans.description }}</span>
@@ -273,11 +274,11 @@
                                             </div>
                                         {% endfor %}
                                         <div class="flex justify-between pt-2 mt-2 border-t border-gray-700 font-semibold">
-                                            <span>Total:</span>
+                                            <span>{% trans "Total:" %}</span>
                                             <span>{{ currency_symbol }} {{ child_data.total|intcomma }}</span>
                                         </div>
                                         <div class="flex justify-between pt-1 text-green-400">
-                                            <span>Realized:</span>
+                                            <span>{% trans "Realized:" %}</span>
                                             <span>{{ currency_symbol }} {{ child_data.realized_total|intcomma }}</span>
                                         </div>
                                     </div>
@@ -287,7 +288,7 @@
                         
                         <tr id="new-income-template" data-item-id="NEW" data-mode="edit" class="hover:bg-slate-50 dark:hover:bg-gray-700/50 hidden">
                             <td class="py-3 px-3 text-sm text-[#0d171b] dark:text-white">
-                                <input type="text" data-field="description" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs p-1" placeholder="Description">
+                                <input type="text" data-field="description" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs p-1" placeholder="{% trans "Description" %}">
                             </td>
 
                             <td class="py-3 px-2 text-xs text-gray-500">
@@ -314,11 +315,11 @@
             
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
                 <div class="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
-                    <h2 class="text-xl font-bold text-[#0d171b] dark:text-white">Balance Sheet</h2>
-                    <a href="{% url 'bank_reconciliation' %}{% if selected_period %}?period={{ selected_period }}{% endif %}" 
+                    <h2 class="text-xl font-bold text-[#0d171b] dark:text-white">{% trans "Balance Sheet" %}</h2>
+                    <a href="{% url 'bank_reconciliation' %}{% if selected_period %}?period={{ selected_period }}{% endif %}"
                        class="flex items-center rounded-lg bg-primary text-white text-sm font-medium px-3 py-2 hover:bg-primary/80 transition-colors">
                         <span class="material-symbols-outlined text-base mr-1">account_balance</span>
-                        Bank Reconciliation
+                        {% trans "Bank Reconciliation" %}
                     </a>
                 </div> 
                 
@@ -326,21 +327,21 @@
                     <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                         <tr>
                             <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white"></td>
-                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white font-semibold">Estimated</td>
-                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white font-semibold">Realized</td>
+                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white font-semibold">{% trans "Estimated" %}</td>
+                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white font-semibold">{% trans "Realized" %}</td>
                         </tr>
                         <tr>
-                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white">Income</td>
+                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white">{% trans "Income" %}</td>
                             <td id="balance-estimated-income" class="py-4 px-4 text-sm text-green-600 dark:text-green-500">{{ currency_symbol }} {{ summary_totals.total_budgeted_income|default:"0.00"|intcomma }}</td>
                             <td id="balance-realized-income" class="py-4 px-4 text-sm text-green-600 dark:text-green-500">{{ currency_symbol }} {{ summary_totals.total_realized_income|default:"0.00"|intcomma }}</td>
                         </tr>
                         <tr>
-                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white">Expenses</td>
+                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white">{% trans "Expenses" %}</td>
                             <td id="balance-estimated-expense" class="py-4 px-4 text-sm text-red-600 dark:text-red-500">{{ currency_symbol }} {{ summary_totals.total_budgeted_expense|default:"0.00"|intcomma }}</td>
                             <td id="balance-realized-expense" class="py-4 px-4 text-sm text-red-600 dark:text-red-500">{{ currency_symbol }} {{ summary_totals.total_realized_expense|default:"0.00"|intcomma }}</td>
                         </tr>
                         <tr>
-                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white font-bold">Result</td>
+                            <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white font-bold">{% trans "Result" %}</td>
                             <td id="balance-estimated-result" class="py-4 px-4 text-sm {% if summary_totals.estimated_result >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %} font-bold">{{ currency_symbol }} {{ summary_totals.estimated_result|default:"0.00"|intcomma }}</td>
                             <td id="balance-realized-result" class="py-4 px-4 text-sm {% if summary_totals.realized_result >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %} font-bold">{{ currency_symbol }} {{ summary_totals.realized_result|default:"0.00"|intcomma }}</td>
                         </tr>
@@ -481,14 +482,14 @@
                 labels: barData.labels,
                 datasets: [
                     {
-                        label: 'Total Expenses',
+                        label: '{% trans "Total Expenses" %}',
                         data: barData.values,
                         backgroundColor: barColors,
                         borderColor: barColors.map(color => color.replace('rgb', 'rgba').replace(')', ', 0.8)')),
                         borderWidth: 1
                     },
                     {
-                        label: 'Trend',
+                        label: '{% trans "Trend" %}',
                         data: trendLine,
                         type: 'line',
                         borderColor: 'rgb(59, 130, 246)',
@@ -590,7 +591,7 @@
         const values = top3.map(e => e.value);
 
         if (others > 0) {
-            labels.push('Others');
+            labels.push('{% trans "Others" %}');
             values.push(others);
         }
 
@@ -745,7 +746,7 @@
         
         // Check if this is a kids income (should not be toggled)
         if (row.getAttribute('data-kids-income') === 'true') {
-            alert('Only Parents/Admins can change this status');
+            alert('{% trans "Only Parents/Admins can change this status" %}');
             return;
         }
         
@@ -804,15 +805,15 @@
                 // Update balance sheet
                 updateBalanceSheet();
             } else {
-                alert('Error updating income status: ' + data.error);
+                alert('{% trans "Error updating income status:" %} ' + data.error);
             }
         })
         .catch(error => {
             console.error('Fetch Error:', error);
-            alert('A network error occurred.');
+            alert('{% trans "A network error occurred." %}');
         });
     }
-    
+
     // Function to save new income item
     function saveIncomeItem(rowId) {
         const row = document.getElementById(rowId);
@@ -832,7 +833,7 @@
         };
         
         if (!data.description || !data.amount || !data.date) {
-            alert("Description, Amount, and Date are required.");
+            alert("{% trans 'Description, Amount, and Date are required.' %}");
             return;
         }
 
@@ -850,12 +851,12 @@
             if (data.status === 'success') {
                 window.location.reload();
             } else {
-                alert('Error saving income: ' + data.error);
+                alert('{% trans "Error saving income:" %} ' + data.error);
             }
         })
         .catch(error => {
             console.error('Fetch Error:', error);
-            alert('A network error occurred.');
+            alert('{% trans "A network error occurred." %}');
         });
     }
     
@@ -909,7 +910,7 @@
 
     // Function to delete an item
     function deleteItem(rowId) {
-        if (!confirm('Are you sure you want to delete this item?')) return;
+        if (!confirm('{% trans "Are you sure you want to delete this item?" %}')) return;
         
         const row = document.getElementById(rowId);
         const transactionId = row.getAttribute('data-item-id');
@@ -935,12 +936,12 @@
                 updateBalanceSheet();
                 updatePieChart();
             } else {
-                alert('Error deleting item: ' + data.error);
+                alert('{% trans "Error deleting item:" %} ' + data.error);
             }
         })
         .catch(error => {
             console.error('Fetch Error:', error);
-            alert('A network error occurred.');
+            alert('{% trans "A network error occurred." %}');
         });
     }
 
@@ -977,7 +978,7 @@
         };
         
         if (!data.description || !data.amount || !data.date) {
-            alert("Description, Amount, and Date are required.");
+            alert("{% trans 'Description, Amount, and Date are required.' %}");
             return;
         }
 
@@ -1010,12 +1011,12 @@
                 toggleEditMode(rowId, false);
                 updateBalanceSheet();
             } else {
-                alert('Error saving item: ' + data.error);
+                alert('{% trans "Error saving item:" %} ' + data.error);
             }
         })
         .catch(error => {
             console.error('Fetch Error:', error);
-            alert('A network error occurred.');
+            alert('{% trans "A network error occurred." %}');
         });
     }
     
@@ -1197,12 +1198,12 @@
                 updatePieChart();
             } else {
                 console.error('Error saving order:', data.error);
-                alert('Error saving order: ' + data.error);
+                alert('{% trans "Error saving order:" %} ' + data.error);
             }
         })
         .catch(error => {
             console.error('Fetch Error:', error);
-            alert('A network error occurred while saving order.');
+            alert('{% trans "A network error occurred while saving order." %}');
         });
     }
 </script>

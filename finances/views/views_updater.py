@@ -8,6 +8,7 @@ import sqlite3
 
 from django.core.management import call_command
 from django.http import JsonResponse, FileResponse
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST, require_http_methods
 from django.db.utils import OperationalError, ProgrammingError
 from django.conf import settings
@@ -386,7 +387,7 @@ def download_github_update(request):
             print(f"[DOWNLOAD_GITHUB_UPDATE ERROR] {error_msg}")
             return JsonResponse({
                 'success': False,
-                'error': 'Missing required parameter: zipball_url',
+                'error': _('Missing required parameter: zipball_url'),
                 'details': error_msg
             }, status=400)
 
@@ -400,7 +401,7 @@ def download_github_update(request):
             print(f"[DOWNLOAD_GITHUB_UPDATE ERROR] {error_msg}")
             return JsonResponse({
                 'success': False,
-                'error': error_msg
+                'error': _('Could not verify GitHub release information')
             }, status=400)
 
         # Extract version from the verified GitHub release
@@ -418,7 +419,7 @@ def download_github_update(request):
             print(f"[DOWNLOAD_GITHUB_UPDATE ERROR] Expected: {expected_zipball_url}")
             return JsonResponse({
                 'success': False,
-                'error': 'Invalid download URL',
+                'error': _('Invalid download URL'),
                 'details': error_msg
             }, status=403)
 
@@ -427,7 +428,7 @@ def download_github_update(request):
             print(f"[DOWNLOAD_GITHUB_UPDATE ERROR] {error_msg}")
             return JsonResponse({
                 'success': False,
-                'error': error_msg
+                'error': _('Could not determine target version from GitHub')
             }, status=400)
 
         print(f"[DOWNLOAD_GITHUB_UPDATE] Starting download and extraction...")
@@ -510,7 +511,7 @@ def create_backup(request):
     # Block backups in demo mode
     from django.conf import settings
     if getattr(settings, 'DEMO_MODE', False):
-        return JsonResponse({'success': False, 'error': 'Database backups are disabled in demo mode.'}, status=403)
+        return JsonResponse({'success': False, 'error': _('Database backups are disabled in demo mode.')}, status=403)
 
     try:
         success, message, backup_path = create_database_backup()
@@ -541,16 +542,16 @@ def download_backup(request, filename):
     # Block backup downloads in demo mode
     from django.conf import settings
     if getattr(settings, 'DEMO_MODE', False):
-        return JsonResponse({'error': 'Backup downloads are disabled in demo mode.'}, status=403)
+        return JsonResponse({'error': _('Backup downloads are disabled in demo mode.')}, status=403)
 
     try:
         backup_path = Path(settings.BASE_DIR) / 'backups' / filename
         
         if not backup_path.exists():
-            return JsonResponse({'error': 'Backup file not found'}, status=404)
-        
+            return JsonResponse({'error': _('Backup file not found')}, status=404)
+
         if not str(backup_path.resolve()).startswith(str(Path(settings.BASE_DIR) / 'backups')):
-            return JsonResponse({'error': 'Invalid file path'}, status=403)
+            return JsonResponse({'error': _('Invalid file path')}, status=403)
         
         response = FileResponse(open(backup_path, 'rb'), as_attachment=True)
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
@@ -567,11 +568,11 @@ def restore_backup(request):
     # Block database restore in demo mode
     from django.conf import settings
     if getattr(settings, 'DEMO_MODE', False):
-        return JsonResponse({'success': False, 'error': 'Database restore is disabled in demo mode.'}, status=403)
+        return JsonResponse({'success': False, 'error': _('Database restore is disabled in demo mode.')}, status=403)
 
     try:
         if 'backup_file' not in request.FILES:
-            return JsonResponse({'success': False, 'error': 'No backup file provided'}, status=400)
+            return JsonResponse({'success': False, 'error': _('No backup file provided')}, status=400)
         
         backup_file = request.FILES['backup_file']
         
@@ -636,7 +637,7 @@ def restore_backup(request):
             'success': True,
             'family': family_info,
             'users': users_info,
-            'message': 'Database restored successfully',
+            'message': _('Database restored successfully'),
             'migration_log': migration_log
         })
         
@@ -659,10 +660,10 @@ def skip_updates(request):
         version = data.get('version')
 
         if update_type == 'local':
-            return JsonResponse({'success': False, 'error': 'Local updates cannot be skipped'}, status=400)
+            return JsonResponse({'success': False, 'error': _('Local updates cannot be skipped')}, status=400)
 
         if not version:
-            return JsonResponse({'success': False, 'error': 'Version is required'}, status=400)
+            return JsonResponse({'success': False, 'error': _('Version is required')}, status=400)
 
         # Mark this version as skipped
         SkippedUpdate.skip_version(version)
@@ -671,7 +672,7 @@ def skip_updates(request):
         return JsonResponse({
             'success': True,
             'skipped_version': version,
-            'message': f'Version {version} will not be shown again until a newer version is available'
+            'message': _('Version %(version)s will not be shown again until a newer version is available') % {'version': version}
         })
 
     except Exception as e:

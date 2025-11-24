@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Logged Out | WIMM</title>
+    <title>{% trans "Logged Out | WIMM" %}</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -40,19 +41,19 @@
                 <span class="material-symbols-outlined text-6xl text-green-500">check_circle</span>
             </div>
             
-            <h2 class="text-3xl font-bold text-slate-800">Logged Out Successfully</h2>
-            
+            <h2 class="text-3xl font-bold text-slate-800">{% trans "Logged Out Successfully" %}</h2>
+
             <p class="text-gray-600">
-                You have been logged out of your WIMM account.
+                {% trans "You have been logged out of your WIMM account." %}
             </p>
-            
+
             <p class="text-sm text-gray-500">
-                Redirecting to login page in <span id="countdown">3</span> seconds...
+                {% blocktrans %}Redirecting to login page in <span id="countdown">3</span> seconds...{% endblocktrans %}
             </p>
-            
+
             <div class="pt-4">
                 <a href="/login/" class="inline-block rounded-lg bg-primary text-white text-base font-medium leading-normal px-6 py-3 hover:bg-primary/90 transition-colors shadow-lg">
-                    Return to Login Now
+                    {% trans "Return to Login Now" %}
                 </a>
             </div>
         </div>

@@ -1,10 +1,11 @@
 {% load static %}
+{% load i18n %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>SweetMoney - Initial Setup</title>
+    <title>{% trans "SweetMoney - Initial Setup" %}</title>
     
     <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
@@ -45,8 +46,8 @@
                 <div class="flex justify-center mb-4">
                     <span class="material-symbols-outlined text-6xl animate-spin">settings</span>
                 </div>
-                <h1 class="text-4xl font-bold mb-2">Setting Up Database</h1>
-                <p class="text-blue-100 text-lg">Please wait while we prepare your system...</p>
+                <h1 class="text-4xl font-bold mb-2">{% trans "Setting Up Database" %}</h1>
+                <p class="text-blue-100 text-lg">{% trans "Please wait while we prepare your system..." %}</p>
             </div>
             
             <div class="p-8">
@@ -57,18 +58,18 @@
                             <span class="material-symbols-outlined text-green-500">check_circle</span>
                         </div>
                         <div class="ml-3">
-                            <h3 class="text-sm font-medium text-green-800">Database Setup Complete!</h3>
+                            <h3 class="text-sm font-medium text-green-800">{% trans "Database Setup Complete!" %}</h3>
                             <div class="mt-2 text-sm text-green-700">
-                                <p>All database tables have been created successfully.</p>
+                                <p>{% trans "All database tables have been created successfully." %}</p>
                             </div>
                         </div>
                     </div>
                 </div>
                 
                 <div class="text-center">
-                    <button onclick="window.location.reload()" 
+                    <button onclick="window.location.reload()"
                             class="bg-gradient-to-r from-teal-500 to-teal-600 text-white text-lg font-semibold py-4 px-8 rounded-lg hover:from-teal-600 hover:to-teal-700 transition-all duration-200 shadow-lg hover:shadow-xl">
-                        Continue to Setup Form
+                        {% trans "Continue to Setup Form" %}
                     </button>
                 </div>
                 
@@ -79,7 +80,7 @@
                             <span class="material-symbols-outlined text-red-500">error</span>
                         </div>
                         <div class="ml-3">
-                            <h3 class="text-sm font-medium text-red-800">Migration Error</h3>
+                            <h3 class="text-sm font-medium text-red-800">{% trans "Migration Error" %}</h3>
                             <div class="mt-2 text-sm text-red-700">
                                 <p>{{ migration_error }}</p>
                             </div>
@@ -88,16 +89,16 @@
                 </div>
                 
                 <div class="text-center">
-                    <button onclick="window.location.reload()" 
+                    <button onclick="window.location.reload()"
                             class="bg-gray-500 text-white text-lg font-semibold py-4 px-8 rounded-lg hover:bg-gray-600 transition-all duration-200 shadow-lg">
-                        Retry Setup
+                        {% trans "Retry Setup" %}
                     </button>
                 </div>
                 
                 {% else %}
                 <div class="text-center">
                     <div class="inline-block animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-teal-500 mb-4"></div>
-                    <p class="text-gray-600">Running database migrations...</p>
+                    <p class="text-gray-600">{% trans "Running database migrations..." %}</p>
                 </div>
                 {% endif %}
             </div>
@@ -112,8 +113,8 @@
                     <img src="{% static 'finances/images/logo.png' %}" alt="SweetMoney" class="h-20 w-auto" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                     <span class="material-symbols-outlined text-6xl" style="display: none;">savings</span>
                 </div>
-                <h1 class="text-4xl font-bold mb-2">Welcome to SweetMoney</h1>
-                <p class="text-teal-100 text-lg">Where Is My Money - Family Financial Flow</p>
+                <h1 class="text-4xl font-bold mb-2">{% trans "Welcome to SweetMoney" %}</h1>
+                <p class="text-teal-100 text-lg">{% trans "Where Is My Money - Family Financial Flow" %}</p>
             </div>
             
             <div class="p-8">
@@ -123,9 +124,9 @@
                             <span class="material-symbols-outlined text-blue-500">info</span>
                         </div>
                         <div class="ml-3">
-                            <h3 class="text-sm font-medium text-blue-800">First Time Setup</h3>
+                            <h3 class="text-sm font-medium text-blue-800">{% trans "First Time Setup" %}</h3>
                             <div class="mt-2 text-sm text-blue-700">
-                                <p>This is your first time accessing SweetMoney. Let's set up your family's financial management system by creating an administrator account.</p>
+                                <p>{% trans "This is your first time accessing SweetMoney. Let's set up your family's financial management system by creating an administrator account." %}</p>
                             </div>
                         </div>
                     </div>
@@ -138,7 +139,7 @@
                             <span class="material-symbols-outlined text-red-500">error</span>
                         </div>
                         <div class="ml-3">
-                            <h3 class="text-sm font-medium text-red-800">Database Error</h3>
+                            <h3 class="text-sm font-medium text-red-800">{% trans "Database Error" %}</h3>
                             <div class="mt-2 text-sm text-red-700">
                                 <p>{{ database_error }}</p>
                             </div>
@@ -158,16 +159,16 @@
 
                 <div class="mb-6">
                     <div class="flex items-center justify-center gap-4">
-                        <button type="button" id="btn-show-restore" 
+                        <button type="button" id="btn-show-restore"
                                 class="px-6 py-3 border-2 border-teal-500 text-teal-600 rounded-lg hover:bg-teal-50 font-medium transition-colors flex items-center gap-2">
                             <span class="material-symbols-outlined">restore</span>
-                            Restore from Backup
+                            {% trans "Restore from Backup" %}
                         </button>
-                        <span class="text-gray-400">or</span>
-                        <button type="button" id="btn-show-setup" 
+                        <span class="text-gray-400">{% trans "or" %}</span>
+                        <button type="button" id="btn-show-setup"
                                 class="px-6 py-3 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium transition-colors flex items-center gap-2">
                             <span class="material-symbols-outlined">add_circle</span>
-                            New Installation
+                            {% trans "New Installation" %}
                         </button>
                     </div>
                 </div>
@@ -178,9 +179,9 @@
                         <div class="flex">
                             <span class="material-symbols-outlined text-amber-500 mr-2">backup</span>
                             <div>
-                                <h3 class="text-sm font-medium text-amber-800 mb-2">Restore Database from Backup</h3>
+                                <h3 class="text-sm font-medium text-amber-800 mb-2">{% trans "Restore Database from Backup" %}</h3>
                                 <p class="text-sm text-amber-700">
-                                    Upload a previous database backup to restore your family's financial data.
+                                    {% trans "Upload a previous database backup to restore your family's financial data." %}
                                 </p>
                             </div>
                         </div>
@@ -196,36 +197,36 @@
                                 name="backup_file"
                                 accept=".sqlite3,.db"
                                 class="hidden">
-                            <label for="backup-file-input" 
+                            <label for="backup-file-input"
                                 class="cursor-pointer inline-block px-6 py-3 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium transition-colors">
-                                Choose Backup File
+                                {% trans "Choose Backup File" %}
                             </label>
-                            <p class="mt-2 text-sm text-gray-600" id="file-name">No file selected</p>
+                            <p class="mt-2 text-sm text-gray-600" id="file-name">{% trans "No file selected" %}</p>
                         </div>
                         
                         <div id="restore-info" class="hidden bg-green-50 border-l-4 border-green-500 p-4">
-                            <h4 class="font-semibold text-green-800 mb-3">Backup Information:</h4>
+                            <h4 class="font-semibold text-green-800 mb-3">{% trans "Backup Information:" %}</h4>
                             <div class="text-sm text-green-700 space-y-2">
                                 <div class="flex items-center gap-2">
                                     <span class="material-symbols-outlined text-lg">family_restroom</span>
-                                    <span>Family: <strong id="family-name">-</strong></span>
+                                    <span>{% trans "Family:" %} <strong id="family-name">-</strong></span>
                                 </div>
                                 <div>
-                                    <span class="font-semibold">Users:</span>
+                                    <span class="font-semibold">{% trans "Users:" %}</span>
                                     <ul id="users-list" class="ml-6 mt-1 list-disc"></ul>
                                 </div>
                             </div>
                         </div>
                         
                         <div class="flex gap-4">
-                            <button type="button" id="btn-cancel-restore" 
+                            <button type="button" id="btn-cancel-restore"
                                     class="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors">
-                                Cancel
+                                {% trans "Cancel" %}
                             </button>
-                            <button type="button" id="btn-upload-backup" 
+                            <button type="button" id="btn-upload-backup"
                                     class="flex-1 px-6 py-3 bg-teal-500 text-white rounded-lg hover:bg-teal-600 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     disabled>
-                                Restore Backup
+                                {% trans "Restore Backup" %}
                             </button>
                         </div>
                     </form>
@@ -247,19 +248,19 @@
                             <div class="border-b border-gray-200 pb-6">
                                 <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                                     <span class="material-symbols-outlined mr-2 text-teal-600">person</span>
-                                    Administrator Account
+                                    {% trans "Administrator Account" %}
                                 </h2>
                                 
                                 <div class="space-y-4">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.username.id_for_label }}">
-                                            Username
+                                            {% trans "Username" %}
                                             <span class="text-red-500">*</span>
                                         </label>
-                                        <input type="text" 
-                                            name="{{ form.username.name }}" 
+                                        <input type="text"
+                                            name="{{ form.username.name }}"
                                             id="{{ form.username.id_for_label }}"
-                                            placeholder="Choose a username"
+                                            placeholder="{% trans 'Choose a username' %}"
                                             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                                             required>
                                         {% if form.username.errors %}
@@ -269,12 +270,12 @@
 
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.email.id_for_label }}">
-                                            Email
+                                            {% trans "Email" %}
                                         </label>
-                                        <input type="email" 
-                                            name="{{ form.email.name }}" 
+                                        <input type="email"
+                                            name="{{ form.email.name }}"
                                             id="{{ form.email.id_for_label }}"
-                                            placeholder="your@email.com"
+                                            placeholder="{% trans 'your@email.com' %}"
                                             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                                         {% if form.email.errors %}
                                             <p class="mt-1 text-sm text-red-600">{{ form.email.errors.0 }}</p>
@@ -283,30 +284,30 @@
 
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.password.id_for_label }}">
-                                            Password
+                                            {% trans "Password" %}
                                             <span class="text-red-500">*</span>
                                         </label>
-                                        <input type="password" 
-                                            name="{{ form.password.name }}" 
+                                        <input type="password"
+                                            name="{{ form.password.name }}"
                                             id="{{ form.password.id_for_label }}"
-                                            placeholder="Minimum 6 characters"
+                                            placeholder="{% trans 'Minimum 6 characters' %}"
                                             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                                             required>
                                         {% if form.password.errors %}
                                             <p class="mt-1 text-sm text-red-600">{{ form.password.errors.0 }}</p>
                                         {% endif %}
-                                        <p class="mt-1 text-sm text-gray-500">Must be at least 6 characters long</p>
+                                        <p class="mt-1 text-sm text-gray-500">{% trans "Must be at least 6 characters long" %}</p>
                                     </div>
 
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.confirm_password.id_for_label }}">
-                                            Confirm Password
+                                            {% trans "Confirm Password" %}
                                             <span class="text-red-500">*</span>
                                         </label>
-                                        <input type="password" 
-                                            name="{{ form.confirm_password.name }}" 
+                                        <input type="password"
+                                            name="{{ form.confirm_password.name }}"
                                             id="{{ form.confirm_password.id_for_label }}"
-                                            placeholder="Re-enter your password"
+                                            placeholder="{% trans 'Re-enter your password' %}"
                                             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                                             required>
                                         {% if form.confirm_password.errors %}
@@ -319,18 +320,18 @@
                             <div class="border-b border-gray-200 pb-6">
                                 <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                                     <span class="material-symbols-outlined mr-2 text-teal-600">home</span>
-                                    Family Information
+                                    {% trans "Family Information" %}
                                 </h2>
-                                
+
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.family_name.id_for_label }}">
-                                        Family Name
+                                        {% trans "Family Name" %}
                                         <span class="text-red-500">*</span>
                                     </label>
-                                    <input type="text" 
-                                        name="{{ form.family_name.name }}" 
+                                    <input type="text"
+                                        name="{{ form.family_name.name }}"
                                         id="{{ form.family_name.id_for_label }}"
-                                        placeholder="e.g., Smith Family"
+                                        placeholder="{% trans 'e.g., Smith Family' %}"
                                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                                         required>
                                     {% if form.family_name.errors %}
@@ -342,12 +343,12 @@
                             <div class="border-b border-gray-200 pb-6">
                                 <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                                     <span class="material-symbols-outlined mr-2 text-teal-600">payments</span>
-                                    Currency Settings
+                                    {% trans "Currency Settings" %}
                                 </h2>
-                                
+
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.base_currency.id_for_label }}">
-                                        Base Currency
+                                        {% trans "Base Currency" %}
                                         <span class="text-red-500">*</span>
                                     </label>
                                     <select name="{{ form.base_currency.name }}" 
@@ -378,20 +379,20 @@
                                     {% if form.base_currency.errors %}
                                         <p class="mt-1 text-sm text-red-600">{{ form.base_currency.errors.0 }}</p>
                                     {% endif %}
-                                    <p class="mt-1 text-sm text-gray-500">All financial values will be stored and displayed in this currency</p>
+                                    <p class="mt-1 text-sm text-gray-500">{% trans "All financial values will be stored and displayed in this currency" %}</p>
                                 </div>
                             </div>
 
                             <div class="border-b border-gray-200 pb-6">
                                 <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                                     <span class="material-symbols-outlined mr-2 text-teal-600">calendar_month</span>
-                                    Financial Cycle Settings
+                                    {% trans "Financial Cycle Settings" %}
                                 </h2>
-                                
+
                                 <div class="space-y-4">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">
-                                            Period Frequency
+                                            {% trans "Period Frequency" %}
                                             <span class="text-red-500">*</span>
                                         </label>
                                         <div class="space-y-3">
@@ -401,11 +402,11 @@
                                                 <div class="flex grow flex-col">
                                                     <p class="text-gray-900 text-sm font-medium">{{ radio.choice_label }}</p>
                                                     {% if radio.choice_value == 'M' %}
-                                                    <p class="text-xs text-gray-500">Budget resets monthly on a specific day</p>
+                                                    <p class="text-xs text-gray-500">{% trans "Budget resets monthly on a specific day" %}</p>
                                                     {% elif radio.choice_value == 'B' %}
-                                                    <p class="text-xs text-gray-500">Budget resets every 2 weeks</p>
+                                                    <p class="text-xs text-gray-500">{% trans "Budget resets every 2 weeks" %}</p>
                                                     {% elif radio.choice_value == 'W' %}
-                                                    <p class="text-xs text-gray-500">Budget resets weekly</p>
+                                                    <p class="text-xs text-gray-500">{% trans "Budget resets weekly" %}</p>
                                                     {% endif %}
                                                 </div>
                                             </label>
@@ -418,36 +419,36 @@
 
                                     <div id="starting-day-field">
                                         <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.starting_day.id_for_label }}">
-                                            Starting Day of Month
+                                            {% trans "Starting Day of Month" %}
                                             <span class="text-red-500">*</span>
                                         </label>
-                                        <input type="number" 
-                                            name="{{ form.starting_day.name }}" 
+                                        <input type="number"
+                                            name="{{ form.starting_day.name }}"
                                             id="{{ form.starting_day.id_for_label }}"
                                             value="{{ form.starting_day.value|default:'1' }}"
-                                            min="1" 
+                                            min="1"
                                             max="31"
                                             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                                         {% if form.starting_day.errors %}
                                             <p class="mt-1 text-sm text-red-600">{{ form.starting_day.errors.0 }}</p>
                                         {% endif %}
-                                        <p class="mt-1 text-sm text-gray-500">Day of the month (1-31) when your budget cycle starts</p>
+                                        <p class="mt-1 text-sm text-gray-500">{% trans "Day of the month (1-31) when your budget cycle starts" %}</p>
                                     </div>
 
                                     <div id="base-date-field" style="display: none;">
                                         <label class="block text-sm font-medium text-gray-700 mb-2" for="{{ form.base_date.id_for_label }}">
-                                            Base Date for Cycle
+                                            {% trans "Base Date for Cycle" %}
                                             <span class="text-red-500">*</span>
                                         </label>
-                                        <input type="date" 
-                                            name="{{ form.base_date.name }}" 
+                                        <input type="date"
+                                            name="{{ form.base_date.name }}"
                                             id="{{ form.base_date.id_for_label }}"
                                             value="{{ form.base_date.value|default:'' }}"
                                             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent">
                                         {% if form.base_date.errors %}
                                             <p class="mt-1 text-sm text-red-600">{{ form.base_date.errors.0 }}</p>
                                         {% endif %}
-                                        <p class="mt-1 text-sm text-gray-500">Reference date for calculating bi-weekly/weekly periods</p>
+                                        <p class="mt-1 text-sm text-gray-500">{% trans "Reference date for calculating bi-weekly/weekly periods" %}</p>
                                     </div>
                                 </div>
                             </div>
@@ -458,13 +459,13 @@
                                         <span class="material-symbols-outlined text-teal-600">check_circle</span>
                                     </div>
                                     <div class="ml-3">
-                                        <h3 class="text-sm font-medium text-teal-800">What happens next?</h3>
+                                        <h3 class="text-sm font-medium text-teal-800">{% trans "What happens next?" %}</h3>
                                         <div class="mt-2 text-sm text-teal-700">
                                             <ul class="list-disc list-inside space-y-1">
-                                                <li>Your family account will be created</li>
-                                                <li>You'll be logged in as the administrator</li>
-                                                <li>You can start managing your family's finances immediately</li>
-                                                <li>You can add other family members from the Settings page</li>
+                                                <li>{% trans "Your family account will be created" %}</li>
+                                                <li>{% trans "You'll be logged in as the administrator" %}</li>
+                                                <li>{% trans "You can start managing your family's finances immediately" %}</li>
+                                                <li>{% trans "You can add other family members from the Settings page" %}</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -472,10 +473,10 @@
                             </div>
 
                             <div class="pt-4">
-                                <button type="submit" 
+                                <button type="submit"
                                         class="w-full bg-gradient-to-r from-teal-500 to-teal-600 text-white text-lg font-semibold py-4 px-6 rounded-lg hover:from-teal-600 hover:to-teal-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2">
                                     <span class="material-symbols-outlined">rocket_launch</span>
-                                    Complete Setup & Get Started
+                                    {% trans "Complete Setup & Get Started" %}
                                 </button>
                             </div>
                         </form>
@@ -486,7 +487,7 @@
         {% endif %}
 
         <div class="text-center text-gray-600 text-sm">
-            <p>© 2025 SweetMoney - Family Financial Flow Management</p>
+            <p>{% trans "© 2025 SweetMoney - Family Financial Flow Management" %}</p>
         </div>
     </div>
 
@@ -570,7 +571,7 @@
                 fileNameDisplay.textContent = file.name;
                 btnUploadBackup.disabled = false;
             } else {
-                fileNameDisplay.textContent = 'No file selected';
+                fileNameDisplay.textContent = "{% trans 'No file selected' %}";
                 btnUploadBackup.disabled = true;
                 restoreInfo.classList.add('hidden');
             }
@@ -585,7 +586,7 @@
             formData.append('backup_file', file);
             
             btnUploadBackup.disabled = true;
-            btnUploadBackup.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Restoring...';
+            btnUploadBackup.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> {% trans "Restoring..." %}';
             
             try {
                 const response = await fetch('/restore-backup/', {
@@ -601,7 +602,7 @@
                 if (!contentType || !contentType.includes('application/json')) {
                     const text = await response.text();
                     console.error('Non-JSON response:', text);
-                    throw new Error('Server returned non-JSON response. Please check server logs.');
+                    throw new Error("{% trans 'Server returned non-JSON response. Please check server logs.' %}");
                 }
 
                 const data = await response.json();
@@ -625,29 +626,29 @@
                     }
 
                     // Show success and redirect option
-                    let message = 'Database restored successfully!';
+                    let message = "{% trans 'Database restored successfully!' %}";
                     if (data.migration_log && data.migration_log.includes('Warning')) {
-                        message += '\n\nNote: Some migrations encountered warnings. Check console for details.';
+                        message += "\n\n{% trans 'Note: Some migrations encountered warnings. Check console for details.' %}";
                     } else if (data.migration_log) {
-                        message += '\n\nDatabase structure updated to latest version.';
+                        message += "\n\n{% trans 'Database structure updated to latest version.' %}";
                     }
 
                     setTimeout(() => {
-                        if (confirm(message + '\n\nClick OK to go to login page.')) {
+                        if (confirm(message + "\n\n{% trans 'Click OK to go to login page.' %}")) {
                             window.location.href = '/login/';
                         }
                     }, 1000);
 
                 } else {
-                    alert('Restore failed: ' + (data.error || 'Unknown error'));
+                    alert("{% trans 'Restore failed:' %} " + (data.error || "{% trans 'Unknown error' %}"));
                     btnUploadBackup.disabled = false;
-                    btnUploadBackup.innerHTML = 'Restore Backup';
+                    btnUploadBackup.innerHTML = "{% trans 'Restore Backup' %}";
                 }
             } catch (error) {
                 console.error('Restore error:', error);
-                alert('Error restoring database: ' + error.message);
+                alert("{% trans 'Error restoring database:' %} " + error.message);
                 btnUploadBackup.disabled = false;
-                btnUploadBackup.innerHTML = 'Restore Backup';
+                btnUploadBackup.innerHTML = "{% trans 'Restore Backup' %}";
             }
         });
         

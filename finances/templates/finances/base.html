@@ -1,10 +1,11 @@
 {% load static %}
+{% load i18n %}
 <!DOCTYPE html>
 <html lang="en" class="h-full">
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>{% block title %}SweetMoney | Family Financial Flow{% endblock title %}</title>
+    <title>{% block title %}{% trans "SweetMoney | Family Financial Flow" %}{% endblock title %}</title>
 
     <link rel="icon" type="image/x-icon" href="{% static 'finances/images/favicons/favicon.ico' %}">
     <link rel="icon" type="image/svg+xml" href="{% static 'finances/images/favicons/favicon.svg' %}">
@@ -42,18 +43,18 @@
                 <div class="space-y-2">
                     <a class="flex items-center px-4 py-2 rounded-md {% if request.resolver_match.url_name == 'dashboard' %}text-gray-700 bg-gray-100 dark:bg-gray-700 dark:text-gray-200{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}" href="{% url 'dashboard' %}{% if selected_period %}?period={{ selected_period }}{% endif %}">
                         <span class="material-symbols-outlined">dashboard</span>
-                        <span class="mx-4 font-medium">Dashboard</span>
+                        <span class="mx-4 font-medium">{% trans "Dashboard" %}</span>
                     </a>
 
                     <a class="flex items-center px-4 py-2 rounded-md {% if request.resolver_match.url_name == 'investments' %}text-gray-700 bg-gray-100 dark:bg-gray-700 dark:text-gray-200{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}" href="{% url 'investments' %}{% if selected_period %}?period={{ selected_period }}{% endif %}">
                         <span class="material-symbols-outlined">trending_up</span>
-                        <span class="mx-4 font-medium">Investments</span>
-                        <span class="text-xs font-normal text-teal-600 dark:text-teal-500 ml-auto">Soon</span>
+                        <span class="mx-4 font-medium">{% trans "Investments" %}</span>
+                        <span class="text-xs font-normal text-teal-600 dark:text-teal-500 ml-auto">{% trans "Soon" %}</span>
                     </a>
 
                     <a class="flex items-center px-4 py-2 rounded-md {% if request.resolver_match.url_name == 'configuration' or request.resolver_match.url_name == 'members' %}text-gray-700 bg-gray-100 dark:bg-gray-700 dark:text-gray-200{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}" href="{% url 'configuration' %}{% if selected_period %}?period={{ selected_period }}{% endif %}">
                         <span class="material-symbols-outlined">settings</span>
-                        <span class="mx-4 font-medium">Settings</span>
+                        <span class="mx-4 font-medium">{% trans "Settings" %}</span>
                     </a>
                 </div>
 
@@ -65,15 +66,15 @@
                             </div>
                             <div class="flex flex-col">
                                 <span class="font-semibold text-gray-800 dark:text-gray-200 text-sm">{{ request.user.username }}</span>
-                                <span class="text-xs text-gray-600 dark:text-gray-400">View profile</span>
+                                <span class="text-xs text-gray-600 dark:text-gray-400">{% trans "View profile" %}</span>
                             </div>
                         </a>
                     </div>
                     
                     <div class="px-4 py-2">
-                        <span id="sidebar-version" class="text-xs text-gray-500 dark:text-gray-600">Version {{ db_version }}</span>
+                        <span id="sidebar-version" class="text-xs text-gray-500 dark:text-gray-600">{% trans "Version" %} {{ db_version }}</span>
                         <div id="sidebar-update-indicator" class="hidden text-xs text-orange-500 dark:text-orange-400 mt-1">
-                            (Update Available)
+                            ({% trans "Update Available" %})
                         </div>
                     </div>
                 </div>
@@ -92,21 +93,21 @@
                         
                         <button onclick="openCreatePeriodModal()"
                                 class="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                                title="Create New Period">
+                                title="{% trans 'Create New Period' %}">
                             <span class="material-symbols-outlined text-sm">add</span>
-                            <span class="text-sm font-medium hidden md:inline">New Period</span>
+                            <span class="text-sm font-medium hidden md:inline">{% trans "New Period" %}</span>
                         </button>
 
                         <button type="button"
                                 onclick="openDeletePeriodModal()"
                                 style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background-color: #dc2626; color: white; border-radius: 8px; border: none; cursor: pointer; line-height: 1.25rem;"
-                                title="Delete Current Period">
-                            
+                                title="{% trans 'Delete Current Period' %}">
+
                             <svg style="width: 20px; height: 20px; flex-shrink: 0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.054.68-.11 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                             </svg>
 
-                            <span style="font-size: 14px; font-weight: 500;" class="hidden md:inline">Delete Period</span>
+                            <span style="font-size: 14px; font-weight: 500;" class="hidden md:inline">{% trans "Delete Period" %}</span>
                         </button>
 
                         <div x-data="{ periodDropdownOpen: false }" class="relative">
@@ -141,7 +142,7 @@
                                         </div>
                                     </a>
                                     {% empty %}
-                                    <div class="px-4 py-2 text-sm text-gray-500">No periods available</div>
+                                    <div class="px-4 py-2 text-sm text-gray-500">{% trans "No periods available" %}</div>
                                     {% endfor %}
                                  </div>
                             </div>
@@ -164,9 +165,9 @@
 
                         <div id="notification-dropdown" class="hidden absolute right-0 mt-2 w-96 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-600 max-h-96 overflow-hidden z-50">
                             <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                                <h3 class="font-semibold text-gray-900 dark:text-white">Notifications</h3>
+                                <h3 class="font-semibold text-gray-900 dark:text-white">{% trans "Notifications" %}</h3>
                                 <button id="acknowledge-all-btn" class="text-xs text-primary hover:text-primary/80 font-medium">
-                                    Mark all as read
+                                    {% trans "Mark all as read" %}
                                 </button>
                             </div>
                             <div id="notification-list" class="overflow-y-auto max-h-80">
@@ -174,14 +175,14 @@
                         </div>
                     </div>
 
-                    <button id="theme-toggle" class="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors" title="Toggle Dark Mode">
+                    <button id="theme-toggle" class="text-gray-600 dark:text-gray-400 hover:text-primary transition-colors" title="{% trans 'Toggle Dark Mode' %}">
                         <span id="icon-dark" class="material-symbols-outlined block dark:hidden">dark_mode</span>
                         <span id="icon-light" class="material-symbols-outlined hidden dark:block">light_mode</span>
                     </button>
 
                     <form method="POST" action="{% url 'auth_logout' %}" style="display: inline;">
                         {% csrf_token %}
-                        <button type="submit" class="text-gray-600 dark:text-gray-400 hover:text-red-500" title="Logout">
+                        <button type="submit" class="text-gray-600 dark:text-gray-400 hover:text-red-500" title="{% trans 'Logout' %}">
                             <span class="material-symbols-outlined">logout</span>
                         </button>
                     </form>
@@ -210,7 +211,7 @@
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
             <div class="p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Create New Period</h3>
+                    <h3 class="text-xl font-semibold text-gray-900 dark:text-white">{% trans "Create New Period" %}</h3>
                     <button onclick="closeCreatePeriodModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                         <span class="material-symbols-outlined">close</span>
                     </button>
@@ -219,7 +220,7 @@
                 <form id="createPeriodForm" class="space-y-4">
                     <div>
                         <label for="period_start_date" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Start Date
+                            {% trans "Start Date" %}
                         </label>
                         <input type="date" id="period_start_date" name="start_date" required
                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white">
@@ -227,7 +228,7 @@
 
                     <div>
                         <label for="period_end_date" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            End Date
+                            {% trans "End Date" %}
                         </label>
                         <input type="date" id="period_end_date" name="end_date" required
                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white">
@@ -237,7 +238,7 @@
                         <div class="flex items-start">
                             <span class="material-symbols-outlined text-yellow-600 dark:text-yellow-400 mr-2">warning</span>
                             <div>
-                                <p class="text-sm font-semibold text-yellow-800 dark:text-yellow-300">Warning: Period Overlap Detected</p>
+                                <p class="text-sm font-semibold text-yellow-800 dark:text-yellow-300">{% trans "Warning: Period Overlap Detected" %}</p>
                                 <p id="overlapMessage" class="text-sm text-yellow-700 dark:text-yellow-400 mt-1"></p>
                             </div>
                         </div>
@@ -246,11 +247,11 @@
                     <div class="flex space-x-3 pt-4">
                         <button type="button" onclick="closeCreatePeriodModal()"
                                 class="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
-                            Cancel
+                            {% trans "Cancel" %}
                         </button>
                         <button type="submit" id="createPeriodBtn"
                                 class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed">
-                            Create
+                            {% trans "Create" %}
                         </button>
                     </div>
                 </form>
@@ -264,7 +265,7 @@
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-xl font-semibold text-red-600 dark:text-red-400">
                         <span class="material-symbols-outlined inline align-text-bottom mr-2">warning</span>
-                        Delete Period
+                        {% trans "Delete Period" %}
                     </h3>
                     <button onclick="closeDeletePeriodModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                         <span class="material-symbols-outlined">close</span>
@@ -274,62 +275,62 @@
                 <div id="deletePeriodContent" class="space-y-4">
                     <div id="deletePeriodLoading" class="text-center py-8">
                         <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">Loading period details...</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">{% trans "Loading period details..." %}</p>
                     </div>
 
                     <div id="deletePeriodDetails" class="hidden">
                         <div id="deleteWarningBox" class="p-4 bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-600 rounded-lg mb-4">
                             <p class="text-sm font-semibold text-red-800 dark:text-red-300">
                                 <span class="material-symbols-outlined text-sm align-text-bottom mr-1">warning</span>
-                                <span id="deleteWarningText">This action cannot be undone!</span>
+                                <span id="deleteWarningText">{% trans "This action cannot be undone!" %}</span>
                             </p>
                             <p id="deleteActionDescription" class="text-sm text-red-700 dark:text-red-400 mt-1"></p>
                         </div>
 
                         <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
-                            <h4 class="font-semibold text-gray-900 dark:text-white mb-2">Period Information</h4>
+                            <h4 class="font-semibold text-gray-900 dark:text-white mb-2">{% trans "Period Information" %}</h4>
                             <p class="text-sm text-gray-700 dark:text-gray-300">
-                                <span class="font-medium">Period:</span> <span id="deletePeriodLabel"></span>
+                                <span class="font-medium">{% trans "Period:" %}</span> <span id="deletePeriodLabel"></span>
                             </p>
                         </div>
 
                         <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
-                            <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Period Summary</h4>
+                            <h4 class="font-semibold text-gray-900 dark:text-white mb-3">{% trans "Period Summary" %}</h4>
                             <div class="space-y-2 text-sm">
                                 <div class="flex justify-between">
-                                    <span class="text-gray-600 dark:text-gray-400">Flow Groups:</span>
+                                    <span class="text-gray-600 dark:text-gray-400">{% trans "Flow Groups:" %}</span>
                                     <span class="font-semibold text-gray-900 dark:text-white" id="deleteFlowGroupCount">0</span>
                                 </div>
                                 <div class="flex justify-between">
-                                    <span class="text-gray-600 dark:text-gray-400">Transactions:</span>
+                                    <span class="text-gray-600 dark:text-gray-400">{% trans "Transactions:" %}</span>
                                     <span class="font-semibold text-gray-900 dark:text-white" id="deleteTransactionCount">0</span>
                                 </div>
                             </div>
                         </div>
 
                         <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
-                            <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Key Metrics</h4>
+                            <h4 class="font-semibold text-gray-900 dark:text-white mb-3">{% trans "Key Metrics" %}</h4>
                             <div class="grid grid-cols-2 gap-4 text-sm">
                                 <div>
-                                    <p class="text-gray-600 dark:text-gray-400 mb-1">Income (Estimated)</p>
+                                    <p class="text-gray-600 dark:text-gray-400 mb-1">{% trans "Income (Estimated)" %}</p>
                                     <p class="font-semibold text-green-600 dark:text-green-400">
                                         <span id="deleteCurrencySymbol1"></span><span id="deleteIncomeEstimated">0.00</span>
                                     </p>
                                 </div>
                                 <div>
-                                    <p class="text-gray-600 dark:text-gray-400 mb-1">Income (Realized)</p>
+                                    <p class="text-gray-600 dark:text-gray-400 mb-1">{% trans "Income (Realized)" %}</p>
                                     <p class="font-semibold text-green-700 dark:text-green-500">
                                         <span id="deleteCurrencySymbol2"></span><span id="deleteIncomeRealized">0.00</span>
                                     </p>
                                 </div>
                                 <div>
-                                    <p class="text-gray-600 dark:text-gray-400 mb-1">Expenses (Estimated)</p>
+                                    <p class="text-gray-600 dark:text-gray-400 mb-1">{% trans "Expenses (Estimated)" %}</p>
                                     <p class="font-semibold text-red-600 dark:text-red-400">
                                         <span id="deleteCurrencySymbol3"></span><span id="deleteExpenseEstimated">0.00</span>
                                     </p>
                                 </div>
                                 <div>
-                                    <p class="text-gray-600 dark:text-gray-400 mb-1">Expenses (Realized)</p>
+                                    <p class="text-gray-600 dark:text-gray-400 mb-1">{% trans "Expenses (Realized)" %}</p>
                                     <p class="font-semibold text-red-700 dark:text-red-500">
                                         <span id="deleteCurrencySymbol4"></span><span id="deleteExpenseRealized">0.00</span>
                                     </p>
@@ -339,24 +340,24 @@
 
                         <div class="mt-6">
                             <div class="flex items-center mb-4">
-                                <input id="deleteConsentCheckbox" 
-                                       type="checkbox" 
+                                <input id="deleteConsentCheckbox"
+                                       type="checkbox"
                                        onchange="toggleDeleteButton()"
                                        class="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500 cursor-pointer">
                                 <label for="deleteConsentCheckbox" class="ml-2 block text-sm text-gray-900 dark:text-gray-300 cursor-pointer">
-                                    I understand the consequences and want to proceed.
+                                    {% trans "I understand the consequences and want to proceed." %}
                                 </label>
                             </div>
 
                             <div class="flex space-x-3">
                                 <button type="button" onclick="closeDeletePeriodModal()"
                                         class="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
-                                    Cancel
+                                    {% trans "Cancel" %}
                                 </button>
                                 <button type="button" onclick="confirmDeletePeriod()" id="confirmDeleteBtn" disabled
                                         style="background-color: #d1d5db; color: #6b7280; cursor: not-allowed; transition: all 0.2s;"
                                         class="flex-1 px-4 py-2 rounded-lg shadow-sm flex items-center justify-center font-medium">
-                                    <span id="deleteButtonText">Delete Period</span>
+                                    <span id="deleteButtonText">{% trans "Delete Period" %}</span>
                                 </button>
                             </div>
                         </div>
@@ -447,7 +448,7 @@
 
             // Disable button during submission
             createBtn.disabled = true;
-            createBtn.textContent = 'Creating...';
+            createBtn.textContent = "{% trans 'Creating...' %}";
 
             fetch('/api/period/create/', {
                 method: 'POST',
@@ -466,16 +467,16 @@
                     // Reload page to show new period
                     window.location.href = `?period=${data.period.start_date}`;
                 } else {
-                    alert('Error: ' + data.error);
+                    alert("{% trans 'Error:' %} " + data.error);
                     createBtn.disabled = false;
-                    createBtn.textContent = 'Create';
+                    createBtn.textContent = "{% trans 'Create' %}";
                 }
             })
             .catch(error => {
                 console.error('Error creating period:', error);
-                alert('An error occurred while creating the period');
+                alert("{% trans 'An error occurred while creating the period' %}");
                 createBtn.disabled = false;
-                createBtn.textContent = 'Create';
+                createBtn.textContent = "{% trans 'Create' %}";
             });
         });
 
@@ -603,7 +604,7 @@
 
             // Disable button
             confirmBtn.disabled = true;
-            confirmBtn.querySelector('#deleteButtonText').textContent = 'Processing...';
+            confirmBtn.querySelector('#deleteButtonText').textContent = "{% trans 'Processing...' %}";
             confirmBtn.style.cursor = 'wait';
 
             fetch('/api/period/delete/', {
@@ -624,16 +625,16 @@
                     // Redirect
                     window.location.href = data.redirect;
                 } else {
-                    alert('Error: ' + data.error);
+                    alert("{% trans 'Error:' %} " + data.error);
                     confirmBtn.disabled = false;
                     confirmBtn.querySelector('#deleteButtonText').textContent = originalText;
                     // Restaura estilo vermelho pois o erro ocorreu
-                    btn.style.cursor = 'pointer';
+                    confirmBtn.style.cursor = 'pointer';
                 }
             })
             .catch(error => {
                 console.error('Error deleting period:', error);
-                alert('An error occurred while deleting the period');
+                alert("{% trans 'An error occurred while deleting the period' %}");
                 confirmBtn.disabled = false;
                 confirmBtn.querySelector('#deleteButtonText').textContent = originalText;
                 confirmBtn.style.cursor = 'pointer';

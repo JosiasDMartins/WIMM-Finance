@@ -1,19 +1,20 @@
 {% extends "finances/base.html" %}
 {% load static %}
 {% load humanize %}
+{% load i18n %}
 
 {% block content %}
 <main class="p-6 md:p-10 lg:p-12">
     <div class="max-w-7xl mx-auto">
-        <h1 class="text-[#0d171b] dark:text-white text-2xl font-bold tracking-[-0.015em] mb-6">Family Investments</h1>
+        <h1 class="text-[#0d171b] dark:text-white text-2xl font-bold tracking-[-0.015em] mb-6">{% trans "Family Investments" %}</h1>
 
         <!-- Available Balance Card -->
         <div class="bg-gradient-to-r from-blue-500 to-blue-600 dark:from-blue-700 dark:to-blue-800 rounded-xl shadow-lg p-8 mb-8 text-white">
             <div class="flex items-center justify-between">
                 <div>
-                    <h2 class="text-lg font-semibold opacity-90 mb-2">Available Investment Balance</h2>
+                    <h2 class="text-lg font-semibold opacity-90 mb-2">{% trans "Available Investment Balance" %}</h2>
                     <p class="text-4xl font-bold">{{ currency_symbol }} {{ available_balance|intcomma|default:"0.00" }}</p>
-                    <p class="text-sm opacity-80 mt-2">From investment Flow Groups (realized transactions)</p>
+                    <p class="text-sm opacity-80 mt-2">{% trans "From investment Flow Groups (realized transactions)" %}</p>
                 </div>
                 <div class="text-6xl opacity-20">
                     <span class="material-symbols-outlined" style="font-size: 96px;">savings</span>
@@ -24,13 +25,13 @@
         <!-- Future Development Notice -->
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden p-8 text-center">
             <span class="material-symbols-outlined text-6xl text-blue-500 mb-4">construction</span>
-            <h2 class="text-2xl font-bold text-[#0d171b] dark:text-white mb-4">Coming Soon</h2>
+            <h2 class="text-2xl font-bold text-[#0d171b] dark:text-white mb-4">{% trans "Coming Soon" %}</h2>
             <p class="text-gray-600 dark:text-gray-400 mb-6">
-                The investments management interface is currently under development. 
-                <br>Soon you'll be able to track and manage your family investments directly from this page.
+                {% trans "The investments management interface is currently under development." %}
+                <br>{% trans "Soon you'll be able to track and manage your family investments directly from this page." %}
             </p>
             <p class="text-sm text-gray-500 dark:text-gray-500">
-                For now, mark Flow Groups as "Investment" in the dashboard to track money set aside for investing.
+                {% trans "For now, mark Flow Groups as \"Investment\" in the dashboard to track money set aside for investing." %}
             </p>
         </div>
     </div>

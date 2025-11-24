@@ -16,12 +16,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf.urls.i18n import i18n_patterns
 
 urlpatterns = [
     path('admin/', admin.site.urls),
 
     #Authentication routes (login, logout, password_reset and etc)
     path('', include('django.contrib.auth.urls')),
+
+    # i18n language switching
+    path('i18n/', include('django.conf.urls.i18n')),
 
     #include WIMM routes
     path('', include('finances.urls')),

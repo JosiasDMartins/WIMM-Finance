@@ -2,6 +2,7 @@
 
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 from django.conf import settings
@@ -26,7 +27,7 @@ def get_notifications_ajax(request):
         if not member:
             if debug_enabled:
                 print(f"[ERROR NOTIF API] Member not found for user: {request.user.username}")
-            return JsonResponse({'success': False, 'error': 'Member not found'}, status=404)
+            return JsonResponse({'success': False, 'error': _('Member not found')}, status=404)
 
         if debug_enabled:
             print(f"[DEBUG NOTIF API] Member found: {member.user.username} (ID: {member.id})")
@@ -105,11 +106,11 @@ def acknowledge_notification_ajax(request):
             print(f"[DEBUG NOTIF ACK] Notification ID: {notification_id}")
 
         if not notification_id:
-            return JsonResponse({'success': False, 'error': 'Notification ID required'}, status=400)
+            return JsonResponse({'success': False, 'error': _('Notification ID required')}, status=400)
 
         member = FamilyMember.objects.filter(user=request.user).first()
         if not member:
-            return JsonResponse({'success': False, 'error': 'Member not found'}, status=404)
+            return JsonResponse({'success': False, 'error': _('Member not found')}, status=404)
 
         notification = Notification.objects.filter(
             id=notification_id,
@@ -119,7 +120,7 @@ def acknowledge_notification_ajax(request):
         if not notification:
             if debug_enabled:
                 print(f"[ERROR NOTIF ACK] Notification {notification_id} not found for member {member.id}")
-            return JsonResponse({'success': False, 'error': 'Notification not found'}, status=404)
+            return JsonResponse({'success': False, 'error': _('Notification not found')}, status=404)
 
         if debug_enabled:
             print(f"[DEBUG NOTIF ACK] Acknowledging notification {notification_id} (type: {notification.notification_type})")
@@ -161,7 +162,7 @@ def acknowledge_all_notifications_ajax(request):
     try:
         member = FamilyMember.objects.filter(user=request.user).first()
         if not member:
-            return JsonResponse({'success': False, 'error': 'Member not found'}, status=404)
+            return JsonResponse({'success': False, 'error': _('Member not found')}, status=404)
 
         # Atualiza todas as notificações não reconhecidas
         updated_count = Notification.objects.filter(

@@ -5,6 +5,7 @@ from datetime import datetime as dt_datetime
 
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.contrib.auth.decorators import login_required
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 from django.db import transaction as db_transaction
 from django.db.models import Max, Q, Sum
@@ -38,18 +39,18 @@ from .views_utils import (
 def reorder_flow_items_ajax(request):
     """AJAX: Reorders transactions (items) within a FlowGroup."""
     if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        return HttpResponseBadRequest("Not an AJAX request.")
-    
+        return HttpResponseBadRequest(_("Not an AJAX request."))
+
     family, current_member, _ = get_family_context(request.user)
     if not family:
-        return HttpResponseForbidden("User is not associated with a family.")
+        return HttpResponseForbidden(_("User is not associated with a family."))
     
     try:
         data = json.loads(request.body)
         items_data = data.get('items', [])
         
         if not items_data:
-            return JsonResponse({'error': 'No items data provided.'}, status=400)
+            return JsonResponse({'error': _('No items data provided.')}, status=400)
         
         for item_data in items_data:
             item_id = item_data.get('id')
@@ -69,7 +70,7 @@ def reorder_flow_items_ajax(request):
         return JsonResponse({'status': 'success'})
         
     except Exception as e:
-        return JsonResponse({'error': f'A server error occurred: {str(e)}'}, status=500)
+        return JsonResponse({'error': _('A server error occurred: %(error)s') % {'error': str(e)}}, status=500)
 
 
 @login_required
@@ -78,11 +79,11 @@ def reorder_flow_items_ajax(request):
 def save_flow_item_ajax(request):
     """AJAX: Saves or updates a transaction (item)."""
     if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        return HttpResponseBadRequest("Not an AJAX request.")
-    
+        return HttpResponseBadRequest(_("Not an AJAX request."))
+
     family, current_member, _ = get_family_context(request.user)
     if not family:
-        return HttpResponseForbidden("User is not associated with a family.")
+        return HttpResponseForbidden(_("User is not associated with a family."))
 
     try:
         data = json.loads(request.body)
@@ -100,7 +101,7 @@ def save_flow_item_ajax(request):
         print(f"[DEBUG] save_flow_item_ajax called - transaction_id: {transaction_id}, type: {type(transaction_id)}")
         
         if not all([flow_group_id, description, amount_str, date_str]):
-            return JsonResponse({'error': 'Missing required fields.'}, status=400)
+            return JsonResponse({'error': _('Missing required fields.')}, status=400)
         
         flow_group = get_object_or_404(FlowGroup, id=flow_group_id, family=family)
         currency = get_period_currency(family, flow_group.period_start_date)
@@ -111,15 +112,15 @@ def save_flow_item_ajax(request):
             amount_clean = amount_clean.replace(get_thousand_separator(), '')
             
             if not amount_clean:
-                return JsonResponse({'error': 'Amount cannot be empty.'}, status=400)
+                return JsonResponse({'error': _('Amount cannot be empty.')}, status=400)
             amount = Decimal(amount_clean)
         except (ValueError, decimal.InvalidOperation) as e:
-            return JsonResponse({'error': f'Invalid amount format: {amount_str}'}, status=400)
+            return JsonResponse({'error': _('Invalid amount format: %(amount)s') % {'amount': amount_str}}, status=400)
             
         date = dt_datetime.strptime(date_str, '%Y-%m-%d').date()
         
         if not can_access_flow_group(flow_group, current_member):
-            return HttpResponseForbidden("You don't have permission to edit this group.")
+            return HttpResponseForbidden(_("You don't have permission to edit this group."))
 
         # Determinar se é nova transação ou edição
         is_new = False
@@ -201,7 +202,7 @@ def save_flow_item_ajax(request):
         })
 
     except ValueError as e:
-        return JsonResponse({'error': f'Invalid data format: {str(e)}'}, status=400)
+        return JsonResponse({'error': _('Invalid data format: %(error)s') % {'error': str(e)}}, status=400)
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()
@@ -226,19 +227,19 @@ def delete_flow_item_ajax(request):
         transaction_id = data.get('transaction_id')
 
         if not transaction_id:
-            return JsonResponse({'error': 'Missing transaction_id.'}, status=400)
+            return JsonResponse({'error': _('Missing transaction_id.')}, status=400)
 
         transaction = get_object_or_404(Transaction, id=transaction_id, flow_group__family=family)
         
         if not can_access_flow_group(transaction.flow_group, current_member):
-            return HttpResponseForbidden("You don't have permission to delete from this group.")
+            return HttpResponseForbidden(_("You don't have permission to delete from this group."))
         
         transaction.delete()
 
         return JsonResponse({'status': 'success', 'transaction_id': transaction_id})
 
     except Exception as e:
-        return JsonResponse({'error': f'A server error occurred: {str(e)}'}, status=500)
+        return JsonResponse({'error': _('A server error occurred: %(error)s') % {'error': str(e)}}, status=500)
 
 
 @login_required
@@ -247,14 +248,14 @@ def delete_flow_item_ajax(request):
 def toggle_kids_group_realized_ajax(request):
     """AJAX: Toggles the 'realized' status of a Kids group (allowance)."""
     if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        return HttpResponseBadRequest("Not an AJAX request.")
-    
+        return HttpResponseBadRequest(_("Not an AJAX request."))
+
     family, current_member, _ = get_family_context(request.user)
     if not family:
-        return HttpResponseForbidden("User is not associated with a family.")
+        return HttpResponseForbidden(_("User is not associated with a family."))
     
     if current_member.role not in ['ADMIN', 'PARENT']:
-        return HttpResponseForbidden("Only Parents and Admins can mark Kids groups as realized.")
+        return HttpResponseForbidden(_("Only Parents and Admins can mark Kids groups as realized."))
     
     try:
         data = json.loads(request.body)
@@ -262,12 +263,12 @@ def toggle_kids_group_realized_ajax(request):
         new_realized_status = data.get('realized', False)
         
         if not flow_group_id:
-            return JsonResponse({'error': 'Missing flow_group_id.'}, status=400)
+            return JsonResponse({'error': _('Missing flow_group_id.')}, status=400)
         
         flow_group = get_object_or_404(FlowGroup, id=flow_group_id, family=family)
         
         if not flow_group.is_kids_group:
-            return JsonResponse({'error': 'Can only toggle realized for Kids groups.'}, status=400)
+            return JsonResponse({'error': _('Can only toggle realized for Kids groups.')}, status=400)
         
         flow_group.realized = new_realized_status
         flow_group.save()
@@ -282,7 +283,7 @@ def toggle_kids_group_realized_ajax(request):
         })
         
     except Exception as e:
-        return JsonResponse({'error': f'A server error occurred: {str(e)}'}, status=500)
+        return JsonResponse({'error': _('A server error occurred: %(error)s') % {'error': str(e)}}, status=500)
 
 
 @login_required
@@ -291,18 +292,18 @@ def toggle_kids_group_realized_ajax(request):
 def reorder_flow_groups_ajax(request):
     """AJAX: Reorders FlowGroups on the dashboard."""
     if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        return HttpResponseBadRequest("Not an AJAX request.")
-    
+        return HttpResponseBadRequest(_("Not an AJAX request."))
+
     family, current_member, _ = get_family_context(request.user)
     if not family:
-        return HttpResponseForbidden("User is not associated with a family.")
+        return HttpResponseForbidden(_("User is not associated with a family."))
     
     try:
         data = json.loads(request.body)
         groups_data = data.get('groups', [])
         
         if not groups_data:
-            return JsonResponse({'error': 'No groups data provided.'}, status=400)
+            return JsonResponse({'error': _('No groups data provided.')}, status=400)
         
         for group_data in groups_data:
             group_id = group_data.get('id')
@@ -319,7 +320,7 @@ def reorder_flow_groups_ajax(request):
         return JsonResponse({'status': 'success'})
         
     except Exception as e:
-        return JsonResponse({'error': f'A server error occurred: {str(e)}'}, status=500)
+        return JsonResponse({'error': _('A server error occurred: %(error)s') % {'error': str(e)}}, status=500)
 
 
 @login_required
@@ -329,20 +330,20 @@ def delete_flow_group_view(request, group_id):
     """AJAX: Deletes a FlowGroup and all its transactions."""
     family, current_member, _ = get_family_context(request.user)
     if not family:
-        return JsonResponse({'error': 'User is not associated with a family.'}, status=403)
+        return JsonResponse({'error': _('User is not associated with a family.')}, status=403)
     
     try:
         flow_group = get_object_or_404(FlowGroup, id=group_id, family=family)
         
         if flow_group.owner != request.user and current_member.role != 'ADMIN':
-            return JsonResponse({'error': 'Permission denied.'}, status=403)
+            return JsonResponse({'error': _('Permission denied.')}, status=403)
         
         group_name = flow_group.name
         flow_group.delete()
         
         return JsonResponse({
             'status': 'success',
-            'message': f"Flow Group '{group_name}' and all its data have been deleted."
+            'message': _("Flow Group '%(name)s' and all its data have been deleted.") % {'name': group_name}
         })
         
     except Exception as e:
@@ -355,18 +356,18 @@ def delete_flow_group_view(request, group_id):
 def copy_previous_period_ajax(request):
     """AJAX: Copies data from the previous period to the current one."""
     if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        return HttpResponseBadRequest("Not an AJAX request.")
-    
+        return HttpResponseBadRequest(_("Not an AJAX request."))
+
     family, current_member, _ = get_family_context(request.user)
     if not family:
-        return HttpResponseForbidden("User is not associated with a family.")
+        return HttpResponseForbidden(_("User is not associated with a family."))
     
     if current_member.role not in ['ADMIN', 'PARENT']:
-        return HttpResponseForbidden("Only Admins and Parents can copy period data.")
+        return HttpResponseForbidden(_("Only Admins and Parents can copy period data."))
     
     try:
         if current_period_has_data(family):
-            return JsonResponse({'error': 'Current period already has data. Cannot copy.'}, status=400)
+            return JsonResponse({'error': _('Current period already has data. Cannot copy.')}, status=400)
         
         result = copy_previous_period_data(family, exclude_child_data=True)
         
@@ -374,22 +375,25 @@ def copy_previous_period_ajax(request):
             'status': 'success',
             'groups_copied': result['groups_copied'],
             'transactions_copied': result['transactions_copied'],
-            'message': f"Copied {result['groups_copied']} groups and {result['transactions_copied']} transactions."
+            'message': _("Copied %(groups)s groups and %(transactions)s transactions.") % {
+                'groups': result['groups_copied'],
+                'transactions': result['transactions_copied']
+            }
         })
         
     except Exception as e:
-        return JsonResponse({'error': f'Error copying period: {str(e)}'}, status=500)
+        return JsonResponse({'error': _('Error copying period: %(error)s') % {'error': str(e)}}, status=500)
 
 
 @login_required
 def check_period_empty_ajax(request):
     """AJAX: Checks if the current period is empty (to show the copy button)."""
     if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        return HttpResponseBadRequest("Not an AJAX request.")
-    
+        return HttpResponseBadRequest(_("Not an AJAX request."))
+
     family, current_member, _ = get_family_context(request.user)
     if not family:
-        return HttpResponseForbidden("User is not associated with a family.")
+        return HttpResponseForbidden(_("User is not associated with a family."))
     
     try:
         has_data = current_period_has_data(family)
@@ -401,7 +405,7 @@ def check_period_empty_ajax(request):
         })
         
     except Exception as e:
-        return JsonResponse({'error': f'Error checking period: {str(e)}'}, status=500)
+        return JsonResponse({'error': _('Error checking period: %(error)s') % {'error': str(e)}}, status=500)
 
 
 @login_required
@@ -432,7 +436,7 @@ def save_bank_balance_ajax(request):
         
         family, _, _ = get_family_context(request.user)
         if not family:
-            return JsonResponse({'status': 'error', 'error': 'User not in family'}, status=403)
+            return JsonResponse({'status': 'error', 'error': _('User not in family')}, status=403)
         
         description = data.get('description', '').strip()
         amount = Decimal(data.get('amount', '0'))
@@ -494,7 +498,7 @@ def delete_bank_balance_ajax(request):
 
         family, _, _ = get_family_context(request.user)
         if not family:
-            return JsonResponse({'status': 'error', 'error': 'User not in family'}, status=403)
+            return JsonResponse({'status': 'error', 'error': _('User not in family')}, status=403)
 
         bank_balance = BankBalance.objects.get(id=balance_id, family=family)
         bank_balance.delete()
@@ -516,11 +520,11 @@ def validate_period_overlap_ajax(request):
 
         family, current_member, _ = get_family_context(request.user)
         if not family:
-            return JsonResponse({'status': 'error', 'error': 'User not in family'}, status=403)
+            return JsonResponse({'status': 'error', 'error': _('User not in family')}, status=403)
 
         # Only ADMIN and PARENT can create periods
         if current_member.role not in ['ADMIN', 'PARENT']:
-            return JsonResponse({'status': 'error', 'error': 'Permission denied'}, status=403)
+            return JsonResponse({'status': 'error', 'error': _('Permission denied')}, status=403)
 
         # Parse dates
         start_date = dt_datetime.strptime(start_date_str, '%Y-%m-%d').date()
@@ -530,7 +534,7 @@ def validate_period_overlap_ajax(request):
         if end_date <= start_date:
             return JsonResponse({
                 'status': 'error',
-                'error': 'End date must be after start date',
+                'error': _('End date must be after start date'),
                 'has_overlap': False
             })
 
@@ -554,14 +558,14 @@ def validate_period_overlap_ajax(request):
             return JsonResponse({
                 'status': 'warning',
                 'has_overlap': True,
-                'message': 'This period overlaps with existing periods',
+                'message': _('This period overlaps with existing periods'),
                 'overlapping_periods': overlap_details
             })
 
         return JsonResponse({
             'status': 'success',
             'has_overlap': False,
-            'message': 'No overlap detected'
+            'message': _('No overlap detected')
         })
 
     except Exception as e:
@@ -580,11 +584,11 @@ def create_period_ajax(request):
 
         family, current_member, _ = get_family_context(request.user)
         if not family:
-            return JsonResponse({'status': 'error', 'error': 'User not in family'}, status=403)
+            return JsonResponse({'status': 'error', 'error': _('User not in family')}, status=403)
 
         # Only ADMIN and PARENT can create periods
         if current_member.role not in ['ADMIN', 'PARENT']:
-            return JsonResponse({'status': 'error', 'error': 'Permission denied'}, status=403)
+            return JsonResponse({'status': 'error', 'error': _('Permission denied')}, status=403)
 
         # Parse dates
         start_date = dt_datetime.strptime(start_date_str, '%Y-%m-%d').date()
@@ -594,7 +598,7 @@ def create_period_ajax(request):
         if end_date <= start_date:
             return JsonResponse({
                 'status': 'error',
-                'error': 'End date must be after start date'
+                'error': _('End date must be after start date')
             }, status=400)
 
         # Check for overlapping periods (double-check)
@@ -608,7 +612,7 @@ def create_period_ajax(request):
         if overlapping_periods.exists():
             return JsonResponse({
                 'status': 'error',
-                'error': 'This period overlaps with existing periods'
+                'error': _('This period overlaps with existing periods')
             }, status=400)
 
         # Get family configuration
@@ -616,7 +620,7 @@ def create_period_ajax(request):
         if not config:
             return JsonResponse({
                 'status': 'error',
-                'error': 'Family configuration not found'
+                'error': _('Family configuration not found')
             }, status=400)
 
         # Create the new period
@@ -630,7 +634,7 @@ def create_period_ajax(request):
 
         return JsonResponse({
             'status': 'success',
-            'message': 'Period created successfully',
+            'message': _('Period created successfully'),
             'period': {
                 'id': period.id,
                 'start_date': period.start_date.strftime('%Y-%m-%d'),
@@ -651,7 +655,7 @@ def get_period_details_ajax(request):
 
         family, current_member, _ = get_family_context(request.user)
         if not family:
-            return JsonResponse({'status': 'error', 'error': 'User not in family'}, status=403)
+            return JsonResponse({'status': 'error', 'error': _('User not in family')}, status=403)
 
         # Only ADMIN and PARENT can view period details for deletion
         if current_member.role not in ['ADMIN', 'PARENT']:
@@ -771,7 +775,7 @@ def delete_period_ajax(request):
 
         family, current_member, _ = get_family_context(request.user)
         if not family:
-            return JsonResponse({'status': 'error', 'error': 'User not in family'}, status=403)
+            return JsonResponse({'status': 'error', 'error': _('User not in family')}, status=403)
 
         # Only ADMIN and PARENT can delete periods
         if current_member.role not in ['ADMIN', 'PARENT']:
@@ -811,7 +815,10 @@ def delete_period_ajax(request):
             return JsonResponse({
                 'status': 'success',
                 'action': 'cleared',
-                'message': f'Current period cleared: {flow_group_count} flow groups and {transaction_count} transactions removed',
+                'message': _('Current period cleared: %(groups)s flow groups and %(transactions)s transactions removed') % {
+                    'groups': flow_group_count,
+                    'transactions': transaction_count
+                },
                 'redirect': '/'
             })
         else:
@@ -849,7 +856,10 @@ def delete_period_ajax(request):
             return JsonResponse({
                 'status': 'success',
                 'action': 'deleted',
-                'message': f'Period deleted: {flow_group_count} flow groups and {transaction_count} transactions removed',
+                'message': _('Period deleted: %(groups)s flow groups and %(transactions)s transactions removed') % {
+                    'groups': flow_group_count,
+                    'transactions': transaction_count
+                },
                 'redirect': '/'
             })
 

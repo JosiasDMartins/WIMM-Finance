@@ -1,39 +1,40 @@
 {% extends "finances/base.html" %}
 {% load static %}
 {% load humanize %}
+{% load i18n %}
 
 {% block content %}
 <div class="p-6 md:p-8 lg:p-10">
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden mb-6">
         <div class="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
-            <h2 class="text-xl font-bold text-[#0d171b] dark:text-white">Bank Reconciliation</h2>
-            
+            <h2 class="text-xl font-bold text-[#0d171b] dark:text-white">{% trans "Bank Reconciliation" %}</h2>
+
             <!-- Mode Toggle -->
             <label class="flex items-center cursor-pointer">
-                <span class="mr-3 text-sm text-gray-700 dark:text-gray-300">General</span>
+                <span class="mr-3 text-sm text-gray-700 dark:text-gray-300">{% trans "General" %}</span>
                 <div class="relative">
-                    <input type="checkbox" id="mode-toggle" class="sr-only" {% if mode == 'detailed' %}checked{% endif %} 
+                    <input type="checkbox" id="mode-toggle" class="sr-only" {% if mode == 'detailed' %}checked{% endif %}
                            onchange="window.location.href='?period={{ selected_period }}&mode=' + (this.checked ? 'detailed' : 'general')">
                     <div class="block bg-gray-300 dark:bg-gray-600 w-14 h-8 rounded-full"></div>
                     <div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
                 </div>
-                <span class="ml-3 text-sm text-gray-700 dark:text-gray-300">Detailed (by User)</span>
+                <span class="ml-3 text-sm text-gray-700 dark:text-gray-300">{% trans "Detailed (by User)" %}</span>
             </label>
         </div>
         
         <!-- Bank Balance Input Table -->
         <div class="p-4">
-            <h3 class="text-lg font-semibold text-[#0d171b] dark:text-white mb-4">Current Bank Balances</h3>
+            <h3 class="text-lg font-semibold text-[#0d171b] dark:text-white mb-4">{% trans "Current Bank Balances" %}</h3>
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead>
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Description</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Amount</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{% trans "Description" %}</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{% trans "Amount" %}</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{% trans "Date" %}</th>
                         {% if mode == 'detailed' %}
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">User</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{% trans "User" %}</th>
                         {% endif %}
-                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Actions</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{% trans "Actions" %}</th>
                     </tr>
                 </thead>
                 <tbody id="bank-balance-tbody" class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -55,7 +56,7 @@
                         <td class="px-4 py-3">
                             <span class="cell-member-display text-sm text-gray-600 dark:text-gray-400">{{ balance.member.user.username|default:"Family" }}</span>
                             <select class="cell-member-edit hidden w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:text-white">
-                                <option value="">Family</option>
+                                <option value="">{% trans "Family" %}</option>
                                 {% for member in family_members %}
                                 <option value="{{ member.id }}" {% if balance.member.id == member.id %}selected{% endif %}>{{ member.user.username }}</option>
                                 {% endfor %}
@@ -84,7 +85,7 @@
                     {% empty %}
                     <tr id="balance-empty-row">
                         <td colspan="{% if mode == 'detailed' %}5{% else %}4{% endif %}" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">
-                            No bank balances entered yet. Click "Add Bank Balance" to start.
+                            {% trans 'No bank balances entered yet. Click "Add Bank Balance" to start.' %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -92,7 +93,7 @@
                     <!-- New Row Template (hidden by default) -->
                     <tr id="new-balance-template" data-balance-id="new" data-mode="edit" style="display: none;">
                         <td class="px-4 py-3">
-                            <input type="text" class="cell-description-edit w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:text-white" placeholder="Bank account name">
+                            <input type="text" class="cell-description-edit w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:text-white" placeholder="{% trans 'Bank account name' %}">
                         </td>
                         <td class="px-4 py-3 text-right">
                             <input type="number" step="0.01" class="cell-amount-edit w-full px-2 py-1 text-sm border rounded text-right dark:bg-gray-700 dark:text-white" value="0.00">
@@ -103,7 +104,7 @@
                         {% if mode == 'detailed' %}
                         <td class="px-4 py-3">
                             <select class="cell-member-edit w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:text-white">
-                                <option value="">Family</option>
+                                <option value="">{% trans "Family" %}</option>
                                 {% for member in family_members %}
                                 <option value="{{ member.id }}">{{ member.user.username }}</option>
                                 {% endfor %}
@@ -123,15 +124,15 @@
                     </tr>
                 </tbody>
             </table>
-            
+
             <div class="mt-4 flex justify-between items-center">
                 <button type="button" onclick="addNewBalance()" class="flex items-center rounded-lg bg-primary text-white text-sm font-medium px-4 py-2 hover:bg-primary/80 transition-colors">
                     <span class="material-symbols-outlined text-lg mr-1">add_circle</span>
-                    Add Bank Balance
+                    {% trans "Add Bank Balance" %}
                 </button>
-                
+
                 <div class="text-right">
-                    <span class="text-sm text-gray-600 dark:text-gray-400">Total Bank Balance:</span>
+                    <span class="text-sm text-gray-600 dark:text-gray-400">{% trans "Total Bank Balance:" %}</span>
                     <span id="total-bank-balance" class="text-lg font-bold text-green-600 dark:text-green-500 ml-2">
                         $ {% widthratio reconciliation_data.total_bank_balance 1 1 %}
                     </span>
@@ -145,20 +146,20 @@
     <!-- General Reconciliation -->
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
         <div class="p-4 border-b border-gray-200 dark:border-gray-700">
-            <h3 class="text-lg font-semibold text-[#0d171b] dark:text-white">General Reconciliation (Family)</h3>
+            <h3 class="text-lg font-semibold text-[#0d171b] dark:text-white">{% trans "General Reconciliation (Family)" %}</h3>
         </div>
         <div class="p-6">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
-                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Income</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">{% trans "Total Income" %}</div>
                     <div class="text-2xl font-bold text-green-600 dark:text-green-500">$ {{ reconciliation_data.total_income|intcomma }}</div>
                 </div>
                 <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
-                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Expenses</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">{% trans "Total Expenses" %}</div>
                     <div class="text-2xl font-bold text-red-600 dark:text-red-500">$ {{ reconciliation_data.total_expenses|intcomma }}</div>
                 </div>
                 <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">Calculated Balance</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">{% trans "Calculated Balance" %}</div>
                     <div class="text-2xl font-bold {% if reconciliation_data.calculated_balance >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %}">
                         $ {{ reconciliation_data.calculated_balance|intcomma }}
                     </div>
@@ -168,17 +169,17 @@
             <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
                 <div class="flex items-center justify-between mb-4">
                     <div>
-                        <div class="text-sm text-gray-600 dark:text-gray-400">Bank Balance</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">{% trans "Bank Balance" %}</div>
                         <div class="text-2xl font-bold text-[#0d171b] dark:text-white">$ {{ reconciliation_data.total_bank_balance|intcomma }}</div>
                     </div>
                     <div class="text-4xl text-gray-300 dark:text-gray-600">−</div>
                     <div>
-                        <div class="text-sm text-gray-600 dark:text-gray-400">Calculated Balance</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">{% trans "Calculated Balance" %}</div>
                         <div class="text-2xl font-bold text-[#0d171b] dark:text-white">$ {{ reconciliation_data.calculated_balance|intcomma }}</div>
                     </div>
                     <div class="text-4xl text-gray-300 dark:text-gray-600">=</div>
                     <div>
-                        <div class="text-sm text-gray-600 dark:text-gray-400">Discrepancy</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">{% trans "Discrepancy" %}</div>
                         <div class="text-2xl font-bold {% if reconciliation_data.discrepancy >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %}">
                             $ {{ reconciliation_data.discrepancy|intcomma }}
                         </div>
@@ -193,9 +194,9 @@
                     <div class="flex items-center">
                         <span class="material-symbols-outlined text-yellow-500 mr-3">warning</span>
                         <div>
-                            <h4 class="text-sm font-semibold text-yellow-800 dark:text-yellow-500">Warning: Discrepancy Detected</h4>
+                            <h4 class="text-sm font-semibold text-yellow-800 dark:text-yellow-500">{% trans "Warning: Discrepancy Detected" %}</h4>
                             <p class="text-sm text-yellow-700 dark:text-yellow-400 mt-1">
-                                The difference between your bank balance and calculated balance is greater than 5%. Please review your transactions.
+                                {% trans "The difference between your bank balance and calculated balance is greater than 5%. Please review your transactions." %}
                             </p>
                         </div>
                     </div>
@@ -205,9 +206,9 @@
                     <div class="flex items-center">
                         <span class="material-symbols-outlined text-green-500 mr-3">check_circle</span>
                         <div>
-                            <h4 class="text-sm font-semibold text-green-800 dark:text-green-500">Reconciliation OK</h4>
+                            <h4 class="text-sm font-semibold text-green-800 dark:text-green-500">{% trans "Reconciliation OK" %}</h4>
                             <p class="text-sm text-green-700 dark:text-green-400 mt-1">
-                                Your bank balance matches your calculated balance within acceptable limits.
+                                {% trans "Your bank balance matches your calculated balance within acceptable limits." %}
                             </p>
                         </div>
                     </div>
@@ -220,43 +221,43 @@
     <!-- Detailed Reconciliation (by User) -->
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
         <div class="p-4 border-b border-gray-200 dark:border-gray-700">
-            <h3 class="text-lg font-semibold text-[#0d171b] dark:text-white">Detailed Reconciliation (by User)</h3>
+            <h3 class="text-lg font-semibold text-[#0d171b] dark:text-white">{% trans "Detailed Reconciliation (by User)" %}</h3>
         </div>
         <div class="p-6 space-y-6">
             {% for member_data in reconciliation_data.members_data %}
             <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                 <h4 class="text-lg font-semibold text-[#0d171b] dark:text-white mb-4">{{ member_data.member.user.username }}</h4>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
-                        <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Income</div>
+                        <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">{% trans "Income" %}</div>
                         <div class="text-lg font-bold text-green-600 dark:text-green-500">$ {{ member_data.income|intcomma }}</div>
                     </div>
                     <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
-                        <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Expenses</div>
+                        <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">{% trans "Expenses" %}</div>
                         <div class="text-lg font-bold text-red-600 dark:text-red-500">$ {{ member_data.expenses|intcomma }}</div>
                     </div>
                     <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
-                        <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">Calculated</div>
+                        <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">{% trans "Calculated" %}</div>
                         <div class="text-lg font-bold {% if member_data.calculated_balance >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %}">
                             $ {{ member_data.calculated_balance|intcomma }}
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
                     <div class="flex-1 text-center">
-                        <div class="text-xs text-gray-600 dark:text-gray-400">Bank Balance</div>
+                        <div class="text-xs text-gray-600 dark:text-gray-400">{% trans "Bank Balance" %}</div>
                         <div class="text-xl font-bold text-[#0d171b] dark:text-white">$ {{ member_data.bank_balance|intcomma }}</div>
                     </div>
                     <div class="text-2xl text-gray-300 dark:text-gray-600 mx-2">−</div>
                     <div class="flex-1 text-center">
-                        <div class="text-xs text-gray-600 dark:text-gray-400">Calculated</div>
+                        <div class="text-xs text-gray-600 dark:text-gray-400">{% trans "Calculated" %}</div>
                         <div class="text-xl font-bold text-[#0d171b] dark:text-white">$ {{ member_data.calculated_balance|intcomma }}</div>
                     </div>
                     <div class="text-2xl text-gray-300 dark:text-gray-600 mx-2">=</div>
                     <div class="flex-1 text-center">
-                        <div class="text-xs text-gray-600 dark:text-gray-400">Discrepancy</div>
+                        <div class="text-xs text-gray-600 dark:text-gray-400">{% trans "Discrepancy" %}</div>
                         <div class="text-xl font-bold {% if member_data.discrepancy >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %}">
                             $ {{ member_data.discrepancy|intcomma }}
                         </div>
@@ -265,13 +266,13 @@
                         </div>
                     </div>
                 </div>
-                
+
                 {% if member_data.has_warning %}
                 <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-3 mt-4">
                     <div class="flex items-center">
                         <span class="material-symbols-outlined text-yellow-500 mr-2 text-base">warning</span>
                         <p class="text-xs text-yellow-700 dark:text-yellow-400">
-                            Discrepancy exceeds 5% for this user
+                            {% trans "Discrepancy exceeds 5% for this user" %}
                         </p>
                     </div>
                 </div>
@@ -374,7 +375,7 @@ function saveBalance(rowId) {
     const memberId = memberSelect ? memberSelect.value : null;
     
     if (!description) {
-        alert('Please enter a description');
+        alert("{% trans 'Please enter a description' %}");
         return;
     }
     
@@ -401,20 +402,20 @@ function saveBalance(rowId) {
             // Reload page to update calculations
             window.location.reload();
         } else {
-            alert('Error saving balance: ' + data.error);
+            alert("{% trans 'Error saving balance:' %} " + data.error);
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Network error occurred');
+        alert("{% trans 'Network error occurred' %}");
     });
 }
 
 function deleteBalance(balanceId) {
-    if (!confirm('Are you sure you want to delete this bank balance entry?')) {
+    if (!confirm("{% trans 'Are you sure you want to delete this bank balance entry?' %}")) {
         return;
     }
-    
+
     fetch("{% url 'delete_bank_balance_ajax' %}", {
         method: 'POST',
         headers: {
@@ -428,12 +429,12 @@ function deleteBalance(balanceId) {
         if (data.status === 'success') {
             window.location.reload();
         } else {
-            alert('Error deleting balance: ' + data.error);
+            alert("{% trans 'Error deleting balance:' %} " + data.error);
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Network error occurred');
+        alert("{% trans 'Network error occurred' %}");
     });
 }
 </script>

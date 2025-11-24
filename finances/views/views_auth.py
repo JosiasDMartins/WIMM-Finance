@@ -5,6 +5,7 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth import get_user_model, logout as auth_logout, login
 from django.contrib import messages
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.db import transaction as db_transaction
 from django.db.utils import OperationalError
 from django.core.management import call_command
@@ -41,7 +42,7 @@ def initial_setup_view(request):
         if request.method != 'POST':
             context = {
                 'needs_migration': True,
-                'error_message': 'Database setup required. Running migrations...'
+                'error_message': _('Database setup required. Running migrations...')
             }
             try:
                 out = io.StringIO()
@@ -55,7 +56,7 @@ def initial_setup_view(request):
             return render(request, 'finances/setup.html', {'form': InitialSetupForm(), **context})
     
     except Exception as e:
-        messages.error(request, f"Database error: {str(e)}")
+        messages.error(request, _("Database error: %(error)s") % {'error': str(e)})
         context = {
             'form': InitialSetupForm(),
             'database_error': str(e)
@@ -103,14 +104,14 @@ def initial_setup_view(request):
                     
                     messages.success(
                         request,
-                        f"Welcome to SweetMoney! Your family '{family.name}' has been created successfully."
+                        _("Welcome to SweetMoney! Your family '%(family_name)s' has been created successfully.") % {'family_name': family.name}
                     )
                     return redirect('dashboard')
-                    
+
             except Exception as e:
                 messages.error(
                     request,
-                    f"An error occurred during setup: {str(e)}. Please try again."
+                    _("An error occurred during setup: %(error)s. Please try again.") % {'error': str(e)}
                 )
         else:
             for field, errors in form.errors.items():
@@ -143,12 +144,12 @@ def logout_success_view(request):
 @login_required
 def user_profile_view(request):
     """View and edit the user's profile (name, email, password)."""
-    family, current_member, _ = get_family_context(request.user)
+    family, current_member, _unused = get_family_context(request.user)
     if not family:
         return redirect('dashboard')
-    
+
     query_period = request.GET.get('period')
-    start_date, end_date, _ = get_current_period_dates(family, query_period)
+    start_date, end_date, _unused_period = get_current_period_dates(family, query_period)
     
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -156,7 +157,7 @@ def user_profile_view(request):
         # Block all profile editing in demo mode
         from django.conf import settings
         if getattr(settings, 'DEMO_MODE', False):
-            messages.error(request, 'Profile editing is disabled in demo mode.')
+            messages.error(request, _('Profile editing is disabled in demo mode.'))
             redirect_url = f"?period={query_period}" if query_period else ""
             return redirect(f"/profile/{redirect_url}")
 
@@ -167,14 +168,14 @@ def user_profile_view(request):
             if username:
                 UserModel = get_user_model()
                 if UserModel.objects.filter(username=username).exclude(id=request.user.id).exists():
-                    messages.error(request, 'This username is already taken.')
+                    messages.error(request, _('This username is already taken.'))
                 else:
                     request.user.username = username
                     request.user.email = email
                     request.user.save()
-                    messages.success(request, 'Profile updated successfully.')
+                    messages.success(request, _('Profile updated successfully.'))
             else:
-                messages.error(request, 'Username cannot be empty.')
+                messages.error(request, _('Username cannot be empty.'))
 
         elif action == 'change_password':
             current_password = request.POST.get('current_password')
@@ -182,16 +183,27 @@ def user_profile_view(request):
             confirm_password = request.POST.get('confirm_password')
 
             if not request.user.check_password(current_password):
-                messages.error(request, 'Current password is incorrect.')
+                messages.error(request, _('Current password is incorrect.'))
             elif len(new_password) < 6:
-                messages.error(request, 'New password must be at least 6 characters long.')
+                messages.error(request, _('New password must be at least 6 characters long.'))
             elif new_password != confirm_password:
-                messages.error(request, 'New passwords do not match.')
+                messages.error(request, _('New passwords do not match.'))
             else:
                 request.user.set_password(new_password)
                 request.user.save()
                 update_session_auth_hash(request, request.user)
-                messages.success(request, 'Password changed successfully.')
+                messages.success(request, _('Password changed successfully.'))
+
+        elif action == 'change_language':
+            language = request.POST.get('language', '').strip()
+            valid_languages = ['en', 'pt-br']
+
+            if language in valid_languages:
+                request.user.language = language
+                request.user.save()
+                messages.success(request, _('Language preference updated successfully.'))
+            else:
+                messages.error(request, _('Invalid language selection.'))
         
         redirect_url = f"?period={query_period}" if query_period else ""
         return redirect(f"/profile/{redirect_url}")

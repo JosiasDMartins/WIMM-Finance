@@ -1,0 +1,544 @@
+# Portuguese (Brazil) translations for SweetMoney.
+# Copyright (C) 2025
+# This file is distributed under the same license as the SweetMoney package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: SweetMoney 1.2.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-11-24 12:00+0000\n"
+"PO-Revision-Date: 2025-11-24 12:00+0000\n"
+"Last-Translator: \n"
+"Language-Team: Portuguese (Brazil)\n"
+"Language: pt_BR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+# Models - FamilyMember ROLES
+msgid "Admin"
+msgstr "Administrador"
+
+msgid "Parent"
+msgstr "Responsável"
+
+msgid "Child"
+msgstr "Criança"
+
+# Models - FamilyConfiguration PERIOD_TYPES
+msgid "Monthly"
+msgstr "Mensal"
+
+msgid "Bi-weekly"
+msgstr "Quinzenal"
+
+msgid "Weekly"
+msgstr "Semanal"
+
+# Models - FlowGroup FLOW_TYPES
+msgid "Income"
+msgstr "Receita"
+
+msgid "Main Expense (Essential)"
+msgstr "Despesa Principal (Essencial)"
+
+msgid "Secondary Expense (Non-Essential)"
+msgstr "Despesa Secundária (Não Essencial)"
+
+# Models - Notification NOTIFICATION_TYPES
+msgid "Overdue Transaction"
+msgstr "Transação Atrasada"
+
+msgid "Over Budget"
+msgstr "Acima do Orçamento"
+
+msgid "New Transaction"
+msgstr "Nova Transação"
+
+# Views - Authentication
+msgid "Database setup required. Running migrations..."
+msgstr "Configuração do banco de dados necessária. Executando migrações..."
+
+msgid "Database error: %(error)s"
+msgstr "Erro no banco de dados: %(error)s"
+
+msgid "Welcome to SweetMoney! Your family '%(family_name)s' has been created successfully."
+msgstr "Bem-vindo ao SweetMoney! Sua família '%(family_name)s' foi criada com sucesso."
+
+msgid "An error occurred during setup: %(error)s. Please try again."
+msgstr "Ocorreu um erro durante a configuração: %(error)s. Por favor, tente novamente."
+
+msgid "Profile editing is disabled in demo mode."
+msgstr "A edição de perfil está desabilitada no modo demo."
+
+msgid "This username is already taken."
+msgstr "Este nome de usuário já está em uso."
+
+msgid "Profile updated successfully."
+msgstr "Perfil atualizado com sucesso."
+
+msgid "Username cannot be empty."
+msgstr "O nome de usuário não pode estar vazio."
+
+msgid "Current password is incorrect."
+msgstr "A senha atual está incorreta."
+
+msgid "New password must be at least 6 characters long."
+msgstr "A nova senha deve ter pelo menos 6 caracteres."
+
+msgid "New passwords do not match."
+msgstr "As novas senhas não coincidem."
+
+msgid "Password changed successfully."
+msgstr "Senha alterada com sucesso."
+
+# Templates - Login
+msgid "Login | SweetMoney"
+msgstr "Login | SweetMoney"
+
+msgid "SweetMoney"
+msgstr "SweetMoney"
+
+msgid "Access your Family Financial Flow"
+msgstr "Acesse o Controle Financeiro da sua Família"
+
+msgid "Demo Mode"
+msgstr "Modo Demonstração"
+
+msgid "This is a demonstration server. The database is reset every night at midnight."
+msgstr "Este é um servidor de demonstração. O banco de dados é reiniciado todas as noites à meia-noite."
+
+msgid "Visit the GitHub repository for more information →"
+msgstr "Visite o repositório no GitHub para mais informações →"
+
+msgid "Your username and password didn't match. Please try again."
+msgstr "Seu nome de usuário e senha não coincidem. Por favor, tente novamente."
+
+msgid "Username"
+msgstr "Nome de Usuário"
+
+msgid "Password"
+msgstr "Senha"
+
+msgid "Log In"
+msgstr "Entrar"
+
+msgid "Forgot your password?"
+msgstr "Esqueceu sua senha?"
+
+# Templates - Base
+msgid "SweetMoney | Family Financial Flow"
+msgstr "SweetMoney | Controle Financeiro Familiar"
+
+msgid "Dashboard"
+msgstr "Painel"
+
+msgid "Investments"
+msgstr "Investimentos"
+
+msgid "Settings"
+msgstr "Configurações"
+
+msgid "Soon"
+msgstr "Em Breve"
+
+msgid "View profile"
+msgstr "Ver perfil"
+
+msgid "Version"
+msgstr "Versão"
+
+msgid "Update Available"
+msgstr "Atualização Disponível"
+
+msgid "Notifications"
+msgstr "Notificações"
+
+msgid "Mark all as read"
+msgstr "Marcar todas como lidas"
+
+msgid "Toggle Dark Mode"
+msgstr "Alternar Modo Escuro"
+
+msgid "Logout"
+msgstr "Sair"
+
+msgid "New Period"
+msgstr "Novo Período"
+
+msgid "Delete Period"
+msgstr "Excluir Período"
+
+msgid "No periods available"
+msgstr "Nenhum período disponível"
+
+# Templates - Dashboard
+msgid "Top Expenses"
+msgstr "Maiores Despesas"
+
+msgid "Expense History (Last 12 Periods)"
+msgstr "Histórico de Despesas (Últimos 12 Períodos)"
+
+msgid "Total Expenses"
+msgstr "Despesas Totais"
+
+msgid "Trend"
+msgstr "Tendência"
+
+msgid "Others"
+msgstr "Outros"
+
+msgid "Key Metrics (YTD)"
+msgstr "Métricas Principais (Acum. Anual)"
+
+msgid "YTD Income"
+msgstr "Receita Acum."
+
+msgid "YTD Savings"
+msgstr "Economias Acum."
+
+msgid "YTD Investments"
+msgstr "Investimentos Acum."
+
+msgid "Highest Expense"
+msgstr "Maior Despesa"
+
+msgid "Income Commitment"
+msgstr "Comprometimento de Renda"
+
+msgid "Expense Flow Groups"
+msgstr "Grupos de Despesas"
+
+msgid "Add Group"
+msgstr "Adicionar Grupo"
+
+msgid "Group"
+msgstr "Grupo"
+
+msgid "Estimated"
+msgstr "Estimado"
+
+msgid "Realized"
+msgstr "Realizado"
+
+msgid "Spent Total"
+msgstr "Total Gasto"
+
+msgid "Child Group"
+msgstr "Grupo Infantil"
+
+msgid "⚠ Over budget"
+msgstr "⚠ Acima do orçamento"
+
+msgid "No Access"
+msgstr "Sem Acesso"
+
+msgid "No expense groups defined. Click \"Add Group\" to start."
+msgstr "Nenhum grupo de despesas definido. Clique em \"Adicionar Grupo\" para começar."
+
+msgid "Recent Income"
+msgstr "Receitas Recentes"
+
+msgid "Add Income"
+msgstr "Adicionar Receita"
+
+msgid "Description"
+msgstr "Descrição"
+
+msgid "Date"
+msgstr "Data"
+
+msgid "Amount"
+msgstr "Valor"
+
+msgid "Actions"
+msgstr "Ações"
+
+msgid "Kids Budget"
+msgstr "Orçamento Infantil"
+
+msgid "Manual"
+msgstr "Manual"
+
+msgid "Child Income"
+msgstr "Receita Infantil"
+
+msgid "Total:"
+msgstr "Total:"
+
+msgid "No income transactions recorded yet."
+msgstr "Nenhuma transação de receita registrada ainda."
+
+msgid "Balance Sheet"
+msgstr "Balanço"
+
+msgid "Bank Reconciliation"
+msgstr "Reconciliação Bancária"
+
+msgid "Expenses"
+msgstr "Despesas"
+
+msgid "Result"
+msgstr "Resultado"
+
+# Templates - FlowGroup
+msgid "Flow Group"
+msgstr "Grupo Financeiro"
+
+msgid "Back to Dashboard"
+msgstr "Voltar ao Painel"
+
+msgid "Delete Group"
+msgstr "Excluir Grupo"
+
+msgid "Discard"
+msgstr "Descartar"
+
+msgid "Save Changes"
+msgstr "Salvar Alterações"
+
+msgid "Budget Given:"
+msgstr "Orçamento Entregue:"
+
+msgid "✓ Marked as given"
+msgstr "✓ Marcado como entregue"
+
+msgid "Not given yet"
+msgstr "Ainda não entregue"
+
+msgid "Group Name"
+msgstr "Nome do Grupo"
+
+msgid "Budgeted Amount"
+msgstr "Valor Orçado"
+
+msgid "(Read-only for children)"
+msgstr "(Somente leitura para crianças)"
+
+msgid "Shared Group"
+msgstr "Grupo Compartilhado"
+
+msgid "Kids"
+msgstr "Infantil"
+
+msgid "Investment"
+msgstr "Investimento"
+
+msgid "No Parents/Admins"
+msgstr "Sem Responsáveis/Admins"
+
+msgid "No children in family"
+msgstr "Sem crianças na família"
+
+msgid "Please correct the errors below:"
+msgstr "Por favor, corrija os erros abaixo:"
+
+msgid "No transactions found for this Flow Group."
+msgstr "Nenhuma transação encontrada para este grupo financeiro."
+
+msgid "Add New Item"
+msgstr "Adicionar Novo Item"
+
+msgid "New Item Description"
+msgstr "Descrição do Novo Item"
+
+msgid "Member"
+msgstr "Membro"
+
+# Templates - Configurations
+msgid "Application Settings"
+msgstr "Configurações do Aplicativo"
+
+msgid "Configuration"
+msgstr "Configuração"
+
+msgid "Members"
+msgstr "Membros"
+
+msgid "Backup & Restore"
+msgstr "Backup e Restauração"
+
+msgid "Updates"
+msgstr "Atualizações"
+
+msgid "Base Currency"
+msgstr "Moeda Base"
+
+msgid "Period Frequency"
+msgstr "Frequência do Período"
+
+msgid "Starting Day of Month"
+msgstr "Dia de Início do Mês"
+
+msgid "Base Date for Cycle"
+msgstr "Data Base para o Ciclo"
+
+msgid "Bank Reconciliation Tolerance (%)"
+msgstr "Tolerância de Reconciliação Bancária (%)"
+
+msgid "Save Configuration"
+msgstr "Salvar Configuração"
+
+msgid "Add New Member"
+msgstr "Adicionar Novo Membro"
+
+msgid "Email"
+msgstr "E-mail"
+
+msgid "Role"
+msgstr "Função"
+
+msgid "Add"
+msgstr "Adicionar"
+
+msgid "Edit"
+msgstr "Editar"
+
+msgid "Change Password"
+msgstr "Alterar Senha"
+
+msgid "Remove"
+msgstr "Remover"
+
+msgid "View only"
+msgstr "Somente visualização"
+
+msgid "No members found in the family"
+msgstr "Nenhum membro encontrado na família"
+
+msgid "Edit Member"
+msgstr "Editar Membro"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "New Password"
+msgstr "Nova Senha"
+
+msgid "Confirm Password"
+msgstr "Confirmar Senha"
+
+msgid "Backup Database"
+msgstr "Fazer Backup do Banco de Dados"
+
+msgid "Download Database Backup"
+msgstr "Baixar Backup do Banco de Dados"
+
+msgid "Restore Database"
+msgstr "Restaurar Banco de Dados"
+
+msgid "Warning"
+msgstr "Aviso"
+
+msgid "Click to select a backup file"
+msgstr "Clique para selecionar um arquivo de backup"
+
+msgid "SQLite3 database files only"
+msgstr "Apenas arquivos de banco de dados SQLite3"
+
+msgid "No file selected"
+msgstr "Nenhum arquivo selecionado"
+
+msgid "Restore Complete"
+msgstr "Restauração Concluída"
+
+msgid "Family:"
+msgstr "Família:"
+
+msgid "Users:"
+msgstr "Usuários:"
+
+msgid "Current System Version"
+msgstr "Versão Atual do Sistema"
+
+msgid "Check for Online Updates"
+msgstr "Verificar Atualizações Online"
+
+msgid "Check for Updates"
+msgstr "Verificar Atualizações"
+
+# Templates - Profile
+msgid "My Profile"
+msgstr "Meu Perfil"
+
+msgid "Email (Optional)"
+msgstr "E-mail (Opcional)"
+
+msgid "Current Password"
+msgstr "Senha Atual"
+
+msgid "Confirm New Password"
+msgstr "Confirmar Nova Senha"
+
+msgid "Minimum 6 characters"
+msgstr "Mínimo de 6 caracteres"
+
+msgid "Save Profile"
+msgstr "Salvar Perfil"
+
+# Common words
+msgid "Save"
+msgstr "Salvar"
+
+msgid "Close"
+msgstr "Fechar"
+
+msgid "Delete"
+msgstr "Excluir"
+
+msgid "Create"
+msgstr "Criar"
+
+msgid "Error"
+msgstr "Erro"
+
+msgid "Success"
+msgstr "Sucesso"
+
+msgid "Loading..."
+msgstr "Carregando..."
+
+msgid "Yes"
+msgstr "Sim"
+
+msgid "No"
+msgstr "Não"
+
+# Language selector
+msgid "Language"
+msgstr "Idioma"
+
+msgid "Select your preferred language for the interface."
+msgstr "Selecione seu idioma preferido para a interface."
+
+msgid "All financial values will be stored and displayed in this currency. Changing this will not convert existing values."
+msgstr "Todos os valores financeiros serão armazenados e exibidos nesta moeda. Alterar isso não converterá valores existentes."
+
+msgid "Reference date used to calculate bi-weekly or weekly periods."
+msgstr "Data de referência usada para calcular períodos quinzenais ou semanais."
+
+msgid "Percentage tolerance for bank reconciliation discrepancy warnings (e.g., 5.00 for 5%)."
+msgstr "Tolerância percentual para avisos de discrepância na reconciliação bancária (ex: 5.00 para 5%)."
+
+msgid "Note:"
+msgstr "Nota:"
+
+msgid "As a Parent, you can only add Child users."
+msgstr "Como Responsável, você só pode adicionar usuários Criança."
+
+# Profile page - Language preference
+msgid "Language Preference"
+msgstr "Preferência de Idioma"
+
+msgid "Preferred Language"
+msgstr "Idioma Preferido"
+
+msgid "Update Language"
+msgstr "Atualizar Idioma"
+
+msgid "Language preference updated successfully."
+msgstr "Preferência de idioma atualizada com sucesso."
+
+msgid "Invalid language selection."
+msgstr "Seleção de idioma inválida."

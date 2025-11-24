@@ -20,7 +20,15 @@ FLOW_TYPE_EXPENSE = [EXPENSE_MAIN, EXPENSE_SECONDARY]
 
 # --- Custom User Model ---
 class CustomUser(AbstractUser):
-    pass
+    language = models.CharField(
+        max_length=10,
+        default='en',
+        choices=[
+            ('en', 'English'),
+            ('pt-br', 'Português (Brasil)'),
+        ],
+        help_text=_("User's preferred language")
+    )
 
 # --- Core Finance Models ---
 
@@ -31,13 +39,13 @@ class SystemVersion(models.Model):
     """
     version = models.CharField(
         max_length=50,
-        help_text="Current system version (e.g., 1.0.0, 1.0.0-alpha1, 1.0.0-beta1, 2.0.0)"
+        help_text=_("Current system version (e.g., 1.0.0, 1.0.0-alpha1, 1.0.0-beta1, 2.0.0)")
     )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "System Version"
-        verbose_name_plural = "System Versions"
+        verbose_name = _("System Version")
+        verbose_name_plural = _("System Versions")
 
     def __str__(self):
         return f"v{self.version}"
@@ -65,13 +73,13 @@ class SkippedUpdate(models.Model):
     version = models.CharField(
         max_length=50,
         unique=True,
-        help_text="Version that was skipped (e.g., 1.0.0-alpha5)"
+        help_text=_("Version that was skipped (e.g., 1.0.0-alpha5)")
     )
     skipped_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = "Skipped Update"
-        verbose_name_plural = "Skipped Updates"
+        verbose_name = _("Skipped Update")
+        verbose_name_plural = _("Skipped Updates")
         ordering = ['-skipped_at']
 
     def __str__(self):
@@ -104,9 +112,9 @@ class Family(models.Model):
 class FamilyMember(models.Model):
     """Links a CustomUser to a Family and defines their role."""
     ROLES = [
-        ('ADMIN', 'Admin'),
-        ('PARENT', 'Parent'),
-        ('CHILD', 'Child'),
+        ('ADMIN', _('Admin')),
+        ('PARENT', _('Parent')),
+        ('CHILD', _('Child')),
     ]
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='memberships')
     family = models.ForeignKey(Family, on_delete=models.CASCADE, related_name='members')
@@ -121,27 +129,27 @@ class FamilyMember(models.Model):
 class FamilyConfiguration(models.Model):
     """Defines the financial cycle settings for the family."""
     PERIOD_TYPES = [
-        ('M', 'Monthly'),
-        ('B', 'Bi-weekly'),
-        ('W', 'Weekly'),
+        ('M', _('Monthly')),
+        ('B', _('Bi-weekly')),
+        ('W', _('Weekly')),
     ]
     
     family = models.OneToOneField(Family, on_delete=models.CASCADE, related_name='configuration')
     # Day of the month for the start of the cycle (1-31)
     starting_day = models.PositiveSmallIntegerField(
-        default=5, 
+        default=5,
         validators=[MinValueValidator(1)],
-        help_text="Day of the month (1-31) that defines the cycle start."
+        help_text=_("Day of the month (1-31) that defines the cycle start.")
     )
     period_type = models.CharField(max_length=1, choices=PERIOD_TYPES, default='M')
     # Base date used for calculating bi-weekly or weekly cycles
     base_date = models.DateField(default=timezone.localdate)
-    
+
     # Moeda base da família (usada quando período não tem entrada em Period)
     base_currency = models.CharField(
         max_length=3,
         default='USD',
-        help_text="Base currency for the family (e.g., USD, BRL, EUR)"
+        help_text=_("Base currency for the family (e.g., USD, BRL, EUR)")
     )
 
     # Bank reconciliation tolerance percentage
@@ -150,7 +158,7 @@ class FamilyConfiguration(models.Model):
         decimal_places=2,
         default=5.00,
         validators=[MinValueValidator(0.01), MaxValueValidator(100.00)],
-        help_text="Percentage tolerance for bank reconciliation discrepancy warnings (e.g., 5.00 for 5%)"
+        help_text=_("Percentage tolerance for bank reconciliation discrepancy warnings (e.g., 5.00 for 5%)")
     )
 
     def __str__(self):
@@ -162,13 +170,13 @@ class Period(models.Model):
     Each period with transactions should have an entry here.
     """
     family = models.ForeignKey(Family, on_delete=models.CASCADE, related_name='periods')
-    start_date = models.DateField(help_text="Start date of the period")
-    end_date = models.DateField(help_text="End date of the period")
-    period_type = models.CharField(max_length=1, choices=FamilyConfiguration.PERIOD_TYPES, help_text="Type of period")
+    start_date = models.DateField(help_text=_("Start date of the period"))
+    end_date = models.DateField(help_text=_("End date of the period"))
+    period_type = models.CharField(max_length=1, choices=FamilyConfiguration.PERIOD_TYPES, help_text=_("Type of period"))
     currency = models.CharField(
         max_length=3,
         default='USD',
-        help_text="Currency for this period"
+        help_text=_("Currency for this period")
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -184,14 +192,14 @@ class FlowGroup(models.Model):
     """
     Groups transactions (Income or Expense) and holds budget information.
     E.g., "Salary", "Groceries", "Rent".
-    
+
     NEW: FlowGroups are now period-specific using period_start_date.
     Each period can have its own set of FlowGroups.
     """
     FLOW_TYPES = [
-        (FLOW_TYPE_INCOME, 'Income'),
-        (EXPENSE_MAIN, 'Main Expense (Essential)'),
-        (EXPENSE_SECONDARY, 'Secondary Expense (Non-Essential)'),
+        (FLOW_TYPE_INCOME, _('Income')),
+        (EXPENSE_MAIN, _('Main Expense (Essential)')),
+        (EXPENSE_SECONDARY, _('Secondary Expense (Non-Essential)')),
     ]
     
     name = models.CharField(max_length=100)
@@ -211,49 +219,49 @@ class FlowGroup(models.Model):
     # NEW: Period tracking - stores the start date of the period this group belongs to
     period_start_date = models.DateField(
         default=timezone.localdate,
-        help_text="Start date of the period this FlowGroup belongs to"
+        help_text=_("Start date of the period this FlowGroup belongs to")
     )
-    
+
     # NEW: Sharing functionality
     is_shared = models.BooleanField(
         default=False,
-        help_text="If True, this group is visible and editable by all Parents and Admins"
+        help_text=_("If True, this group is visible and editable by all Parents and Admins")
     )
-    
+
     # NEW: Assigned members for Shared groups (Admins/Parents who can view/edit)
     assigned_members = models.ManyToManyField(
         FamilyMember,
         blank=True,
         related_name='shared_flow_groups',
         limit_choices_to={'role__in': ['ADMIN', 'PARENT']},
-        help_text="Parents and Admins who have access to this Shared group"
+        help_text=_("Parents and Admins who have access to this Shared group")
     )
-    
+
     # NEW: Kids group functionality
     is_kids_group = models.BooleanField(
         default=False,
-        help_text="If True, this is a Kids group and budget becomes income for assigned children"
+        help_text=_("If True, this is a Kids group and budget becomes income for assigned children")
     )
-    
+
     # NEW: Realized status for Kids groups (parents marking budget as given to child)
     realized = models.BooleanField(
         default=False,
-        help_text="For Kids groups: marks if the budget has been given to the child (parents only)"
+        help_text=_("For Kids groups: marks if the budget has been given to the child (parents only)")
     )
-    
+
     # NEW: Assigned children for Kids groups
     assigned_children = models.ManyToManyField(
         FamilyMember,
         blank=True,
         related_name='kids_flow_groups',
         limit_choices_to={'role': 'CHILD'},
-        help_text="Children who have access to this Kids group"
+        help_text=_("Children who have access to this Kids group")
     )
-    
+
     # NEW: Investment flag - when checked, realized amounts go to investment balance
     is_investment = models.BooleanField(
         default=False,
-        help_text="If True, realized amounts are added to investment balance and deducted from expense calculations"
+        help_text=_("If True, realized amounts are added to investment balance and deducted from expense calculations")
     )
     
     # For reordering FlowGroups in a list/dashboard
@@ -270,28 +278,28 @@ class FlowGroup(models.Model):
 class Transaction(models.Model):
     """Individual financial entry."""
     description = models.CharField(max_length=255)
-    
+
     # ATUALIZADO: MoneyField com moeda
     amount = MoneyField(
         max_digits=14,
         decimal_places=2,
         default_currency='USD'
     )
-    
+
     date = models.DateField(default=timezone.localdate)
-    
+
     # Realized status (consolidated/completed)
-    realized = models.BooleanField(default=False, help_text="Whether this transaction has been consolidated/completed")
-    
+    realized = models.BooleanField(default=False, help_text=_("Whether this transaction has been consolidated/completed"))
+
     # NEW: Flag for manual income added by children (not from budget)
     is_child_manual_income = models.BooleanField(
         default=False,
-        help_text="True if this is a manual income entry by a CHILD user (not from Kids group budget)"
+        help_text=_("True if this is a manual income entry by a CHILD user (not from Kids group budget)")
     )
 
     is_child_expense = models.BooleanField(
         default=False,
-        help_text="True if this is an expense added to a FlowGroup by a CHILD user)"            
+        help_text=_("True if this is an expense added to a FlowGroup by a CHILD user)")
     )
     
     member = models.ForeignKey(FamilyMember, on_delete=models.SET_NULL, null=True, related_name='transactions')
@@ -312,7 +320,7 @@ class FamilyMemberRoleHistory(models.Model):
     Ensures dashboard displays correctly based on historical roles.
     """
     member = models.ForeignKey(FamilyMember, on_delete=models.CASCADE, related_name='role_history')
-    period_start_date = models.DateField(help_text="Start date of the period this role applies to")
+    period_start_date = models.DateField(help_text=_("Start date of the period this role applies to"))
     role = models.CharField(max_length=10, choices=FamilyMember.ROLES)
     changed_at = models.DateTimeField(auto_now_add=True)
     
@@ -359,18 +367,18 @@ class BankBalance(models.Model):
     """
     family = models.ForeignKey(Family, on_delete=models.CASCADE, related_name='bank_balances')
     member = models.ForeignKey(FamilyMember, on_delete=models.SET_NULL, null=True, blank=True, related_name='bank_balances')
-    description = models.CharField(max_length=255, help_text="Description of the bank account")
-    
+    description = models.CharField(max_length=255, help_text=_("Description of the bank account"))
+
     # MoneyField with currency
     amount = MoneyField(
         max_digits=14,
         decimal_places=2,
         default_currency='USD',
-        help_text="Current bank balance"
+        help_text=_("Current bank balance")
     )
-    
-    date = models.DateField(default=timezone.localdate, help_text="Date of balance check")
-    period_start_date = models.DateField(help_text="Period this balance belongs to")
+
+    date = models.DateField(default=timezone.localdate, help_text=_("Date of balance check"))
+    period_start_date = models.DateField(help_text=_("Period this balance belongs to"))
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
@@ -387,9 +395,9 @@ class Notification(models.Model):
     Notifies about overdue transactions, overbudget, and new releases.
     """
     NOTIFICATION_TYPES = [
-        ('OVERDUE', 'Overdue Transaction'),
-        ('OVERBUDGET', 'Over Budget'),
-        ('NEW_TRANSACTION', 'New Transaction'),
+        ('OVERDUE', _('Overdue Transaction')),
+        ('OVERBUDGET', _('Over Budget')),
+        ('NEW_TRANSACTION', _('New Transaction')),
     ]
     
     family = models.ForeignKey(Family, on_delete=models.CASCADE, related_name='notifications')
@@ -452,7 +460,7 @@ class PasswordResetCode(models.Model):
     )
     code = models.CharField(
         max_length=10,
-        help_text="5-digit verification code sent to user's email"
+        help_text=_("5-digit verification code sent to user's email")
     )
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
