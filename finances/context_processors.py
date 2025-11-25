@@ -4,7 +4,7 @@ from .models import SystemVersion
 from .models import Notification
 
 #Files version
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 
 #General contect for the entire system
 def database_version(request):

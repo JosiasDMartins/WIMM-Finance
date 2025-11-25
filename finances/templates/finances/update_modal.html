@@ -1,6 +1,51 @@
 {% load static %}
 {% load i18n %}
 
+<script>
+// Translation strings for update_manager.js
+window.UPDATE_I18N = {
+    // Local update messages
+    localUpdatePendingNonAdmin: "{% trans 'A local update is pending and must be applied before the system can be used. Only administrators can apply updates. Please contact an administrator to complete this update.' %}",
+    localUpdatesAvailable: "{% trans 'Local updates are available and must be applied before continuing.' %}",
+    systemFilesUpdated: "{% trans 'System files have been updated. Database migrations will be applied.' %}",
+
+    // GitHub update messages
+    githubVersionAvailable: "{% trans 'A new version is available on GitHub!' %}",
+    githubUpdateNonAdmin: "{% trans 'A new version is available on GitHub. Only administrators can install updates. Please contact an administrator to apply this update.' %}",
+
+    // Button texts
+    buttonOK: "{% trans 'OK' %}",
+    buttonSkipUpdate: "{% trans 'Skip Update' %}",
+
+    // Progress messages
+    applyingUpdates: "{% trans 'Applying Updates...' %}",
+    preparingUpdate: "{% trans 'Preparing update...' %}",
+    applyingUpdatesProgress: "{% trans 'Applying updates...' %}",
+    updateComplete: "{% trans 'Update complete!' %}",
+    installingGithubUpdate: "{% trans 'Installing GitHub Update...' %}",
+    downloadingRelease: "{% trans 'Downloading release...' %}",
+    extractingFiles: "{% trans 'Extracting files...' %}",
+
+    // Success/Error messages
+    updatesAppliedSuccess: "{% trans 'Updates applied successfully! Waiting for server to restart...' %}",
+    githubUpdateSuccess: "{% trans 'GitHub update installed successfully! Waiting for server to restart...' %}",
+    updateFailed: "{% trans 'Update failed. Check logs for details.' %}",
+    failedToApplyUpdates: "{% trans 'Failed to apply updates' %}",
+    failedToInstallUpdate: "{% trans 'Failed to install update' %}",
+    failedToCheckUpdates: "{% trans 'Failed to check for updates. Please try again.' %}",
+    failedToSkipUpdate: "{% trans 'Failed to skip update. Please try again.' %}",
+    pleaseConfirmBackup: "{% trans 'Please confirm that you have created a backup before proceeding.' %}",
+
+    // Server restart messages
+    serverRestartTakingLonger: "{% trans 'Server is taking longer than expected to restart.' %}",
+    waitAndClickToReload: "{% trans 'Please wait a moment and then' %}",
+    clickHereToReload: "{% trans 'click here to reload' %}",
+
+    // Logs
+    noLogsAvailable: "{% trans 'No logs available yet. Please apply an update first.' %}"
+};
+</script>
+
 <div id="update-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-3xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <div class="flex items-start mb-4">

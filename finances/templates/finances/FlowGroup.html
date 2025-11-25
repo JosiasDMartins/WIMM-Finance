@@ -1,7 +1,8 @@
 {% extends "finances/base.html" %}
 {% load static %}
 {% load humanize %}
-{% load i18n %} 
+{% load i18n %}
+{% load l10n %} 
 
 {% block title %}{% trans "Flow Group" %}: {{ flow_group.name|default:"New Group" }}{% endblock title %}
 
@@ -175,20 +176,18 @@
     </form>
 
     {% if flow_group %}
-    {% if budget_warning %}
-    <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-500 p-4 mb-6 rounded">
+    <div id="budget-warning-container" class="{% if not budget_warning %}hidden{% endif %} bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-500 p-4 mb-6 rounded">
         <div class="flex">
             <div class="flex-shrink-0">
                 <span class="material-symbols-outlined text-yellow-400">warning</span>
             </div>
             <div class="ml-3">
                 <p class="text-sm text-yellow-700 dark:text-yellow-300">
-                    <strong>{% trans "Budget Warning:" %}</strong> {% blocktrans with estimated=total_estimated|floatformat:2|intcomma budgeted=flow_group.budgeted_amount|floatformat:2|intcomma %}Estimated expenses ($ {{ estimated }}) exceed the budgeted amount ($ {{ budgeted }}).{% endblocktrans %}
+                    <strong>{% trans "Budget Warning:" %}</strong> <span id="budget-warning-text">{% blocktrans with estimated=total_estimated|floatformat:2|intcomma budgeted=flow_group.budgeted_amount|floatformat:2|intcomma %}Estimated expenses ($ {{ estimated }}) exceed the budgeted amount ($ {{ budgeted }}).{% endblocktrans %}</span>
                 </p>
             </div>
         </div>
     </div>
-    {% endif %}
 
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
         
@@ -225,7 +224,7 @@
                     
                     <td class="px-6 py-4 text-right text-primary cell-budget-display">{{ transaction.amount|intcomma }}</td>
                     <td class="px-6 py-4 text-right text-primary cell-budget-edit hidden">
-                         <input type="number" step="0.01" value="{{ transaction.amount.amount|default:transaction.amount|default:'0.00' }}" data-field="amount" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm text-right p-1">
+                         <input type="text" inputmode="decimal" value="{{ transaction.amount.amount|default:transaction.amount|default:'0.00'|floatformat:2 }}" data-field="amount" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm text-right p-1">
                     </td>
                     
                     <td class="px-6 py-4 text-sm text-gray-500 cell-date-display">{{ transaction.date|date:"Y-m-d" }}</td>
@@ -343,10 +342,18 @@
         return cookieValue;
     }
     const csrftoken = getCookie('csrftoken');
-    
+
+    // Locale-specific separators from backend
+    const decimalSeparator = "{{ decimal_separator }}";
+    const thousandSeparator = "{{ thousand_separator }}";
+
+    // Translated strings for budget warning
+    const txtEstimatedExpenses = "{% trans 'Estimated expenses' %}";
+    const txtExceedBudget = "{% trans 'exceed the budgeted amount' %}";
+
     // Member role (for conditional logic)
     const memberRoleForPeriod = "{{ member_role_for_period }}";
-    
+
     // Obter o símbolo da moeda do backend (fallback para '$')
     const currencySymbol = "{{ currency_symbol|default:'$' }}";
 
@@ -453,7 +460,7 @@
             membersContainer.style.display = 'none';
         }
     }
-    
+
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
         // Set initial state based on existing values
@@ -463,6 +470,88 @@
         // Initialize toggle for new item
         initializeNewItemToggle();
     });
+
+    // Function to format amount values with user's locale decimal separator
+    function formatAmountForInput(amount) {
+        // Convert to number and format with 2 decimals
+        const num = parseFloat(amount);
+        if (isNaN(num)) return amount;
+
+        // Format to 2 decimal places and replace decimal separator
+        // decimalSeparator comes from backend template context
+        return num.toFixed(2).replace('.', decimalSeparator);
+    }
+
+    // Function to format number as currency for display
+    function formatCurrency(amount) {
+        // Parse the amount to ensure it's a number
+        const num = parseFloat(amount);
+        if (isNaN(num)) return amount;
+
+        // Format to 2 decimal places
+        const parts = num.toFixed(2).split('.');
+        const integerPart = parts[0];
+        const decimalPart = parts[1];
+
+        // Add thousand separators to integer part
+        const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, thousandSeparator);
+
+        // Combine with decimal separator
+        return formattedInteger + decimalSeparator + decimalPart;
+    }
+
+    // Function to update budget warning display
+    function updateBudgetWarning() {
+        const warningContainer = document.getElementById('budget-warning-container');
+        const warningText = document.getElementById('budget-warning-text');
+
+        // If elements don't exist, just return (page might not have budget warning section)
+        if (!warningContainer || !warningText) return;
+
+        // Get budget amount from the form
+        const budgetInput = document.querySelector('input[name="budgeted_amount"]');
+        if (!budgetInput) {
+            console.log('[updateBudgetWarning] Budget input not found');
+            return;
+        }
+
+        // Parse budget value, replacing comma with period if needed
+        let budgetValue = budgetInput.value.replace(',', '.');
+        const budgetedAmount = parseFloat(budgetValue) || 0;
+
+        console.log('[updateBudgetWarning] Budget input value:', budgetInput.value);
+        console.log('[updateBudgetWarning] Budget parsed:', budgetedAmount);
+        console.log('[updateBudgetWarning] Translated strings:', txtEstimatedExpenses, txtExceedBudget);
+
+        // Calculate total from all transaction rows
+        let totalEstimated = 0;
+        const rows = document.querySelectorAll('tr[data-item-id]');
+        rows.forEach(row => {
+            const amount = parseFloat(row.getAttribute('data-amount')) || 0;
+            totalEstimated += amount;
+        });
+
+        console.log('[updateBudgetWarning] Total estimated:', totalEstimated);
+
+        // Check if over budget
+        const isOverBudget = totalEstimated > budgetedAmount;
+
+        if (isOverBudget) {
+            // Show warning with formatted values
+            const formattedEstimated = formatCurrency(totalEstimated);
+            const formattedBudget = formatCurrency(budgetedAmount);
+
+            console.log('[updateBudgetWarning] Formatted values:', formattedEstimated, formattedBudget);
+
+            // Build text using translated strings
+            const warningMsg = txtEstimatedExpenses + ' (' + currencySymbol + ' ' + formattedEstimated + ') ' + txtExceedBudget + ' (' + currencySymbol + ' ' + formattedBudget + ').';
+            warningText.textContent = warningMsg;
+            warningContainer.classList.remove('hidden');
+        } else {
+            // Hide warning
+            warningContainer.classList.add('hidden');
+        }
+    }
 
     // Function to delete flow group
     function deleteFlowGroup() {
@@ -625,10 +714,11 @@
         .then(data => {
             if (data.status === 'success') {
                 if (isNew) {
-                    window.location.reload(); 
+                    window.location.reload();
                 } else {
                     updateRowDisplay(rowId, data);
                     toggleEditMode(rowId, false);
+                    updateBudgetWarning();
                 }
             } else {
                 alert('{% trans "Error saving item:" %} ' + data.error);
@@ -652,7 +742,7 @@
         // Update display cells
         row.querySelector('.cell-description-display').textContent = data.description;
         // Usar o currencySymbol global e formatar
-        row.querySelector('.cell-budget-display').textContent = `${currencySymbol} ${parseFloat(data.amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        row.querySelector('.cell-budget-display').textContent = `${currencySymbol} ${formatCurrency(data.amount)}`;
         row.querySelector('.cell-date-display').textContent = data.date;
         row.querySelector('.cell-member-display').textContent = data.member_name;
         row.querySelector('.cell-member-display').setAttribute('data-member-id', data.member_id);
@@ -675,7 +765,7 @@
         
         // Update edit inputs
         row.querySelector('input[data-field="description"]').value = data.description;
-        row.querySelector('input[data-field="amount"]').value = data.amount;
+        row.querySelector('input[data-field="amount"]').value = formatAmountForInput(data.amount);
         row.querySelector('input[data-field="date"]').value = data.date;
         row.querySelector('select[data-field="member_id"]').value = data.member_id;
     }
@@ -705,6 +795,7 @@
         .then(data => {
             if (data.status === 'success') {
                 row.remove();
+                updateBudgetWarning();
             } else {
                 alert('{% trans "Error deleting item:" %} ' + data.error);
             }

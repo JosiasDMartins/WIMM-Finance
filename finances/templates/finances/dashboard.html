@@ -2,6 +2,7 @@
 {% load static %}
 {% load humanize %}
 {% load i18n %}
+{% load l10n %}
 
 {% block content %}
 <div class="p-6 md:p-8 lg:p-10">
@@ -221,7 +222,7 @@
                                 <td class="py-3 px-3 text-sm text-right {% if transaction.realized %}text-green-600 dark:text-green-500{% else %}text-gray-400 dark:text-gray-500{% endif %}">
                                     <div class="cell-amount-display"> {{ transaction.amount|intcomma }}</div>
                                     <div class="cell-amount-edit hidden">
-                                        <input type="number" step="0.01" data-field="amount" class="w-20 border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs text-right p-1" value="{{ transaction.amount.amount }}">
+                                        <input type="text" inputmode="decimal" data-field="amount" class="w-20 border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs text-right p-1" value="{{ transaction.amount.amount|floatformat:2 }}">
                                     </div>
                                 </td>
 
@@ -377,9 +378,26 @@
     // Member role (for conditional logic)
     const memberRoleForPeriod = "{{ member_role_for_period }}";
 
-    // Function to format number as currency
+    // Locale-specific separators from backend
+    const decimalSeparator = "{{ decimal_separator }}";
+    const thousandSeparator = "{{ thousand_separator }}";
+
+    // Function to format number as currency for display
     function formatCurrency(amount) {
-        return parseFloat(amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        // Parse the amount to ensure it's a number
+        const num = parseFloat(amount);
+        if (isNaN(num)) return amount;
+
+        // Format to 2 decimal places
+        const parts = num.toFixed(2).split('.');
+        const integerPart = parts[0];
+        const decimalPart = parts[1];
+
+        // Add thousand separators to integer part
+        const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, thousandSeparator);
+
+        // Combine with decimal separator
+        return formattedInteger + decimalSeparator + decimalPart;
     }
 
     // === CHARTS INITIALIZATION ===
@@ -945,6 +963,17 @@
         });
     }
 
+    // Function to format amount for input field based on user's locale
+    function formatAmountForInput(amount) {
+        // Convert to number and format with 2 decimals
+        const num = parseFloat(amount);
+        if (isNaN(num)) return amount;
+
+        // Format to 2 decimal places and replace decimal separator
+        // decimalSeparator comes from backend template context
+        return num.toFixed(2).replace('.', decimalSeparator);
+    }
+
     // Function to toggle between display and edit mode
     function toggleEditMode(rowId, startEdit) {
         const row = document.getElementById(rowId);
@@ -952,10 +981,10 @@
 
         const displayElements = row.querySelectorAll('.actions-display, .cell-description-display, .cell-date-display, .cell-amount-display');
         const editElements = row.querySelectorAll('.actions-edit, .cell-description-edit, .cell-date-edit, .cell-amount-edit');
-        
+
         displayElements.forEach(el => el.classList.toggle('hidden', startEdit));
         editElements.forEach(el => el.classList.toggle('hidden', !startEdit));
-        
+
         row.setAttribute('data-mode', startEdit ? 'edit' : 'display');
         if(startEdit) {
              row.querySelector('.cell-description-edit input').focus();
@@ -1004,7 +1033,7 @@
                 
                 // Update inputs
                 row.querySelector('input[data-field="description"]').value = data.description;
-                row.querySelector('input[data-field="amount"]').value = data.amount;
+                row.querySelector('input[data-field="amount"]').value = formatAmountForInput(data.amount);
                 row.querySelector('input[data-field="date"]').value = data.date;
                 row.setAttribute('data-date', data.date);
                 

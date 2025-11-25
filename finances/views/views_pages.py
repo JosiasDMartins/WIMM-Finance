@@ -40,6 +40,8 @@ from .views_utils import (
     get_periods_history,
     get_year_to_date_metrics,
     get_currency_symbol,
+    get_decimal_separator,
+    get_thousand_separator,
     VERSION,
 )
 
@@ -331,8 +333,10 @@ def dashboard_view(request):
         
     period_currency = get_period_currency(family, start_date)
     context['currency_symbol'] = get_currency_symbol(period_currency)
+    context['decimal_separator'] = get_decimal_separator()
+    context['thousand_separator'] = get_thousand_separator()
     context.update(get_base_template_context(family, query_period, start_date))
-    
+
     return render(request, 'finances/dashboard.html', context)
 
 
@@ -696,6 +700,8 @@ def create_flow_group_view(request):
         'start_date': start_date,
         'end_date': end_date,
         'child_max_budget': child_max_budget,
+        'decimal_separator': get_decimal_separator(),
+        'thousand_separator': get_thousand_separator(),
     }
     context.update(get_base_template_context(family, query_period, start_date))
     return render(request, 'finances/FlowGroup.html', context)
@@ -760,7 +766,7 @@ def edit_flow_group_view(request, group_id):
     default_date = get_default_date_for_period(start_date, end_date)
     period_currency = get_period_currency(family, start_date)
     currency_symbol = get_currency_symbol(period_currency)
-    
+
     context = {
         'form': form,
         'is_new': False,
@@ -776,7 +782,9 @@ def edit_flow_group_view(request, group_id):
         'can_edit_group': can_edit_group,
         'can_edit_budget': can_edit_budget,
         'member_role_for_period' : member_role_for_period,
-        'currency_symbol': currency_symbol
+        'currency_symbol': currency_symbol,
+        'decimal_separator': get_decimal_separator(),
+        'thousand_separator': get_thousand_separator(),
     }
     context.update(get_base_template_context(family, query_period, start_date))
     return render(request, 'finances/FlowGroup.html', context)

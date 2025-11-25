@@ -158,7 +158,7 @@ class UpdateManager {
             }
         } catch (error) {
             console.error('[UpdateManager] Error checking updates:', error);
-            alert('Failed to check for updates. Please try again.');
+            alert(window.UPDATE_I18N?.failedToCheckUpdates || 'Failed to check for updates. Please try again.');
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalText;
@@ -244,7 +244,7 @@ class UpdateManager {
         if (!isAdmin) {
             // Non-admin user - show info only, no actions allowed
             if (updateDesc) {
-                updateDesc.textContent = 'A local update is pending and must be applied before the system can be used. Only administrators can apply updates. Please contact an administrator to complete this update.';
+                updateDesc.textContent = window.UPDATE_I18N?.localUpdatePendingNonAdmin || 'A local update is pending and must be applied before the system can be used. Only administrators can apply updates. Please contact an administrator to complete this update.';
             }
 
             // Show scripts info but no buttons
@@ -273,7 +273,7 @@ class UpdateManager {
         // Admin user - show full update interface
         if (data.has_scripts) {
             if (updateDesc) {
-                updateDesc.textContent = 'Local updates are available and must be applied before continuing.';
+                updateDesc.textContent = window.UPDATE_I18N?.localUpdatesAvailable || 'Local updates are available and must be applied before continuing.';
             }
             if (scriptsInfo) scriptsInfo.classList.remove('hidden');
             if (scriptsList) {
@@ -286,7 +286,7 @@ class UpdateManager {
             }
         } else {
             if (updateDesc) {
-                updateDesc.textContent = 'System files have been updated. Database migrations will be applied.';
+                updateDesc.textContent = window.UPDATE_I18N?.systemFilesUpdated || 'System files have been updated. Database migrations will be applied.';
             }
         }
 
@@ -323,7 +323,7 @@ class UpdateManager {
         }
 
         if (updateDesc) {
-            updateDesc.textContent = 'A new version is available on GitHub!';
+            updateDesc.textContent = window.UPDATE_I18N?.githubVersionAvailable || 'A new version is available on GitHub!';
         }
 
         if (githubInfo) githubInfo.classList.remove('hidden');
@@ -372,18 +372,24 @@ class UpdateManager {
         // Check if user is admin
         const isAdmin = data.is_admin;
 
-        // Show skip button only for admins
-        if (isAdmin && btnSkip) {
-            btnSkip.classList.remove('hidden');
-        }
-
         if (data.requires_container) {
             // Container update required - manual process
             if (containerWarning) containerWarning.classList.remove('hidden');
             if (btnInstall) btnInstall.classList.add('hidden');
             if (backupSection) backupSection.classList.add('hidden');
             if (btnCreateBackup) btnCreateBackup.classList.add('hidden');
+
+            // Show OK button for container updates (admin only)
+            if (isAdmin && btnSkip) {
+                btnSkip.textContent = window.UPDATE_I18N?.buttonOK || 'OK';
+                btnSkip.classList.remove('hidden');
+            }
         } else if (isAdmin) {
+            // Show Skip button for regular updates (admin only)
+            if (btnSkip) {
+                btnSkip.textContent = window.UPDATE_I18N?.buttonSkipUpdate || 'Skip Update';
+                btnSkip.classList.remove('hidden');
+            }
             // Admin user - can install via web interface
             if (backupSection) backupSection.classList.remove('hidden');
             if (btnCreateBackup) btnCreateBackup.classList.remove('hidden');
@@ -394,7 +400,7 @@ class UpdateManager {
         } else {
             // Non-admin user - show information only
             if (updateDesc) {
-                updateDesc.textContent = 'A new version is available on GitHub. Only administrators can install updates. Please contact an administrator to apply this update.';
+                updateDesc.textContent = window.UPDATE_I18N?.githubUpdateNonAdmin || 'A new version is available on GitHub. Only administrators can install updates. Please contact an administrator to apply this update.';
             }
             // Hide backup and install options for non-admin
             if (backupSection) backupSection.classList.add('hidden');
@@ -420,7 +426,7 @@ class UpdateManager {
         
         const backupConfirmed = document.getElementById('backup-confirmed-local');
         if (!backupConfirmed || !backupConfirmed.checked) {
-            alert('Please confirm that you have created a backup before proceeding.');
+            alert(window.UPDATE_I18N?.pleaseConfirmBackup || 'Please confirm that you have created a backup before proceeding.');
             return;
         }
         
@@ -436,12 +442,12 @@ class UpdateManager {
         if (btnSkip) btnSkip.classList.add('hidden');
         if (backupSection) backupSection.classList.add('hidden');
         if (progressSection) progressSection.classList.remove('hidden');
-        if (progressTitle) progressTitle.textContent = 'Applying Updates...';
-        
+        if (progressTitle) progressTitle.textContent = window.UPDATE_I18N?.applyingUpdates || 'Applying Updates...';
+
         try {
             if (progressBar) progressBar.style.width = '10%';
-            if (progressText) progressText.textContent = 'Preparing update...';
-            
+            if (progressText) progressText.textContent = window.UPDATE_I18N?.preparingUpdate || 'Preparing update...';
+
             const requestBody = this.updateData.has_scripts ? {
                 scripts: this.updateData.update_scripts
             } : {};
@@ -456,27 +462,26 @@ class UpdateManager {
                 },
                 body: JSON.stringify(requestBody)
             });
-            
+
             if (progressBar) progressBar.style.width = '50%';
-            if (progressText) progressText.textContent = 'Applying updates...';
-            
+            if (progressText) progressText.textContent = window.UPDATE_I18N?.applyingUpdatesProgress || 'Applying updates...';
+
             const data = await response.json();
             console.log('[UpdateManager] Update response:', data);
             
             if (progressBar) progressBar.style.width = '100%';
-            if (progressText) progressText.textContent = 'Update complete!';
-            
+            if (progressText) progressText.textContent = window.UPDATE_I18N?.updateComplete || 'Update complete!';
+
             this.logsContent = this.formatLogs(data);
-            
+
             if (data.success) {
-                this.showSuccess('Updates applied successfully! The page will reload in 3 seconds.');
-                setTimeout(() => location.reload(), 3000);
+                this.showSuccessWithReload(window.UPDATE_I18N?.updatesAppliedSuccess || 'Updates applied successfully! Waiting for server to restart...');
             } else {
-                this.showError(data.error || 'Update failed. Check logs for details.');
+                this.showError(data.error || (window.UPDATE_I18N?.updateFailed || 'Update failed. Check logs for details.'));
             }
         } catch (error) {
             console.error('[UpdateManager] Error applying updates:', error);
-            this.showError('Failed to apply updates: ' + error.message);
+            this.showError((window.UPDATE_I18N?.failedToApplyUpdates || 'Failed to apply updates') + ': ' + error.message);
         }
     }
     
@@ -518,7 +523,7 @@ class UpdateManager {
 
         const backupConfirmed = document.getElementById('backup-confirmed');
         if (!backupConfirmed || !backupConfirmed.checked) {
-            alert('Please confirm that you have created a backup before proceeding.');
+            alert(window.UPDATE_I18N?.pleaseConfirmBackup || 'Please confirm that you have created a backup before proceeding.');
             return;
         }
 
@@ -534,11 +539,11 @@ class UpdateManager {
         if (btnSkip) btnSkip.classList.add('hidden');
         if (backupSection) backupSection.classList.add('hidden');
         if (progressSection) progressSection.classList.remove('hidden');
-        if (progressTitle) progressTitle.textContent = 'Installing GitHub Update...';
+        if (progressTitle) progressTitle.textContent = window.UPDATE_I18N?.installingGithubUpdate || 'Installing GitHub Update...';
 
         try {
             if (progressBar) progressBar.style.width = '10%';
-            if (progressText) progressText.textContent = 'Downloading release...';
+            if (progressText) progressText.textContent = window.UPDATE_I18N?.downloadingRelease || 'Downloading release...';
 
             const requestBody = {
                 zipball_url: this.updateData.github_release.zipball_url,
@@ -560,22 +565,21 @@ class UpdateManager {
             console.log('[UpdateManager] Response ok:', response.ok);
 
             if (progressBar) progressBar.style.width = '50%';
-            if (progressText) progressText.textContent = 'Extracting files...';
+            if (progressText) progressText.textContent = window.UPDATE_I18N?.extractingFiles || 'Extracting files...';
 
             const data = await response.json();
             console.log('[UpdateManager] GitHub update response:', data);
 
             if (progressBar) progressBar.style.width = '100%';
-            if (progressText) progressText.textContent = 'Update complete!';
+            if (progressText) progressText.textContent = window.UPDATE_I18N?.updateComplete || 'Update complete!';
 
             // Store logs regardless of success/failure
             this.logsContent = this.formatGithubLogs(data);
 
             if (data.success) {
-                this.showSuccess('GitHub update installed successfully! The page will reload in 3 seconds.');
-                setTimeout(() => location.reload(), 3000);
+                this.showSuccessWithReload(window.UPDATE_I18N?.githubUpdateSuccess || 'GitHub update installed successfully! Waiting for server to restart...');
             } else {
-                this.showError(data.error || 'Update failed. Check logs for details.');
+                this.showError(data.error || (window.UPDATE_I18N?.updateFailed || 'Update failed. Check logs for details.'));
             }
         } catch (error) {
             console.error('[UpdateManager] Error installing GitHub update:', error);
@@ -583,7 +587,7 @@ class UpdateManager {
             // Store error in logs
             this.logsContent = `=== GitHub Update Error ===\n\nError: ${error.message}\n\nStack Trace:\n${error.stack || 'No stack trace available'}`;
 
-            this.showError('Failed to install update: ' + error.message);
+            this.showError((window.UPDATE_I18N?.failedToInstallUpdate || 'Failed to install update') + ': ' + error.message);
         }
     }
     
@@ -652,7 +656,7 @@ class UpdateManager {
             }
         } catch (error) {
             console.error('[UpdateManager] Error skipping update:', error);
-            alert('Failed to skip update. Please try again.');
+            alert(window.UPDATE_I18N?.failedToSkipUpdate || 'Failed to skip update. Please try again.');
         }
     }
     
@@ -662,14 +666,81 @@ class UpdateManager {
         const successMsg = document.getElementById('success-message');
         const successDetails = document.getElementById('success-details');
         const btnClose = document.getElementById('btn-close');
-        
+
         if (progressSection) progressSection.classList.add('hidden');
         if (resultsSection) resultsSection.classList.remove('hidden');
         if (successMsg) successMsg.classList.remove('hidden');
         if (successDetails) successDetails.textContent = message;
         if (btnClose) btnClose.classList.remove('hidden');
     }
-    
+
+    showSuccessWithReload(message) {
+        const progressSection = document.getElementById('update-progress');
+        const resultsSection = document.getElementById('update-results');
+        const successMsg = document.getElementById('success-message');
+        const successDetails = document.getElementById('success-details');
+
+        if (progressSection) progressSection.classList.add('hidden');
+        if (resultsSection) resultsSection.classList.remove('hidden');
+        if (successMsg) successMsg.classList.remove('hidden');
+
+        // Add spinner and message
+        if (successDetails) {
+            successDetails.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <div class="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
+                    <span>${message}</span>
+                </div>
+            `;
+        }
+
+        // Start checking if server is back up
+        this.waitForServerAndReload();
+    }
+
+    async waitForServerAndReload() {
+        const maxAttempts = 60; // Try for up to 60 seconds
+        const delayBetweenAttempts = 1000; // 1 second
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                // Try to fetch a lightweight endpoint
+                const response = await fetch('/api/health-check/', {
+                    method: 'GET',
+                    cache: 'no-store'
+                });
+
+                if (response.ok) {
+                    console.log(`[UpdateManager] Server is back online after ${attempt} attempts`);
+                    // Server is back, reload the page
+                    location.reload();
+                    return;
+                }
+            } catch (error) {
+                // Server not ready yet, continue waiting
+                console.log(`[UpdateManager] Waiting for server... attempt ${attempt}/${maxAttempts}`);
+            }
+
+            // Wait before next attempt
+            await new Promise(resolve => setTimeout(resolve, delayBetweenAttempts));
+        }
+
+        // If we get here, server didn't come back up in time
+        const successDetails = document.getElementById('success-details');
+        if (successDetails) {
+            const takingLongerMsg = window.UPDATE_I18N?.serverRestartTakingLonger || 'Server is taking longer than expected to restart.';
+            const waitMsg = window.UPDATE_I18N?.waitAndClickToReload || 'Please wait a moment and then';
+            const clickMsg = window.UPDATE_I18N?.clickHereToReload || 'click here to reload';
+
+            successDetails.innerHTML = `
+                <div>
+                    <p class="text-yellow-600 dark:text-yellow-400 mb-2">${takingLongerMsg}</p>
+                    <p class="text-sm">${waitMsg} <button onclick="location.reload()" class="text-green-600 hover:text-green-700 underline font-medium">${clickMsg}</button>.</p>
+                </div>
+            `;
+        }
+    }
+
     showError(message) {
         const progressSection = document.getElementById('update-progress');
         const resultsSection = document.getElementById('update-results');
@@ -764,7 +835,7 @@ class UpdateManager {
 
         if (!this.logsContent || this.logsContent.length === 0) {
             console.warn('[UpdateManager] No logs available');
-            logsContent.textContent = 'No logs available yet. Please apply an update first.';
+            logsContent.textContent = window.UPDATE_I18N?.noLogsAvailable || 'No logs available yet. Please apply an update first.';
         } else {
             logsContent.textContent = this.logsContent;
         }

@@ -565,15 +565,19 @@
                         document.getElementById('deleteExpenseEstimated').textContent = parseFloat(data.summary.total_expense_estimated).toFixed(2);
                         document.getElementById('deleteExpenseRealized').textContent = parseFloat(data.summary.total_expense_realized).toFixed(2);
 
+                        // Translated strings
+                        const txtCurrentPeriodWarning = "{% trans 'This is the CURRENT period. All flow groups and transactions will be CLEARED, but the period entry will be kept.' %}";
+                        const txtPermanentDeleteWarning = "{% trans 'This period will be PERMANENTLY DELETED along with all its flow groups and transactions.' %}";
+                        const txtClearPeriod = "{% trans 'Clear Period' %}";
+                        const txtDeletePeriod = "{% trans 'Delete Period' %}";
+
                         // Update warning message based on whether it's current period
                         if (data.period.is_current) {
-                            document.getElementById('deleteActionDescription').textContent =
-                                'This is the CURRENT period. All flow groups and transactions will be CLEARED, but the period entry will be kept.';
-                            document.getElementById('deleteButtonText').textContent = 'Clear Period';
+                            document.getElementById('deleteActionDescription').textContent = txtCurrentPeriodWarning;
+                            document.getElementById('deleteButtonText').textContent = txtClearPeriod;
                         } else {
-                            document.getElementById('deleteActionDescription').textContent =
-                                'This period will be PERMANENTLY DELETED along with all its flow groups and transactions.';
-                            document.getElementById('deleteButtonText').textContent = 'Delete Period';
+                            document.getElementById('deleteActionDescription').textContent = txtPermanentDeleteWarning;
+                            document.getElementById('deleteButtonText').textContent = txtDeletePeriod;
                         }
 
                         // Hide loading, show content
