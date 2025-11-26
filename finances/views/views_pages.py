@@ -97,59 +97,67 @@ def dashboard_view(request):
     ).order_by('order', 'name')
     
     budgeted_expense = Decimal(0.00)
-    
+
     # Process accessible groups
     for group in accessible_expense_groups:
         group.total_estimated = Decimal(str(group.total_estimated.amount)) if hasattr(group.total_estimated, 'amount') else (group.total_estimated or Decimal('0.00'))
         group.total_spent = Decimal(str(group.total_spent.amount)) if hasattr(group.total_spent, 'amount') else (group.total_spent or Decimal('0.00'))
-        
+
         group.total_estimated = group.total_estimated.quantize(Decimal('0.01'), rounding=ROUND_DOWN)
         group.total_spent = group.total_spent.quantize(Decimal('0.01'), rounding=ROUND_DOWN)
         group.is_accessible = True
-        
+
         if group.is_kids_group and member_role_for_period in ['ADMIN', 'PARENT']:
             child_exp = Transaction.objects.filter(
                 flow_group=group,
                 date__range=(start_date, end_date)
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-            
+
             group.child_expenses = Decimal(str(child_exp.amount)) if hasattr(child_exp, 'amount') else child_exp
-            
+
             group.is_child_group = False
             if group.owner:
                 owner_member = FamilyMember.objects.filter(user=group.owner, family=family).first()
                 if owner_member and owner_member.role == 'CHILD':
                     group.is_child_group = True
-        
+
         budgeted_amt = Decimal(str(group.budgeted_amount.amount)) if hasattr(group.budgeted_amount, 'amount') else Decimal(str(group.budgeted_amount))
-        
+
         group.budget_warning = group.total_estimated > budgeted_amt
         group.total_estimated = group.total_estimated if group.total_estimated > budgeted_amt else budgeted_amt
-        
+
         is_child_own_group = False
         if group.owner:
             owner_member = FamilyMember.objects.filter(user=group.owner, family=family).first()
             if owner_member and owner_member.role == 'CHILD':
                 is_child_own_group = True
-        
-        if not is_child_own_group:
+
+        # For CHILD users: only count their own groups in budgeted_expense
+        # For ADMIN/PARENT: count all non-child-owned groups
+        if member_role_for_period == 'CHILD':
+            # Child: only their own groups
             budgeted_expense = group.total_estimated + budgeted_expense
-    
-    # Process display-only groups
+        elif not is_child_own_group:
+            # Admin/Parent: all groups except child-owned ones
+            budgeted_expense = group.total_estimated + budgeted_expense
+
+    # Process display-only groups (only for ADMIN/PARENT, not for CHILD)
     for group in display_only_expense_groups:
         group.total_estimated = Decimal(str(group.total_estimated.amount)) if hasattr(group.total_estimated, 'amount') else (group.total_estimated or Decimal('0.00'))
         group.total_spent = Decimal(str(group.total_spent.amount)) if hasattr(group.total_spent, 'amount') else (group.total_spent or Decimal('0.00'))
-        
+
         group.total_estimated = group.total_estimated.quantize(Decimal('0.01'), rounding=ROUND_DOWN)
         group.total_spent = group.total_spent.quantize(Decimal('0.01'), rounding=ROUND_DOWN)
         group.is_accessible = False
-        
+
         budgeted_amt = Decimal(str(group.budgeted_amount.amount)) if hasattr(group.budgeted_amount, 'amount') else Decimal(str(group.budgeted_amount))
-        
+
         group.budget_warning = group.total_estimated > budgeted_amt
         group.total_estimated = group.total_estimated if group.total_estimated > budgeted_amt else budgeted_amt
-        
-        budgeted_expense = group.total_estimated + budgeted_expense
+
+        # Only add display-only groups to expense for ADMIN/PARENT
+        if member_role_for_period != 'CHILD':
+            budgeted_expense = group.total_estimated + budgeted_expense
     
     expense_groups = list(accessible_expense_groups) + list(display_only_expense_groups)
 
@@ -310,7 +318,7 @@ def dashboard_view(request):
         child_can_create_groups = child_manual_income_total > Decimal('0.00')
 
     periods_history = get_periods_history(family, start_date)
-    ytd_metrics = get_year_to_date_metrics(family, end_date)
+    ytd_metrics = get_year_to_date_metrics(family, end_date, current_member)
 
     context = {
         'start_date': start_date,
@@ -344,11 +352,16 @@ def dashboard_view(request):
 def configuration_view(request):
     """View for family settings."""
     family, current_member, family_members = get_family_context(request.user)
-    
+
     try:
         member = FamilyMember.objects.select_related('family', 'family__configuration').get(user=request.user)
     except FamilyMember.DoesNotExist:
         messages.error(request, _("You are not associated with any family."))
+        return redirect('dashboard')
+
+    # Block Child users from accessing settings
+    if member.role == 'CHILD':
+        messages.error(request, _("Child users cannot access system settings."))
         return redirect('dashboard')
 
     if member.role not in ['ADMIN', 'PARENT']:
@@ -381,6 +394,12 @@ def configuration_view(request):
         form = FamilyConfigurationForm(request.POST, instance=config)
         if form.is_valid():
             new_config = form.cleaned_data
+
+            # Only admin can change period configuration
+            if member.role != 'ADMIN':
+                new_config['period_type'] = old_config['period_type']
+                new_config['starting_day'] = old_config['starting_day']
+                new_config['base_date'] = old_config['base_date']
 
             config_changed = (
                 old_config['period_type'] != new_config['period_type'] or
@@ -460,6 +479,12 @@ def configuration_view(request):
             form = FamilyConfigurationForm(instance=config, initial={'base_currency': period_currency})
         else:
             form = FamilyConfigurationForm(instance=config)
+
+    # Disable period configuration fields for non-admin users
+    if member.role != 'ADMIN':
+        form.fields['period_type'].widget.attrs['disabled'] = 'disabled'
+        form.fields['starting_day'].widget.attrs['disabled'] = 'disabled'
+        form.fields['base_date'].widget.attrs['disabled'] = 'disabled'
 
     # Add members data for the Members tab
     # Add permission checks for each member
@@ -993,8 +1018,13 @@ def remove_member_view(request, member_id):
 @login_required
 def investments_view(request):
     """View for managing investments."""
-    family, _unused1, _unused2 = get_family_context(request.user)
+    family, current_member, _unused2 = get_family_context(request.user)
     if not family:
+        return redirect('dashboard')
+
+    # Block Child users from accessing investments
+    if current_member.role == 'CHILD':
+        messages.error(request, _("Child users cannot access investments."))
         return redirect('dashboard')
     
     query_period = request.GET.get('period')
@@ -1038,10 +1068,22 @@ def add_receipt_view(request):
 
 
 @login_required
-@require_POST 
+@require_POST
 def investment_add_view(request):
     """View (POST-redirect) para adicionar investimento (provavelmente um formulário no investments_view)."""
     query_period = request.GET.get('period')
     redirect_url = f"/investments/?period={query_period}" if query_period else "/investments/"
     # A lógica de salvar está no 'investments_view'
     return redirect(redirect_url)
+
+
+@login_required
+@require_POST
+def mark_admin_warning_seen(request):
+    """
+    Marks that the admin warning modal has been seen in this session.
+    This prevents the modal from appearing again until the next login.
+    """
+    request.session['admin_warning_seen'] = True
+    from django.http import JsonResponse
+    return JsonResponse({'status': 'ok'})

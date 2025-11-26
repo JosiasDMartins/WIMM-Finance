@@ -53,6 +53,20 @@
             
             <!-- Configuration Tab -->
             <div x-show="activeTab === 'configuration'" class="mt-6" x-cloak>
+                {% if is_child %}
+                <!-- Child User Restriction Message -->
+                <div class="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 p-6 rounded-lg">
+                    <div class="flex items-start">
+                        <span class="material-symbols-outlined text-amber-500 text-2xl mr-3">block</span>
+                        <div>
+                            <h3 class="text-lg font-semibold text-amber-900 dark:text-amber-200 mb-2">{% trans "Access Restricted" %}</h3>
+                            <p class="text-amber-800 dark:text-amber-300">
+                                {% trans "Child users cannot access system configuration settings. Please contact an Admin or Parent user to modify these settings." %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
                 <form method="post" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
                     {% csrf_token %}
                     <div class="p-6 space-y-6">
@@ -65,11 +79,16 @@
                         </div>
 
                         <!-- Period Type Selection -->
-                        <div class="flex flex-col">
-                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2">{% trans "Period Frequency" %}</label>
+                        <div class="flex flex-col {% if not is_admin %}opacity-60 pointer-events-none{% endif %}">
+                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2">
+                                {% trans "Period Frequency" %}
+                                {% if not is_admin %}
+                                <span class="text-xs text-gray-500 font-normal">({% trans "Admin only" %})</span>
+                                {% endif %}
+                            </label>
                             <div class="space-y-3">
                                 {% for radio in form.period_type %}
-                                <label class="flex items-center gap-3 border border-[#cfdfe7] dark:border-gray-600 p-[15px] rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-gray-700">
+                                <label class="flex items-center gap-3 border border-[#cfdfe7] dark:border-gray-600 p-[15px] rounded-lg {% if is_admin %}cursor-pointer hover:bg-slate-50 dark:hover:bg-gray-700{% else %}cursor-not-allowed{% endif %}">
                                     {{ radio.tag }}
                                     <div class="flex grow flex-col">
                                         <p class="text-[#0d171b] dark:text-white text-sm font-medium leading-normal">{{ radio.choice_label }}</p>
@@ -80,16 +99,26 @@
                         </div>
 
                         <!-- Starting Day - Only for Monthly -->
-                        <div id="starting-day-field" class="flex flex-col">
-                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.starting_day.id_for_label }}">{% trans "Starting Day of Month" %}</label>
-                            <input type="number" name="starting_day" id="{{ form.starting_day.id_for_label }}" value="{{ form.starting_day.value|default:'' }}" min="1" max="31" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                        <div id="starting-day-field" class="flex flex-col {% if not is_admin %}opacity-60 pointer-events-none{% endif %}">
+                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.starting_day.id_for_label }}">
+                                {% trans "Starting Day of Month" %}
+                                {% if not is_admin %}
+                                <span class="text-xs text-gray-500 font-normal">({% trans "Admin only" %})</span>
+                                {% endif %}
+                            </label>
+                            <input type="number" name="starting_day" id="{{ form.starting_day.id_for_label }}" value="{{ form.starting_day.value|default:'' }}" min="1" max="31" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent" {% if not is_admin %}disabled{% endif %}>
                             <p class="text-xs text-gray-500 mt-1">{% trans "Day of the month (1-31) that defines the cycle start." %}</p>
                         </div>
 
                         <!-- Base Date - Only for Bi-weekly/Weekly -->
-                        <div id="base-date-field" class="flex flex-col" style="display: none;">
-                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.base_date.id_for_label }}">{% trans "Base Date for Cycle" %}</label>
-                            <input type="date" name="base_date" id="{{ form.base_date.id_for_label }}" value="{{ form.base_date.value|default:'' }}" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent">
+                        <div id="base-date-field" class="flex flex-col {% if not is_admin %}opacity-60 pointer-events-none{% endif %}" style="display: none;">
+                            <label class="text-[#0d171b] dark:text-gray-300 text-base font-medium leading-normal pb-2" for="{{ form.base_date.id_for_label }}">
+                                {% trans "Base Date for Cycle" %}
+                                {% if not is_admin %}
+                                <span class="text-xs text-gray-500 font-normal">({% trans "Admin only" %})</span>
+                                {% endif %}
+                            </label>
+                            <input type="date" name="base_date" id="{{ form.base_date.id_for_label }}" value="{{ form.base_date.value|default:'' }}" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent" {% if not is_admin %}disabled{% endif %}>
                             <p class="text-xs text-gray-500 mt-1">{% trans "Reference date used to calculate bi-weekly or weekly periods." %}</p>
                         </div>
 
@@ -107,6 +136,7 @@
                         </button>
                     </div>
                 </form>
+                {% endif %}
             </div>
 
             <!-- Members Tab -->
@@ -498,18 +528,18 @@
                         <div id="online-update-info" class="hidden mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
                             <div id="no-updates-found" class="hidden text-center text-gray-600 dark:text-gray-400">
                                 <span class="material-symbols-outlined text-4xl text-gray-400 mb-2">check_circle</span>
-                                <p class="font-medium">System is up to date!</p>
-                                <p class="text-sm mt-1">Latest version: <span id="github-latest-version" class="font-mono"></span></p>
+                                <p class="font-medium">{% trans "System is up to date!" %}</p>
+                                <p class="text-sm mt-1">{% trans "Latest version:" %} <span id="github-latest-version" class="font-mono"></span></p>
                             </div>
-                            
+
                             <div id="updates-available" class="hidden">
                                 <!-- ... (conteúdo de 'updates-available') ... -->
                             </div>
-                            
+
                             <div id="local-update-pending" class="hidden text-center text-orange-600 dark:text-orange-400">
                                 <span class="material-symbols-outlined text-4xl mb-2">construction</span>
-                                <p class="font-medium">Local updates pending</p>
-                                <p class="text-sm mt-1">Please apply local updates first before checking for online updates.</p>
+                                <p class="font-medium">{% trans "Local updates pending" %}</p>
+                                <p class="text-sm mt-1">{% trans "Please apply local updates first before checking for online updates." %}</p>
                             </div>
                         </div>
                     </div>

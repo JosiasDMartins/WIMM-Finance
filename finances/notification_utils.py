@@ -3,6 +3,7 @@
 from django.utils import timezone
 from django.urls import reverse
 from django.conf import settings
+from django.utils.translation import gettext as _
 from decimal import Decimal
 
 
@@ -39,11 +40,20 @@ def create_overdue_notifications(family, member):
         
         if not existing:
             days_overdue = (today - transaction.date).days
-            message = f"Transaction '{transaction.description}' is {days_overdue} day{'s' if days_overdue > 1 else ''} overdue"
-            
+            if days_overdue == 1:
+                message = _("Transaction '%(description)s' is %(days)d day overdue") % {
+                    'description': transaction.description,
+                    'days': days_overdue
+                }
+            else:
+                message = _("Transaction '%(description)s' is %(days)d days overdue") % {
+                    'description': transaction.description,
+                    'days': days_overdue
+                }
+
             # URL for the FlowGroup
             target_url = reverse('edit_flow_group', kwargs={'group_id': transaction.flow_group.id}) + f"?period={transaction.flow_group.period_start_date.strftime('%Y-%m-%d')}"
-            
+
             Notification.objects.create(
                 family=family,
                 member=member,
@@ -95,10 +105,13 @@ def create_overbudget_notifications(family, member):
             
             if not existing:
                 over_amount = (realized_total - budgeted).quantize(Decimal('0.01'))
-                message = f"'{flow_group.name}' is over budget by {over_amount}"
-                
+                message = _("'%(name)s' is over budget by %(amount)s") % {
+                    'name': flow_group.name,
+                    'amount': over_amount
+                }
+
                 target_url = reverse('edit_flow_group', kwargs={'group_id': flow_group.id}) + f"?period={flow_group.period_start_date.strftime('%Y-%m-%d')}"
-                
+
                 Notification.objects.create(
                     family=family,
                     member=member,
@@ -188,10 +201,14 @@ def create_new_transaction_notification(transaction, exclude_member=None):
     # Cria notificações
     notifications_created = 0
     for member in members_to_notify:
-        creator_name = exclude_member.user.username if exclude_member else "Someone"
+        creator_name = exclude_member.user.username if exclude_member else _("Someone")
 
         # Mensagem simplificada
-        message = f"{creator_name} added '{transaction.description}' in '{flow_group.name}'"
+        message = _("%(creator)s added '%(description)s' in '%(group)s'") % {
+            'creator': creator_name,
+            'description': transaction.description,
+            'group': flow_group.name
+        }
 
         # URL para o FlowGroup específico
         target_url = reverse('edit_flow_group', kwargs={'group_id': flow_group.id}) + f"?period={flow_group.period_start_date.strftime('%Y-%m-%d')}"

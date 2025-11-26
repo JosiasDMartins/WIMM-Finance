@@ -302,10 +302,13 @@ def get_periods_history(family, current_period_start):
     }
 
 
-def get_year_to_date_metrics(family, current_period_end):
+def get_year_to_date_metrics(family, current_period_end, current_member=None):
     """
     Returns year-to-date metrics from January 1 to the current selected period.
     Returns realized values for: total savings, total investments, total income.
+
+    For CHILD users: calculates only their personal metrics (their groups and manual income)
+    For ADMIN/PARENT users: calculates family-wide metrics
     """
     from datetime import date
 
@@ -313,58 +316,124 @@ def get_year_to_date_metrics(family, current_period_end):
     current_year = current_period_end.year
     year_start = date(current_year, 1, 1)
 
-    # Total Income (realized only, excluding child manual income)
-    total_income = Transaction.objects.filter(
-        flow_group__family=family,
-        flow_group__group_type=FLOW_TYPE_INCOME,
-        date__range=(year_start, current_period_end),
-        realized=True,
-        is_child_manual_income=False
-    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    # Check if user is a Child
+    is_child = current_member and current_member.role == 'CHILD'
 
-    total_income_float = float(total_income.amount) if hasattr(total_income, 'amount') else float(total_income)
+    if is_child:
+        # CHILD: Calculate only personal metrics
 
-    # Total Expenses (realized only)
-    total_expenses = Transaction.objects.filter(
-        flow_group__family=family,
-        flow_group__group_type__in=FLOW_TYPE_EXPENSE,
-        flow_group__is_investment=False,
-        date__range=(year_start, current_period_end),
-        realized=True
-    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        # Income = Kids groups assigned to them + manual income they created
+        kids_income = FlowGroup.objects.filter(
+            family=family,
+            period_start_date__range=(year_start, current_period_end),
+            is_kids_group=True,
+            is_investment=False,
+            realized=True,
+            assigned_children=current_member
+        ).aggregate(total=Sum('budgeted_amount'))['total'] or Decimal('0.00')
 
-    # Add kids groups realized budgets (exclude investment kids groups)
-    kids_realized = FlowGroup.objects.filter(
-        family=family,
-        period_start_date__range=(year_start, current_period_end),
-        is_kids_group=True,
-        is_investment=False,
-        realized=True
-    ).aggregate(total=Sum('budgeted_amount'))['total'] or Decimal('0.00')
+        manual_income = Transaction.objects.filter(
+            flow_group__family=family,
+            flow_group__group_type=FLOW_TYPE_INCOME,
+            date__range=(year_start, current_period_end),
+            realized=True,
+            is_child_manual_income=True,
+            member=current_member
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
-    total_expenses += kids_realized
-    total_expenses_float = float(total_expenses.amount) if hasattr(total_expenses, 'amount') else float(total_expenses)
+        total_income = kids_income + manual_income
+        total_income_float = float(total_income.amount) if hasattr(total_income, 'amount') else float(total_income)
 
-    # Total Investments (realized only)
-    total_investments = Transaction.objects.filter(
-        flow_group__family=family,
-        flow_group__group_type__in=FLOW_TYPE_EXPENSE,
-        flow_group__is_investment=True,
-        date__range=(year_start, current_period_end),
-        realized=True
-    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        # Expenses = Only their own expense transactions
+        total_expenses = Transaction.objects.filter(
+            flow_group__family=family,
+            flow_group__group_type__in=FLOW_TYPE_EXPENSE,
+            flow_group__is_investment=False,
+            date__range=(year_start, current_period_end),
+            realized=True,
+            is_child_expense=True,
+            member=current_member
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
-    # Add investment kids groups realized budgets
-    kids_investment_realized = FlowGroup.objects.filter(
-        family=family,
-        period_start_date__range=(year_start, current_period_end),
-        is_kids_group=True,
-        is_investment=True,
-        realized=True
-    ).aggregate(total=Sum('budgeted_amount'))['total'] or Decimal('0.00')
+        total_expenses_float = float(total_expenses.amount) if hasattr(total_expenses, 'amount') else float(total_expenses)
 
-    total_investments += kids_investment_realized
-    total_investments_float = float(total_investments.amount) if hasattr(total_investments, 'amount') else float(total_investments)
+        # Investments = Only their own investment transactions
+        total_investments = Transaction.objects.filter(
+            flow_group__family=family,
+            flow_group__group_type__in=FLOW_TYPE_EXPENSE,
+            flow_group__is_investment=True,
+            date__range=(year_start, current_period_end),
+            realized=True,
+            member=current_member
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        # Add investment kids groups assigned to them
+        kids_investment_income = FlowGroup.objects.filter(
+            family=family,
+            period_start_date__range=(year_start, current_period_end),
+            is_kids_group=True,
+            is_investment=True,
+            realized=True,
+            assigned_children=current_member
+        ).aggregate(total=Sum('budgeted_amount'))['total'] or Decimal('0.00')
+
+        total_investments += kids_investment_income
+        total_investments_float = float(total_investments.amount) if hasattr(total_investments, 'amount') else float(total_investments)
+    else:
+        # ADMIN/PARENT: Calculate family-wide metrics (original logic)
+
+        # Total Income (realized only, excluding child manual income)
+        total_income = Transaction.objects.filter(
+            flow_group__family=family,
+            flow_group__group_type=FLOW_TYPE_INCOME,
+            date__range=(year_start, current_period_end),
+            realized=True,
+            is_child_manual_income=False
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        total_income_float = float(total_income.amount) if hasattr(total_income, 'amount') else float(total_income)
+
+        # Total Expenses (realized only)
+        total_expenses = Transaction.objects.filter(
+            flow_group__family=family,
+            flow_group__group_type__in=FLOW_TYPE_EXPENSE,
+            flow_group__is_investment=False,
+            date__range=(year_start, current_period_end),
+            realized=True
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        # Add kids groups realized budgets (exclude investment kids groups)
+        kids_realized = FlowGroup.objects.filter(
+            family=family,
+            period_start_date__range=(year_start, current_period_end),
+            is_kids_group=True,
+            is_investment=False,
+            realized=True
+        ).aggregate(total=Sum('budgeted_amount'))['total'] or Decimal('0.00')
+
+        total_expenses += kids_realized
+        total_expenses_float = float(total_expenses.amount) if hasattr(total_expenses, 'amount') else float(total_expenses)
+
+        # Total Investments (realized only)
+        total_investments = Transaction.objects.filter(
+            flow_group__family=family,
+            flow_group__group_type__in=FLOW_TYPE_EXPENSE,
+            flow_group__is_investment=True,
+            date__range=(year_start, current_period_end),
+            realized=True
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        # Add investment kids groups realized budgets
+        kids_investment_realized = FlowGroup.objects.filter(
+            family=family,
+            period_start_date__range=(year_start, current_period_end),
+            is_kids_group=True,
+            is_investment=True,
+            realized=True
+        ).aggregate(total=Sum('budgeted_amount'))['total'] or Decimal('0.00')
+
+        total_investments += kids_investment_realized
+        total_investments_float = float(total_investments.amount) if hasattr(total_investments, 'amount') else float(total_investments)
 
     # Total Savings = Income - Expenses - Investments
     total_savings = total_income_float - total_expenses_float - total_investments_float

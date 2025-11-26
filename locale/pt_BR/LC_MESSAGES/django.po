@@ -1718,56 +1718,48 @@ msgstr "Reconciliação Bancária"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:14
 msgid "General"
-msgstr ""
+msgstr "Geral"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:21
 msgid "Detailed (by User)"
-msgstr ""
+msgstr "Detalhado (por Usuário)"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:27
 msgid "Current Bank Balances"
-msgstr ""
+msgstr "Saldos Bancários Atuais"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:35
-#, fuzzy
-#| msgid "Users:"
 msgid "User"
-msgstr "Usuários:"
+msgstr "Usuário"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:59
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:107
-#, fuzzy
-#| msgid "Family:"
 msgid "Family"
-msgstr "Família:"
+msgstr "Família"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:88
 msgid "No bank balances entered yet. Click \"Add Bank Balance\" to start."
-msgstr ""
+msgstr "Nenhum saldo bancário cadastrado ainda. Clique em \"Adicionar Saldo Bancário\" para começar."
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:96
 msgid "Bank account name"
-msgstr ""
+msgstr "Nome da conta bancária"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:131
 msgid "Add Bank Balance"
-msgstr ""
+msgstr "Adicionar Saldo Bancário"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:135
 msgid "Total Bank Balance:"
-msgstr ""
+msgstr "Saldo Bancário Total:"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:149
-#, fuzzy
-#| msgid "Bank Reconciliation"
 msgid "General Reconciliation (Family)"
-msgstr "Reconciliação Bancária"
+msgstr "Reconciliação Geral (Família)"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:154
-#, fuzzy
-#| msgid "YTD Income"
 msgid "Total Income"
-msgstr "Receita Acum."
+msgstr "Receita Total"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:158
 #: .\SweetMoney\finances\templates\finances\dashboard.html:507
@@ -1777,21 +1769,21 @@ msgstr "Despesas Totais"
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:162
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:177
 msgid "Calculated Balance"
-msgstr ""
+msgstr "Saldo Calculado"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:172
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:250
 msgid "Bank Balance"
-msgstr ""
+msgstr "Saldo Bancário"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:182
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:260
 msgid "Discrepancy"
-msgstr ""
+msgstr "Discrepância"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:197
 msgid "Warning: Discrepancy Detected"
-msgstr ""
+msgstr "Aviso: Discrepância Detectada"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:199
 #, python-format
@@ -1799,23 +1791,22 @@ msgid ""
 "The difference between your bank balance and calculated balance is greater "
 "than 5%%. Please review your transactions."
 msgstr ""
+"A diferença entre seu saldo bancário e o saldo calculado é maior que 5%%. "
+"Por favor, revise suas transações."
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:209
-#, fuzzy
-#| msgid "Bank Reconciliation"
 msgid "Reconciliation OK"
-msgstr "Reconciliação Bancária"
+msgstr "Reconciliação OK"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:211
 msgid ""
 "Your bank balance matches your calculated balance within acceptable limits."
 msgstr ""
+"Seu saldo bancário corresponde ao saldo calculado dentro dos limites aceitáveis."
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:224
-#, fuzzy
-#| msgid "Bank Reconciliation"
 msgid "Detailed Reconciliation (by User)"
-msgstr "Reconciliação Bancária"
+msgstr "Reconciliação Detalhada (por Usuário)"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:237
 #: .\SweetMoney\finances\templates\finances\dashboard.html:344
@@ -1825,35 +1816,33 @@ msgstr "Despesas"
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:241
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:255
 msgid "Calculated"
-msgstr ""
+msgstr "Calculado"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:275
 #, python-format
 msgid "Discrepancy exceeds 5%% for this user"
-msgstr ""
+msgstr "Discrepância excede 5%% para este usuário"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:378
-#, fuzzy
-#| msgid "New Item Description"
 msgid "Please enter a description"
-msgstr "Descrição do Novo Item"
+msgstr "Por favor, insira uma descrição"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:405
 msgid "Error saving balance:"
-msgstr ""
+msgstr "Erro ao salvar saldo:"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:410
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:437
 msgid "Network error occurred"
-msgstr ""
+msgstr "Ocorreu um erro de rede"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:415
 msgid "Are you sure you want to delete this bank balance entry?"
-msgstr ""
+msgstr "Tem certeza que deseja excluir este registro de saldo bancário?"
 
 #: .\SweetMoney\finances\templates\finances\bank_reconciliation.html:432
 msgid "Error deleting balance:"
-msgstr ""
+msgstr "Erro ao excluir saldo:"
 
 # Templates - Base
 #: .\SweetMoney\finances\templates\finances\base.html:8
@@ -2097,22 +2086,18 @@ msgstr ""
 "Data de referência usada para calcular períodos quinzenais ou semanais."
 
 #: .\SweetMoney\finances\templates\finances\configurations.html:98
-#, fuzzy, python-format
-#| msgid "Bank Reconciliation Tolerance (%)"
+#, python-format
 msgid "Bank Reconciliation Tolerance (%%)"
-msgstr "Tolerância de Reconciliação Bancária (%)"
+msgstr "Tolerância de Reconciliação Bancária (%%)"
 
 #: .\SweetMoney\finances\templates\finances\configurations.html:100
-#, fuzzy, python-format
-#| msgid ""
-#| "Percentage tolerance for bank reconciliation discrepancy warnings (e.g., "
-#| "5.00 for 5%)."
+#, python-format
 msgid ""
 "Percentage tolerance for bank reconciliation discrepancy warnings (e.g., "
 "5.00 for 5%%)."
 msgstr ""
 "Tolerância percentual para avisos de discrepância na reconciliação bancária "
-"(ex: 5.00 para 5%)."
+"(ex: 5,00 para 5%%)."
 
 #: .\SweetMoney\finances\templates\finances\configurations.html:106
 msgid "Save Configuration"
@@ -2211,6 +2196,7 @@ msgid ""
 "Download a complete backup of your database. Keep this file safe for "
 "recovery purposes."
 msgstr ""
+"Baixe um backup completo do seu banco de dados. Mantenha este arquivo seguro para fins de recuperação."
 
 #: .\SweetMoney\finances\templates\finances\configurations.html:379
 #: .\SweetMoney\finances\templates\finances\update_modal.html:58
@@ -2225,7 +2211,7 @@ msgstr "Restaurar Banco de Dados"
 
 #: .\SweetMoney\finances\templates\finances\configurations.html:392
 msgid "Restore your database from a previously saved backup file."
-msgstr ""
+msgstr "Restaure seu banco de dados de um arquivo de backup salvo anteriormente."
 
 #: .\SweetMoney\finances\templates\finances\configurations.html:401
 msgid "Warning"
@@ -2236,6 +2222,7 @@ msgid ""
 "Restoring a backup will replace your current database. This action cannot be "
 "undone."
 msgstr ""
+"Restaurar um backup substituirá seu banco de dados atual. Esta ação não pode ser desfeita."
 
 #: .\SweetMoney\finances\templates\finances\configurations.html:414
 msgid "Click to select a backup file"
@@ -2468,36 +2455,40 @@ msgid "Error saving income:"
 msgstr ""
 
 #: .\SweetMoney\finances\templates\finances\invest.html:9
-#, fuzzy
-#| msgid "Investments"
 msgid "Family Investments"
-msgstr "Investimentos"
+msgstr "Investimentos da Família"
 
 #: .\SweetMoney\finances\templates\finances\invest.html:15
 msgid "Available Investment Balance"
-msgstr ""
+msgstr "Saldo Disponível para Investimento"
 
 #: .\SweetMoney\finances\templates\finances\invest.html:17
 msgid "From investment Flow Groups (realized transactions)"
-msgstr ""
+msgstr "De Grupos Financeiros de investimento (transações realizadas)"
 
 #: .\SweetMoney\finances\templates\finances\invest.html:28
 msgid "Coming Soon"
-msgstr ""
+msgstr "Em Breve"
 
 #: .\SweetMoney\finances\templates\finances\invest.html:30
 msgid "The investments management interface is currently under development."
-msgstr ""
+msgstr "A interface de gerenciamento de investimentos está atualmente em desenvolvimento."
 
 #: .\SweetMoney\finances\templates\finances\invest.html:31
 msgid ""
 "Soon you'll be able to track and manage your family investments directly "
 "from this page."
 msgstr ""
+"Em breve você poderá acompanhar e gerenciar os investimentos da família diretamente "
+"desta página."
 
 #: .\SweetMoney\finances\templates\finances\invest.html:34
-msgid "For now, mark Flow Groups as \\"
+msgid ""
+"For now, mark Flow Groups as \"Investment\" in the dashboard to track money "
+"set aside for investing."
 msgstr ""
+"Por enquanto, marque Grupos Financeiros como \"Investimento\" no painel para "
+"acompanhar o dinheiro reservado para investir."
 
 #: .\SweetMoney\finances\templates\finances\logged_out.html:7
 msgid "Logged Out | WIMM"
@@ -2825,8 +2816,9 @@ msgid "Restore Backup"
 msgstr "Restaurar Banco de Dados"
 
 #: .\SweetMoney\finances\templates\finances\setup.html:251
+#: .\finances\templates\finances\base.html:218
 msgid "Administrator Account"
-msgstr ""
+msgstr "Conta de Administrador"
 
 #: .\SweetMoney\finances\templates\finances\setup.html:263
 msgid "Choose a username"
@@ -3833,3 +3825,66 @@ msgstr "clique aqui para recarregar"
 
 msgid "No logs available yet. Please apply an update first."
 msgstr "Nenhum log disponível ainda. Aplique uma atualização primeiro."
+
+# Configuration page - Updates tab
+msgid "System is up to date!"
+msgstr "Sistema está atualizado!"
+
+msgid "Latest version:"
+msgstr "Última versão:"
+
+msgid "Local updates pending"
+msgstr "Atualizações locais pendentes"
+
+msgid "Please apply local updates first before checking for online updates."
+msgstr "Por favor, aplique as atualizações locais antes de verificar atualizações online."
+
+# Notifications
+msgid "Transaction '%(description)s' is %(days)d day overdue"
+msgstr "Transação '%(description)s' está %(days)d dia atrasada"
+
+msgid "Transaction '%(description)s' is %(days)d days overdue"
+msgstr "Transação '%(description)s' está %(days)d dias atrasada"
+
+msgid "'%(name)s' is over budget by %(amount)s"
+msgstr "'%(name)s' está acima do orçamento em %(amount)s"
+
+msgid "%(creator)s added '%(description)s' in '%(group)s'"
+msgstr "%(creator)s adicionou '%(description)s' em '%(group)s'"
+
+msgid "Someone"
+msgstr "Alguém"
+
+# Permission restrictions
+msgid "Admin only"
+msgstr "Apenas Admin"
+
+msgid "Access Restricted"
+msgstr "Acesso Restrito"
+
+msgid "Child users cannot access system configuration settings. Please contact an Admin or Parent user to modify these settings."
+msgstr "Usuários Child não podem acessar as configurações do sistema. Entre em contato com um usuário Admin ou Parent para modificar estas configurações."
+
+msgid "Administrator Account Active"
+msgstr "Conta de Administrador Ativa"
+
+msgid "This account should not be used for daily operations. It is intended only for managing the family group. Please use a Parent or Child account for regular use."
+msgstr "Esta conta não deve ser usada para operações diárias. Ela é destinada apenas para gerenciar o grupo familiar. Use uma conta Parent ou Child para uso regular."
+
+msgid "The red border around the interface indicates you are using an Administrator account."
+msgstr "A borda vermelha ao redor da interface indica que você está usando uma conta de Administrador."
+
+msgid "I Understand"
+msgstr "Eu Entendo"
+
+msgid "This is an Administrator account and should be used only for family group administration. Daily operations should be performed using Parent or Child accounts."
+msgstr "Esta é uma conta de Administrador e deve ser usada apenas para administração do grupo familiar. Operações diárias devem ser realizadas usando contas Parent ou Child."
+
+msgid "I Agree"
+msgstr "Concordo"
+
+msgid "Child users cannot access system settings."
+msgstr "Usuários Child não podem acessar configurações do sistema."
+
+msgid "Child users cannot access investments."
+msgstr "Usuários Child não podem acessar investimentos."

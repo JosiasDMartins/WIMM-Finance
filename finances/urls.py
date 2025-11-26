@@ -81,6 +81,9 @@ urlpatterns = [
     path('api/notifications/acknowledge/', views.acknowledge_notification_ajax, name='acknowledge_notification_ajax'),
     path('api/notifications/acknowledge-all/', views.acknowledge_all_notifications_ajax, name='acknowledge_all_notifications_ajax'),
 
+    # Admin warning
+    path('mark-admin-warning-seen/', views.mark_admin_warning_seen, name='mark_admin_warning_seen'),
+
     # Password Reset
     path('password-reset/', views_password_reset.password_reset_request, name='password_reset_request'),
     path('password-reset/verify/', views_password_reset.password_reset_verify, name='password_reset_verify'),

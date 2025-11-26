@@ -22,6 +22,7 @@
 </head>
 <body class="h-full bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200" x-data="{ sidebarOpen: false }">
 
+
     <div class="flex h-full">
         <aside :class="{'translate-x-0': sidebarOpen, '-translate-x-full': !sidebarOpen}" 
                class="fixed inset-y-0 left-0 z-30 flex flex-col w-64 px-4 py-8 bg-white dark:bg-gray-800 border-r dark:border-gray-700 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:inset-0">
@@ -46,16 +47,20 @@
                         <span class="mx-4 font-medium">{% trans "Dashboard" %}</span>
                     </a>
 
+                    {% if not is_child %}
                     <a class="flex items-center px-4 py-2 rounded-md {% if request.resolver_match.url_name == 'investments' %}text-gray-700 bg-gray-100 dark:bg-gray-700 dark:text-gray-200{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}" href="{% url 'investments' %}{% if selected_period %}?period={{ selected_period }}{% endif %}">
                         <span class="material-symbols-outlined">trending_up</span>
                         <span class="mx-4 font-medium">{% trans "Investments" %}</span>
                         <span class="text-xs font-normal text-teal-600 dark:text-teal-500 ml-auto">{% trans "Soon" %}</span>
                     </a>
+                    {% endif %}
 
+                    {% if not is_child %}
                     <a class="flex items-center px-4 py-2 rounded-md {% if request.resolver_match.url_name == 'configuration' or request.resolver_match.url_name == 'members' %}text-gray-700 bg-gray-100 dark:bg-gray-700 dark:text-gray-200{% else %}text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}" href="{% url 'configuration' %}{% if selected_period %}?period={{ selected_period }}{% endif %}">
                         <span class="material-symbols-outlined">settings</span>
                         <span class="mx-4 font-medium">{% trans "Settings" %}</span>
                     </a>
+                    {% endif %}
                 </div>
 
                 <div class="mt-auto space-y-2">
@@ -91,6 +96,7 @@
                 <div class="flex items-center space-x-4">
                     <div class="flex items-center space-x-3">
                         
+                        {% if not is_child %}
                         <button onclick="openCreatePeriodModal()"
                                 class="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                                 title="{% trans 'Create New Period' %}">
@@ -109,6 +115,7 @@
 
                             <span style="font-size: 14px; font-weight: 500;" class="hidden md:inline">{% trans "Delete Period" %}</span>
                         </button>
+                        {% endif %}
 
                         <div x-data="{ periodDropdownOpen: false }" class="relative">
                             <button @click="periodDropdownOpen = !periodDropdownOpen" 
@@ -205,6 +212,57 @@
             </main>
         </div>
     </div>
+
+    <!-- Admin Warning Modal -->
+    {% if is_admin and not admin_warning_seen %}
+    <div id="admin-warning-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" style="z-index: 9999;">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full mx-4">
+            <div class="bg-amber-600 p-4 flex items-center gap-3">
+                <span class="material-symbols-outlined text-white text-3xl">warning</span>
+                <h3 class="text-white text-xl font-bold">{% trans "Administrator Account" %}</h3>
+            </div>
+            <div class="p-6">
+                <p class="text-gray-700 dark:text-gray-300 mb-4">
+                    {% trans "This is an Administrator account and should be used only for family group administration. Daily operations should be performed using Parent or Child accounts." %}
+                </p>
+                <button id="btn-dismiss-admin-warning" type="button" class="w-full px-4 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium transition-colors">
+                    {% trans "I Agree" %}
+                </button>
+            </div>
+        </div>
+    </div>
+    <script>
+    (function() {
+        const modal = document.getElementById('admin-warning-modal');
+        const btn = document.getElementById('btn-dismiss-admin-warning');
+
+        if (btn && modal) {
+            btn.addEventListener('click', function() {
+                fetch('/mark-admin-warning-seen/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                }).then(function(response) {
+                    if (response.ok) {
+                        modal.remove();
+                        if (typeof UpdateManager !== 'undefined' && !window.updateManager) {
+                            window.updateManager = new UpdateManager();
+                        }
+                    }
+                }).catch(function(err) {
+                    console.error('Error dismissing admin warning:', err);
+                    modal.remove();
+                    if (typeof UpdateManager !== 'undefined' && !window.updateManager) {
+                        window.updateManager = new UpdateManager();
+                    }
+                });
+            });
+        }
+    })();
+    </script>
+    {% endif %}
+
     {% include 'finances/update_modal.html' %}
 
     <div id="createPeriodModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">

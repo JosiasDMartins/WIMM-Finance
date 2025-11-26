@@ -903,11 +903,17 @@ class UpdateManager {
     }
 }
 
-// Initialize when DOM is ready
+// Initialize when DOM is ready, but only if admin modal is not present
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        new UpdateManager();
+        const adminModal = document.getElementById('admin-warning-modal');
+        if (!adminModal) {
+            window.updateManager = new UpdateManager();
+        }
     });
 } else {
-    new UpdateManager();
+    const adminModal = document.getElementById('admin-warning-modal');
+    if (!adminModal) {
+        window.updateManager = new UpdateManager();
+    }
 }

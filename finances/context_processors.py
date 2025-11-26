@@ -4,7 +4,7 @@ from .models import SystemVersion
 from .models import Notification
 
 #Files version
-VERSION = "1.2.1"
+VERSION = "1.2.2"
 
 #General contect for the entire system
 def database_version(request):
@@ -36,20 +36,41 @@ def demo_mode_processor(request):
 def user_role_processor(request):
     """
     Context processor that provides user role information.
-    Adds 'is_admin' boolean to all templates.
+    Adds 'is_admin', 'is_parent', 'is_child' booleans and 'admin_warning_seen' to all templates.
     """
     if not request.user.is_authenticated:
-        return {'is_admin': False}
+        return {
+            'is_admin': False,
+            'is_parent': False,
+            'is_child': False,
+            'admin_warning_seen': True
+        }
 
     from .models import FamilyMember
 
     try:
         member = FamilyMember.objects.filter(user=request.user).first()
-        if member and member.role == 'ADMIN':
-            return {'is_admin': True}
-        return {'is_admin': False}
+        if member:
+            admin_warning_seen = request.session.get('admin_warning_seen', False)
+            return {
+                'is_admin': member.role == 'ADMIN',
+                'is_parent': member.role == 'PARENT',
+                'is_child': member.role == 'CHILD',
+                'admin_warning_seen': admin_warning_seen
+            }
+        return {
+            'is_admin': False,
+            'is_parent': False,
+            'is_child': False,
+            'admin_warning_seen': True
+        }
     except Exception:
-        return {'is_admin': False}
+        return {
+            'is_admin': False,
+            'is_parent': False,
+            'is_child': False,
+            'admin_warning_seen': True
+        }
 
 
 def notifications_processor(request):
