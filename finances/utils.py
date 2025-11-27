@@ -222,10 +222,20 @@ def calculate_period_for_date(family, target_date, period_type, starting_day=Non
     return start_date, end_date
 
 
-def check_period_change_impact(family, new_period_type, new_starting_day=None, new_base_date=None):
+def check_period_change_impact(family, new_period_type, new_starting_day=None, new_base_date=None,
+                               old_period_type=None, old_starting_day=None, old_base_date=None):
     """
     Analyzes the impact of changing period settings.
-    
+
+    Args:
+        family: Family object
+        new_period_type: The new period type ('M', 'B', or 'W')
+        new_starting_day: Optional new starting day (for Monthly)
+        new_base_date: Optional new base date (for Bi-weekly/Weekly)
+        old_period_type: Optional old period type (if provided, uses this instead of reading from DB)
+        old_starting_day: Optional old starting day (if provided, uses this instead of reading from DB)
+        old_base_date: Optional old base date (if provided, uses this instead of reading from DB)
+
     Returns a dict with:
     - 'requires_close': bool - if current period needs to be closed/adjusted
     - 'current_period': tuple - (start_date, end_date, label) with OLD config
@@ -235,10 +245,26 @@ def check_period_change_impact(family, new_period_type, new_starting_day=None, n
     """
     config = family.configuration
     today = timezone.localdate()
-    
-    old_type = config.period_type
-    old_starting_day = config.starting_day
-    old_base_date = config.base_date
+
+    # Use provided old values if given, otherwise read from database
+    if old_period_type is not None:
+        old_type = old_period_type
+    else:
+        old_type = config.period_type
+
+        # Defensive check: Ensure old_type is a valid string, not corrupted data
+        if not isinstance(old_type, str) or old_type not in ['M', 'B', 'W']:
+            # Data corruption detected - fix it by defaulting to Monthly
+            old_type = 'M'
+            config.period_type = 'M'
+            config.save()
+
+    # Use provided old values or read from config
+    if old_starting_day is None:
+        old_starting_day = config.starting_day
+
+    if old_base_date is None:
+        old_base_date = config.base_date
     
     # Get current period with OLD settings
     current_start, current_end, current_label = get_current_period_dates(family, None)
@@ -256,27 +282,27 @@ def check_period_change_impact(family, new_period_type, new_starting_day=None, n
         )
     
     new_label = f"{new_start.strftime('%b %d')} - {new_end.strftime('%b %d, %Y')}"
-    
+
     requires_close = False
     adjustment_period = None
     message = ""
-    
+
     # CASE 1: Same period type, changing starting day (Monthly only)
     if old_type == new_period_type == 'M' and new_starting_day != old_starting_day:
         # Check if new starting day would create a split
         if new_start != current_start or new_end != current_end:
             requires_close = True
-            
+
             if new_starting_day < old_starting_day:
                 message = f"Moving starting day from {old_starting_day} to {new_starting_day} will make the current period {(current_end - current_start).days + 1} days long (ending {current_end.strftime('%b %d')}). The next period will start on {new_start.strftime('%b %d')} with the new schedule."
             else:
                 message = f"Moving starting day from {old_starting_day} to {new_starting_day} will make the current period {(current_end - current_start).days + 1} days long (ending {current_end.strftime('%b %d')}). The next period will start on {new_start.strftime('%b %d')} with the new schedule."
-    
+
     # CASE 2: Changing base date (Bi-weekly or Weekly)
     elif old_type == new_period_type and old_type in ['B', 'W']:
         if new_base_date and new_base_date != old_base_date:
             requires_close = True
-            
+
             # Calculate where the new period boundaries would be with new base date
             if new_start > current_start:
                 # New period would start AFTER current period started
@@ -286,21 +312,21 @@ def check_period_change_impact(family, new_period_type, new_starting_day=None, n
             else:
                 # New period would have started before current period
                 message = f"Changing base date will adjust your current period. The period will be recalculated to align with the new base date starting {new_start.strftime('%b %d, %Y')}."
-    
+
     # CASE 3: Changing period type
     elif old_type != new_period_type:
         requires_close = True
-        
+
         # Determine if new period would have already started
         if new_start > current_start and new_start <= today:
             # New period should have started already
             adjustment_period = (current_start, new_start - datetime.timedelta(days=1))
             adj_days = (adjustment_period[1] - adjustment_period[0]).days + 1
-            
+
             message = f"Changing from {dict(config.PERIOD_TYPES)[old_type]} to {dict(config.PERIOD_TYPES)[new_period_type]} will create an adjustment period of {adj_days} days (from {adjustment_period[0].strftime('%b %d')} to {adjustment_period[1].strftime('%b %d')}). Your new {dict(config.PERIOD_TYPES)[new_period_type].lower()} cycle will start on {new_start.strftime('%b %d, %Y')}."
         else:
             message = f"Changing from {dict(config.PERIOD_TYPES)[old_type]} to {dict(config.PERIOD_TYPES)[new_period_type]} will adjust the current period. The new {dict(config.PERIOD_TYPES)[new_period_type].lower()} cycle starts on {new_start.strftime('%b %d, %Y')}."
-    
+
     return {
         'requires_close': requires_close,
         'current_period': (current_start, current_end, current_label),
@@ -366,7 +392,7 @@ def apply_period_configuration_change(family, old_config, new_config, adjustment
         results['periods_created'].append(period)
         
         # Copy FlowGroups from current period to adjustment period
-        copied = copy_flow_groups_to_new_period(
+        copied = copy_previous_period_data(
             family,
             current_start,  # Source period
             adj_start,      # Target period start
@@ -391,7 +417,7 @@ def apply_period_configuration_change(family, old_config, new_config, adjustment
     new_period.save()
     
     # Copy FlowGroups to the NEW current period
-    copied = copy_flow_groups_to_new_period(
+    copied = copy_previous_period_data(
         family,
         current_start,  # Source period
         new_start,      # New period start
@@ -402,11 +428,11 @@ def apply_period_configuration_change(family, old_config, new_config, adjustment
     return results
 
 
-def copy_flow_groups_to_new_period(family, old_period_start, new_period_start, new_period_end):
+def copy_previous_period_data(family, old_period_start, new_period_start, new_period_end):
     """
-    Copies FlowGroups from old period to new period.
+    Copies FlowGroups and their structure from one period to another.
     Also moves transactions that belong to the new period.
-    
+
     Returns the number of FlowGroups copied.
     """
     # Get all FlowGroups from the old period
@@ -505,19 +531,20 @@ def get_available_periods(family):
 
 def user_can_access_flow_group(user, flow_group):
     """
-    Checks if the user has access to the FlowGroup (owner or Family Admin).
+    Checks if the user has access to the FlowGroup.
+    This is a wrapper for can_access_flow_group that accepts User instead of FamilyMember.
+    Uses the complete access logic including role checks, shared groups, and kids groups.
     """
-    if flow_group.owner == user:
-        return True
-    
+    from .views.views_utils import can_access_flow_group
+
     try:
         member = user.memberships.get(family=flow_group.family)
-        if member.role == 'ADMIN':
-            return True
-    except:
-        pass
-    
-    return False
+        return can_access_flow_group(flow_group, member)
+    except FamilyMember.DoesNotExist:
+        return False
+    except Exception:
+        # Catch any other unexpected errors
+        return False
 
 
 def get_member_role_for_period(member, period_start_date):
@@ -531,12 +558,15 @@ def get_member_role_for_period(member, period_start_date):
             member=member,
             period_start_date__lte=period_start_date
         ).order_by('-period_start_date').first()
-        
+
         if role_history:
             return role_history.role
-    except:
+    except FamilyMemberRoleHistory.DoesNotExist:
         pass
-    
+    except Exception:
+        # Unexpected error - fallback to current role
+        pass
+
     return member.role
 
 
@@ -556,14 +586,6 @@ def save_role_history_if_changed(member, new_role, period_start_date):
         
         member.role = new_role
         member.save()
-
-
-def copy_previous_period_data(family, from_period_start, to_period_start, to_period_end):
-    """
-    Copies FlowGroups and their structure from one period to another.
-    Does NOT copy transactions, only the group structure.
-    """
-    return copy_flow_groups_to_new_period(family, from_period_start, to_period_start, to_period_end)
 
 
 def current_period_has_data(family):

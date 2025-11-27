@@ -879,3 +879,30 @@ def delete_period_ajax(request):
 
     except Exception as e:
         return JsonResponse({'status': 'error', 'error': str(e)}, status=400)
+
+
+@login_required
+def health_check_api(request):
+    """
+    Simple health check endpoint for the updater to verify the server is running.
+    Returns 200 OK if the server is responsive and user is authenticated.
+    This is used after updates to check if the server has restarted successfully.
+    """
+    from ..models import SystemVersion
+    from django.conf import settings
+
+    try:
+        # Try to access the database to ensure it's responsive
+        db_version = SystemVersion.get_current_version()
+
+        return JsonResponse({
+            'status': 'ok',
+            'db_version': db_version or '0.0.0',
+            'debug': getattr(settings, 'DEBUG', False)
+        })
+    except Exception as e:
+        # If there's any error, return 503 Service Unavailable
+        return JsonResponse({
+            'status': 'error',
+            'error': str(e)
+        }, status=503)

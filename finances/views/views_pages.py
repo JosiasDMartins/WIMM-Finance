@@ -408,15 +408,101 @@ def configuration_view(request):
             )
             currency_changed = old_config['base_currency'] != new_config['base_currency']
 
+            # Flag to track if we manually saved the config (to avoid double save)
+            config_manually_saved = False
+            impact = None
+
+            # Check if this is a confirmed period change (from modal)
+            period_change_confirmed = request.POST.get('confirm_period_change') == 'true'
+
             if config_changed:
-                has_data, data_count = check_period_change_impact(family, start_date, end_date)
-                if has_data:
-                    messages.warning(
-                        request,
-                        _("Period configuration updated. Your current period has %(count)s items. This period will be preserved as-is, and the new configuration will apply to future periods.") % {'count': data_count}
-                    )
-                    close_current_period(family)
+                # Call check_period_change_impact with correct parameters
+                # CRITICAL: Pass old values from old_config captured at view start
+                # This prevents issues if database was modified in previous failed attempts
+                impact = check_period_change_impact(
+                    family,
+                    new_config['period_type'],
+                    new_starting_day=new_config['starting_day'],
+                    new_base_date=new_config['base_date'],
+                    old_period_type=old_config['period_type'],      # Use captured old values, not DB
+                    old_starting_day=old_config['starting_day'],
+                    old_base_date=old_config['base_date']
+                )
+
+                if impact['requires_close']:
+                    # STEP 1: If NOT confirmed yet, return modal data as JSON
+                    if not period_change_confirmed:
+                        # Prepare impact data for modal
+                        from django.http import JsonResponse
+
+                        # Calculate period days
+                        current_period_days = (impact['current_period'][1] - impact['current_period'][0]).days + 1
+                        new_period_days = (impact['new_current_period'][1] - impact['new_current_period'][0]).days + 1
+
+                        # Period type labels
+                        period_types_dict = dict(config.PERIOD_TYPES)
+                        old_period_type_label = period_types_dict.get(old_config['period_type'], old_config['period_type'])
+                        new_period_type_label = period_types_dict.get(new_config['period_type'], new_config['period_type'])
+
+                        modal_data = {
+                            'requires_confirmation': True,
+                            'old_period_type_label': old_period_type_label,
+                            'new_period_type_label': new_period_type_label,
+                            'current_period_label': impact['current_period'][2],
+                            'current_period_days': current_period_days,
+                            'new_period_label': impact['new_current_period'][2],
+                            'new_period_days': new_period_days,
+                            'message': impact['message'],
+                        }
+
+                        # Adjustment period data (if exists)
+                        if impact['adjustment_period']:
+                            adj_start, adj_end = impact['adjustment_period']
+                            adj_days = (adj_end - adj_start).days + 1
+                            adj_label = f"{adj_start.strftime('%b %d')} - {adj_end.strftime('%b %d, %Y')}"
+
+                            modal_data['adjustment_period'] = True
+                            modal_data['adjustment_period_label'] = adj_label
+                            modal_data['adjustment_period_days'] = adj_days
+                        else:
+                            modal_data['adjustment_period'] = False
+
+                        return JsonResponse(modal_data)
+
+                    # STEP 2: If confirmed, apply the changes
+                    else:
+                        # IMPORTANT: Save ALL form fields first (including period config)
+                        # We need the new period config in the database before apply_period_configuration_change
+                        form.save()
+                        config_manually_saved = True
+
+                        # Reload config to ensure we have fresh data
+                        config.refresh_from_db()
+
+                        # Enrich old_config and new_config with period boundaries from impact
+                        old_config['current_start'] = impact['current_period'][0]
+                        old_config['current_end'] = impact['current_period'][1]
+
+                        new_config['new_start'] = impact['new_current_period'][0]
+                        new_config['new_end'] = impact['new_current_period'][1]
+
+                        # Apply the period configuration change
+                        from finances.utils import apply_period_configuration_change
+                        results = apply_period_configuration_change(
+                            family,
+                            old_config,
+                            new_config,
+                            adjustment_period=impact['adjustment_period']
+                        )
+                        messages.success(
+                            request,
+                            _("Period configuration updated successfully. Created %(periods)s new periods and copied %(groups)s flow groups.") % {
+                                'periods': len(results['periods_created']),
+                                'groups': results['flow_groups_copied']
+                            }
+                        )
                 else:
+                    # No adjustment needed, just save
                     messages.info(request, _("Period configuration updated. Changes will apply to the current and future periods."))
 
             if currency_changed:
@@ -468,10 +554,15 @@ def configuration_view(request):
             # Nota: O código original tinha uma lógica complexa de atualização de Money
             # A lógica acima (atualizando _currency) é como o django-money *deveria* funcionar
             # Se não funcionar, a lógica de loop (como no original) será necessária.
-            # Mantendo o save() principal
-            form.save()
 
-            messages.success(request, _("Configuration updated successfully!"))
+            # Only save if we haven't manually saved the period config already
+            if not config_manually_saved:
+                form.save()
+
+            # Only show generic success message if we didn't already show a specific one
+            if not (config_changed and impact.get('requires_close')):
+                messages.success(request, _("Configuration updated successfully!"))
+
             return redirect(f'/settings/?period={start_date.strftime("%Y-%m-%d")}')
     else:
         if not is_current_period:
@@ -1043,13 +1134,29 @@ def investments_view(request):
 
     investments = Investment.objects.filter(family=family).order_by('name')
     start_date, end_date, _unused = get_current_period_dates(family, query_period)
-    
+
+    # Calculate available investment balance from FlowGroups marked as investment
+    # Sum all realized transactions in investment FlowGroups (YTD - Year to Date)
+    from datetime import date
+    year_start = date(end_date.year, 1, 1)
+
+    investment_balance = Transaction.objects.filter(
+        flow_group__family=family,
+        flow_group__is_investment=True,
+        date__range=(year_start, end_date),
+        realized=True
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+    # Convert Money to Decimal
+    available_balance = Decimal(str(investment_balance.amount)) if hasattr(investment_balance, 'amount') else investment_balance
+
     context = {
         'investment_form': form,
         'family_investments': investments,
         'start_date': start_date,
         'end_date': end_date,
         'currency_symbol': get_currency_symbol(family.configuration.base_currency),
+        'available_balance': available_balance.quantize(Decimal('0.01'), rounding=ROUND_DOWN),
     }
     context.update(get_base_template_context(family, query_period, start_date))
     return render(request, 'finances/invest.html', context)

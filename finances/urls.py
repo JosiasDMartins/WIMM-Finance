@@ -81,6 +81,9 @@ urlpatterns = [
     path('api/notifications/acknowledge/', views.acknowledge_notification_ajax, name='acknowledge_notification_ajax'),
     path('api/notifications/acknowledge-all/', views.acknowledge_all_notifications_ajax, name='acknowledge_all_notifications_ajax'),
 
+    # Health check (for updater to verify server is running after restart)
+    path('api/health-check/', views.health_check_api, name='health_check_api'),
+
     # Admin warning
     path('mark-admin-warning-seen/', views.mark_admin_warning_seen, name='mark_admin_warning_seen'),
 

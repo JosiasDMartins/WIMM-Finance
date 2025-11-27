@@ -19,31 +19,34 @@ from ..utils import (
 from ..context_processors import VERSION
 
 
+def _get_babel_locale():
+    """
+    Returns the Babel locale string for the current active Django language.
+    This is a private helper function used by locale-dependent formatting functions.
+    """
+    lang = translation.get_language()
+    return translation.to_locale(lang)
+
+
 def get_thousand_separator():
     """
     Returns the thousands separator for the active language.
     """
-    lang = translation.get_language()
-    locale_para_babel = translation.to_locale(lang)
-    return get_group_symbol(locale_para_babel)
+    return get_group_symbol(_get_babel_locale())
 
 
 def get_decimal_separator():
     """
     Returns the decimal separator for the active language.
     """
-    lang = translation.get_language()
-    locale_para_babel = translation.to_locale(lang)
-    return get_decimal_symbol(locale_para_babel)
+    return get_decimal_symbol(_get_babel_locale())
 
 
 def get_currency_symbol(currency_code):
     """
     Get the correct currency symbol using Django's active locale.
     """
-    lang = translation.get_language()
-    locale_para_babel = translation.to_locale(lang)
-    return get_currency_symbol_babel(currency_code, locale=locale_para_babel)
+    return get_currency_symbol_babel(currency_code, locale=_get_babel_locale())
 
 
 def get_family_context(user):

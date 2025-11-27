@@ -1,7 +1,10 @@
+import logging
 from django.db.utils import OperationalError, ProgrammingError
 from django.conf import settings
 from .models import SystemVersion
 from .models import Notification
+
+logger = logging.getLogger(__name__)
 
 #Files version
 VERSION = "1.2.2"
@@ -14,13 +17,13 @@ def database_version(request):
     """
     try:
         db_version = SystemVersion.get_current_version()
-        if db_version is None or db_version == '' or db_version.strip() == '':
-            db_version = "0.0.0"
-        return {'db_version': db_version}
-    except (OperationalError, ProgrammingError):
+        return {'db_version': db_version or '0.0.0'}
+    except (OperationalError, ProgrammingError) as e:
+        logger.warning(f"Could not fetch database version: {e}")
         return {'db_version': '0.0.0'}
 
 def app_version(request):
+    """Context processor that provides the application version."""
     return {'app_version': VERSION}
 
 def demo_mode_processor(request):
@@ -50,21 +53,32 @@ def user_role_processor(request):
 
     try:
         member = FamilyMember.objects.filter(user=request.user).first()
-        if member:
-            admin_warning_seen = request.session.get('admin_warning_seen', False)
+        if not member:
+            logger.debug(f"FamilyMember not found for user {request.user.username}")
             return {
-                'is_admin': member.role == 'ADMIN',
-                'is_parent': member.role == 'PARENT',
-                'is_child': member.role == 'CHILD',
-                'admin_warning_seen': admin_warning_seen
+                'is_admin': False,
+                'is_parent': False,
+                'is_child': False,
+                'admin_warning_seen': True
             }
+
+        admin_warning_seen = request.session.get('admin_warning_seen', False)
+        return {
+            'is_admin': member.role == 'ADMIN',
+            'is_parent': member.role == 'PARENT',
+            'is_child': member.role == 'CHILD',
+            'admin_warning_seen': admin_warning_seen
+        }
+    except FamilyMember.DoesNotExist:
+        logger.debug(f"FamilyMember.DoesNotExist for user {request.user.username}")
         return {
             'is_admin': False,
             'is_parent': False,
             'is_child': False,
             'admin_warning_seen': True
         }
-    except Exception:
+    except Exception as e:
+        logger.error(f"Unexpected error in user_role_processor for user {request.user.username}: {e}")
         return {
             'is_admin': False,
             'is_parent': False,
@@ -75,17 +89,10 @@ def user_role_processor(request):
 
 def notifications_processor(request):
     """
-    Context processor que adiciona notificações não reconhecidas a todos os templates.
+    Context processor that adds unread notifications to all templates.
     """
-    # Only show debug messages if DEBUG is enabled
-    debug_enabled = getattr(settings, 'DEBUG', False)
-
-    if debug_enabled:
-        print(f"[DEBUG CONTEXT] notifications_processor called for user: {request.user}")
-
     if not request.user.is_authenticated:
-        if debug_enabled:
-            print(f"[DEBUG CONTEXT] User not authenticated")
+        logger.debug("notifications_processor: User not authenticated")
         return {
             'unread_notifications_count': 0,
             'unread_notifications': []
@@ -97,15 +104,13 @@ def notifications_processor(request):
     try:
         member = FamilyMember.objects.filter(user=request.user).first()
         if not member:
-            if debug_enabled:
-                print(f"[DEBUG CONTEXT] Member not found for user: {request.user.username}")
+            logger.debug(f"notifications_processor: Member not found for user {request.user.username}")
             return {
                 'unread_notifications_count': 0,
                 'unread_notifications': []
             }
 
-        if debug_enabled:
-            print(f"[DEBUG CONTEXT] Member found: {member.user.username} (ID: {member.id})")
+        logger.debug(f"notifications_processor: Loading notifications for {member.user.username} (ID: {member.id})")
 
         # Search for unrecognized notifications
         unread = Notification.objects.filter(
@@ -114,11 +119,7 @@ def notifications_processor(request):
         ).select_related('transaction', 'flow_group').order_by('-created_at')[:99]
 
         count = unread.count()
-
-        if debug_enabled:
-            print(f"[DEBUG CONTEXT] Unread notifications count: {count}")
-            for notif in unread[:5]:  # Log only the first 5
-                print(f"[DEBUG CONTEXT]   - ID: {notif.id}, Type: {notif.notification_type}, Message: {notif.message}")
+        logger.debug(f"notifications_processor: User {request.user.username} has {count} unread notifications")
 
         return {
             'unread_notifications_count': min(count, 99),
@@ -126,10 +127,7 @@ def notifications_processor(request):
         }
 
     except Exception as e:
-        if debug_enabled:
-            print(f"[ERROR CONTEXT] Exception: {e}")
-            import traceback
-            traceback.print_exc()
+        logger.error(f"Error loading notifications for user {request.user.username}: {e}", exc_info=True)
         return {
             'unread_notifications_count': 0,
             'unread_notifications': []

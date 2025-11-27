@@ -67,8 +67,9 @@
                     </div>
                 </div>
                 {% else %}
-                <form method="post" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+                <form method="post" id="configuration-form" class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
                     {% csrf_token %}
+                    <input type="hidden" name="confirm_period_change" id="confirm-period-change-input" value="false">
                     <div class="p-6 space-y-6">
                         
                         <!-- Base Currency Selection -->
@@ -550,6 +551,9 @@
     </div>
 </main>
 
+<!-- Include Period Change Confirmation Modal -->
+{% include "finances/period_change_confirmation_modal.html" %}
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Configuration tab: Period type field visibility
@@ -572,10 +576,77 @@ document.addEventListener('DOMContentLoaded', function() {
     periodTypeRadios.forEach(radio => {
         radio.addEventListener('change', updateFieldVisibility);
     });
-    
+
     updateFieldVisibility();
-    
-   
+
+    // Period Change Confirmation Logic
+    const configForm = document.getElementById('configuration-form');
+    const confirmInput = document.getElementById('confirm-period-change-input');
+    const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+
+    if (configForm) {
+        configForm.addEventListener('submit', async function(e) {
+            // If already confirmed, let it proceed normally
+            if (confirmInput.value === 'true') {
+                console.log('[CONFIG FORM] Submitting with confirmation');
+                return true;
+            }
+
+            // Intercept submit to check if period change confirmation is needed
+            e.preventDefault();
+            console.log('[CONFIG FORM] Form submit intercepted - checking for period changes');
+
+            const formData = new FormData(configForm);
+
+            try {
+                const response = await fetch(configForm.action || window.location.href, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                // Check if response is JSON (modal data) or HTML (normal response)
+                const contentType = response.headers.get('content-type');
+
+                if (contentType && contentType.includes('application/json')) {
+                    // Server returned JSON - this means we need to show confirmation modal
+                    const data = await response.json();
+
+                    if (data.requires_confirmation) {
+                        console.log('[CONFIG FORM] Period change requires confirmation - showing modal');
+                        console.log('[CONFIG FORM] Modal data:', data);
+
+                        // Show the modal with impact data
+                        showPeriodChangeModal(data);
+
+                        // Set up confirm button handler
+                        modalConfirmBtn.onclick = function() {
+                            console.log('[CONFIG FORM] User confirmed period change');
+
+                            // Set confirmation flag
+                            confirmInput.value = 'true';
+
+                            // Close modal
+                            closePeriodChangeModal();
+
+                            // Submit form normally
+                            configForm.submit();
+                        };
+                    }
+                } else {
+                    // Server returned HTML - no confirmation needed, reload page
+                    console.log('[CONFIG FORM] No confirmation needed - reloading page');
+                    window.location.reload();
+                }
+            } catch (error) {
+                console.error('[CONFIG FORM] Error submitting form:', error);
+                alert('{% trans "An error occurred while saving configuration. Please try again." %}');
+            }
+        });
+    }
+
     // Backup functionality
     const backupBtn = document.getElementById('btn-backup-db');
     if (!backupBtn) {
