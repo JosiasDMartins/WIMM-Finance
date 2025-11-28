@@ -154,6 +154,12 @@ class InitialSetupForm(forms.Form):
     
 # --- Configuration Form ---
 class FamilyConfigurationForm(forms.ModelForm):
+    # Override base_date to make it not required (conditionally required in clean())
+    base_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'class': 'form-input', 'type': 'date'})
+    )
+
     base_currency = forms.ChoiceField(
         choices=CURRENCY_CHOICES,
         label='Base Currency',
@@ -168,7 +174,6 @@ class FamilyConfigurationForm(forms.ModelForm):
         widgets = {
             'starting_day': forms.NumberInput(attrs={'class': 'form-input'}),
             'period_type': forms.RadioSelect(choices=FamilyConfiguration.PERIOD_TYPES),
-            'base_date': forms.DateInput(attrs={'class': 'form-input', 'type': 'date'}),
             'bank_reconciliation_tolerance': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent',
                 'step': '0.01',
@@ -177,6 +182,33 @@ class FamilyConfigurationForm(forms.ModelForm):
                 'placeholder': '5.00'
             }),
         }
+
+    def clean(self):
+        """
+        Custom validation to make base_date conditionally required based on period_type.
+        - Monthly (M): base_date is NOT required (uses starting_day instead)
+        - Weekly (W) and Bi-weekly (B): base_date IS required
+        """
+        from django.utils import timezone
+        cleaned_data = super().clean()
+        period_type = cleaned_data.get('period_type')
+        base_date = cleaned_data.get('base_date')
+
+        print(f"[DEBUG PERIOD] [FamilyConfigurationForm.clean] period_type={period_type}, base_date={base_date}")
+
+        # For Weekly and Bi-weekly periods, base_date is required
+        # If not provided, auto-fill with today's date
+        if period_type in ['W', 'B'] and not base_date:
+            cleaned_data['base_date'] = timezone.localdate()
+            print(f"[DEBUG PERIOD] [FamilyConfigurationForm.clean] Auto-filling base_date with today for W/B period")
+
+        # For Monthly periods, if base_date is empty, set it to today (it won't be used anyway)
+        # We need to provide a value because the model field doesn't allow NULL
+        if period_type == 'M' and not base_date:
+            cleaned_data['base_date'] = timezone.localdate()
+            print(f"[DEBUG PERIOD] [FamilyConfigurationForm.clean] Setting base_date to today for Monthly period (not used)")
+
+        return cleaned_data
 
 # --- FlowGroup Form ---
 class FlowGroupForm(forms.ModelForm):

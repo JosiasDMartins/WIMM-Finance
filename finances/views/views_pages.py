@@ -391,7 +391,24 @@ def configuration_view(request):
     is_current_period = (start_date == current_start)
     
     if request.method == 'POST':
+        # Debug logging
+        import logging
+        from django.conf import settings
+        logger = logging.getLogger(__name__)
+        debug_enabled = getattr(settings, 'DEBUG', False)
+        
+
+        if debug_enabled:
+            print(f"[DEBUG PERIOD] [configuration_view] POST request received")
+            print(f"[DEBUG PERIOD]  User: {request.user.username}")
+            print(f"[DEBUG PERIOD]  Member role: {member.role}")
+            print(f"[DEBUG PERIOD]  Is AJAX: {request.headers.get('x-requested-with') == 'XMLHttpRequest'}")
+
         form = FamilyConfigurationForm(request.POST, instance=config)
+        print(f"[DEBUG PERIOD] [configuration_view] Form is_valid: {form.is_valid()}")
+        if not form.is_valid():
+            print(f"[DEBUG PERIOD] [configuration_view] Form errors: {form.errors}")
+
         if form.is_valid():
             new_config = form.cleaned_data
 
@@ -415,7 +432,15 @@ def configuration_view(request):
             # Check if this is a confirmed period change (from modal)
             period_change_confirmed = request.POST.get('confirm_period_change') == 'true'
 
+            print(f"[DEBUG PERIOD] [configuration_view] Form valid, checking changes:")
+            print(f"[DEBUG PERIOD]   old_config period_type: {old_config['period_type']}")
+            print(f"[DEBUG PERIOD]   new_config period_type: {new_config['period_type']}")
+            print(f"[DEBUG PERIOD]   config_changed: {config_changed}")
+            print(f"[DEBUG PERIOD]   period_change_confirmed: {period_change_confirmed}")
+
             if config_changed:
+                print(f"[DEBUG PERIOD] [configuration_view] Config changed, calling check_period_change_impact")
+
                 # Call check_period_change_impact with correct parameters
                 # CRITICAL: Pass old values from old_config captured at view start
                 # This prevents issues if database was modified in previous failed attempts
@@ -428,6 +453,8 @@ def configuration_view(request):
                     old_starting_day=old_config['starting_day'],
                     old_base_date=old_config['base_date']
                 )
+
+                print(f"[DEBUG PERIOD] [configuration_view] Impact result: requires_close={impact['requires_close']}")
 
                 if impact['requires_close']:
                     # STEP 1: If NOT confirmed yet, return modal data as JSON
@@ -452,7 +479,7 @@ def configuration_view(request):
                             'current_period_days': current_period_days,
                             'new_period_label': impact['new_current_period'][2],
                             'new_period_days': new_period_days,
-                            'message': impact['message'],
+                            'message': str(impact['message']),  # Force lazy translation to string
                         }
 
                         # Adjustment period data (if exists)

@@ -27,3 +27,4 @@ docker_build/local_settings.example.py
 db/db.sqlite3.old
 finances/tests_permissions.py
 .claude/settings.local.json
+_pycache_

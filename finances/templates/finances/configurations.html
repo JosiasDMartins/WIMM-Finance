@@ -119,7 +119,7 @@
                                 <span class="text-xs text-gray-500 font-normal">({% trans "Admin only" %})</span>
                                 {% endif %}
                             </label>
-                            <input type="date" name="base_date" id="{{ form.base_date.id_for_label }}" value="{{ form.base_date.value|default:'' }}" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent" {% if not is_admin %}disabled{% endif %}>
+                            <input type="date" name="base_date" id="{{ form.base_date.id_for_label }}" value="{% if form.base_date.value %}{{ form.base_date.value|date:'Y-m-d' }}{% endif %}" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent" {% if not is_admin %}disabled{% endif %}>
                             <p class="text-xs text-gray-500 mt-1">{% trans "Reference date used to calculate bi-weekly or weekly periods." %}</p>
                         </div>
 

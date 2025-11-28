@@ -4,7 +4,7 @@
 <html lang="en" class="h-full">
 <head>
     <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes"/>
     <title>{% block title %}{% trans "SweetMoney | Family Financial Flow" %}{% endblock title %}</title>
 
     <link rel="icon" type="image/x-icon" href="{% static 'finances/images/favicons/favicon.ico' %}">
@@ -18,7 +18,79 @@
     <link href="{% static 'finances/css/tailwind.css' %}" rel="stylesheet"/>
     <link href="{% static 'finances/css/fonts.css' %}" rel="stylesheet"/>
 
+    <style>
+        /* Auto-adjust for Windows DPI scaling */
+        @media screen and (min-resolution: 144dpi) and (max-width: 1920px) {
+            /* For 150% Windows scaling on FullHD screens */
+            html {
+                font-size: 14px; /* Reduce base font size from 16px */
+            }
+        }
+
+        @media screen and (min-resolution: 192dpi) and (max-width: 1920px) {
+            /* For 200% Windows scaling */
+            html {
+                font-size: 13px;
+            }
+        }
+
+        /* Ensure containers are fluid and responsive */
+        .container-fluid {
+            max-width: 100%;
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+        }
+
+        /* Prevent horizontal overflow */
+        body {
+            overflow-x: hidden;
+        }
+
+        /* Make buttons and inputs more responsive */
+        @media (max-width: 1366px) {
+            .btn, button, input[type="submit"] {
+                font-size: 0.875rem;
+                padding: 0.5rem 0.75rem;
+            }
+        }
+    </style>
+
     <script defer src="{% static 'finances/js/alpine.min.js' %}"></script>
+
+    <!-- Auto-scale adjustment for high DPI displays -->
+    <script>
+        (function() {
+            'use strict';
+
+            // Detect and adjust for Windows DPI scaling
+            function adjustForDPIScaling() {
+                const dpr = window.devicePixelRatio || 1;
+                const screenWidth = window.screen.width * dpr;
+
+                // If DPI scaling is detected (devicePixelRatio > 1) on a FullHD or smaller screen
+                // Apply a slight zoom reduction to prevent UI elements from being cut off
+                if (dpr >= 1.5 && screenWidth <= 1920) {
+                    // Calculate optimal zoom level
+                    const optimalZoom = Math.max(0.85, 1 / (dpr * 0.85));
+                    document.documentElement.style.zoom = optimalZoom;
+
+                    console.log('[DPI Adjust] Detected DPI scaling:', dpr, '| Applying zoom:', optimalZoom);
+                }
+            }
+
+            // Run on page load
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', adjustForDPIScaling);
+            } else {
+                adjustForDPIScaling();
+            }
+
+            // Re-adjust on window resize
+            window.addEventListener('resize', function() {
+                adjustForDPIScaling();
+            });
+        })();
+    </script>
 </head>
 <body class="h-full bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200" x-data="{ sidebarOpen: false }">
 

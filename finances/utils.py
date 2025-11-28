@@ -1,11 +1,16 @@
 # finances/utils.py
 
 import datetime
+import logging
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from django.db import models
+from django.conf import settings
 from dateutil.relativedelta import relativedelta
 from calendar import monthrange
 from .models import Transaction, FlowGroup, FamilyMemberRoleHistory, Period
+
+logger = logging.getLogger(__name__)
 
 
 def get_period_currency(family, period_start_date):
@@ -246,6 +251,12 @@ def check_period_change_impact(family, new_period_type, new_starting_day=None, n
     config = family.configuration
     today = timezone.localdate()
 
+    if settings.DEBUG:
+        logger.debug("[check_period_change_impact] Called with:")
+        logger.debug(f"  old_period_type={old_period_type}, new_period_type={new_period_type}")
+        logger.debug(f"  old_starting_day={old_starting_day}, new_starting_day={new_starting_day}")
+        logger.debug(f"  old_base_date={old_base_date}, new_base_date={new_base_date}")
+
     # Use provided old values if given, otherwise read from database
     if old_period_type is not None:
         old_type = old_period_type
@@ -268,19 +279,49 @@ def check_period_change_impact(family, new_period_type, new_starting_day=None, n
     
     # Get current period with OLD settings
     current_start, current_end, current_label = get_current_period_dates(family, None)
-    
+
     # Calculate where we should be with NEW settings
+    # When changing period types, we need to find the NEXT period that should start
     if new_period_type == 'M':
-        new_start, new_end = calculate_period_for_date(
-            family, today, new_period_type, 
+        # For Monthly: calculate period containing today first
+        temp_start, temp_end = calculate_period_for_date(
+            family, today, new_period_type,
             starting_day=new_starting_day or old_starting_day
         )
+
+        # If changing period type and temp_start is before current_start,
+        # we need the NEXT period, not the one containing today
+        if old_type != new_period_type and temp_start < current_start:
+            # Calculate next period
+            next_month_date = temp_end + datetime.timedelta(days=1)
+            new_start, new_end = calculate_period_for_date(
+                family, next_month_date, new_period_type,
+                starting_day=new_starting_day or old_starting_day
+            )
+            if settings.DEBUG:
+                logger.debug(f"[DEBUG PERIOD]   temp_start < current_start, using NEXT period: {new_start} to {new_end}")
+        else:
+            new_start, new_end = temp_start, temp_end
     else:
-        new_start, new_end = calculate_period_for_date(
+        # For Bi-weekly/Weekly
+        temp_start, temp_end = calculate_period_for_date(
             family, today, new_period_type,
             base_date=new_base_date or old_base_date
         )
-    
+
+        # If changing period type and temp_start is before current_start,
+        # we need the NEXT period
+        if old_type != new_period_type and temp_start < current_start:
+            next_period_date = temp_end + datetime.timedelta(days=1)
+            new_start, new_end = calculate_period_for_date(
+                family, next_period_date, new_period_type,
+                base_date=new_base_date or old_base_date
+            )
+            if settings.DEBUG:
+                logger.debug(f"[DEBUG PERIOD]   temp_start < current_start, using NEXT period: {new_start} to {new_end}")
+        else:
+            new_start, new_end = temp_start, temp_end
+
     new_label = f"{new_start.strftime('%b %d')} - {new_end.strftime('%b %d, %Y')}"
 
     requires_close = False
@@ -294,9 +335,21 @@ def check_period_change_impact(family, new_period_type, new_starting_day=None, n
             requires_close = True
 
             if new_starting_day < old_starting_day:
-                message = f"Moving starting day from {old_starting_day} to {new_starting_day} will make the current period {(current_end - current_start).days + 1} days long (ending {current_end.strftime('%b %d')}). The next period will start on {new_start.strftime('%b %d')} with the new schedule."
+                message = _("Moving starting day from %(old_day)s to %(new_day)s will make the current period %(days)s days long (ending %(end_date)s). The next period will start on %(start_date)s with the new schedule.") % {
+                    'old_day': old_starting_day,
+                    'new_day': new_starting_day,
+                    'days': (current_end - current_start).days + 1,
+                    'end_date': current_end.strftime('%b %d'),
+                    'start_date': new_start.strftime('%b %d')
+                }
             else:
-                message = f"Moving starting day from {old_starting_day} to {new_starting_day} will make the current period {(current_end - current_start).days + 1} days long (ending {current_end.strftime('%b %d')}). The next period will start on {new_start.strftime('%b %d')} with the new schedule."
+                message = _("Moving starting day from %(old_day)s to %(new_day)s will make the current period %(days)s days long (ending %(end_date)s). The next period will start on %(start_date)s with the new schedule.") % {
+                    'old_day': old_starting_day,
+                    'new_day': new_starting_day,
+                    'days': (current_end - current_start).days + 1,
+                    'end_date': current_end.strftime('%b %d'),
+                    'start_date': new_start.strftime('%b %d')
+                }
 
     # CASE 2: Changing base date (Bi-weekly or Weekly)
     elif old_type == new_period_type and old_type in ['B', 'W']:
@@ -308,32 +361,113 @@ def check_period_change_impact(family, new_period_type, new_starting_day=None, n
                 # New period would start AFTER current period started
                 # Need to create an adjustment period
                 adjustment_period = (current_start, new_start - datetime.timedelta(days=1))
-                message = f"Changing base date will create an adjustment period from {adjustment_period[0].strftime('%b %d')} to {adjustment_period[1].strftime('%b %d')} ({(adjustment_period[1] - adjustment_period[0]).days + 1} days). The new {dict(config.PERIOD_TYPES)[new_period_type].lower()} cycle will start on {new_start.strftime('%b %d, %Y')}."
+                message = _("Changing base date will create an adjustment period from %(adj_start)s to %(adj_end)s (%(adj_days)s days). The new %(period_type)s cycle will start on %(start_date)s.") % {
+                    'adj_start': adjustment_period[0].strftime('%b %d'),
+                    'adj_end': adjustment_period[1].strftime('%b %d'),
+                    'adj_days': (adjustment_period[1] - adjustment_period[0]).days + 1,
+                    'period_type': dict(config.PERIOD_TYPES)[new_period_type].lower(),
+                    'start_date': new_start.strftime('%b %d, %Y')
+                }
             else:
                 # New period would have started before current period
-                message = f"Changing base date will adjust your current period. The period will be recalculated to align with the new base date starting {new_start.strftime('%b %d, %Y')}."
+                message = _("Changing base date will adjust your current period. The period will be recalculated to align with the new base date starting %(start_date)s.") % {
+                    'start_date': new_start.strftime('%b %d, %Y')
+                }
 
     # CASE 3: Changing period type
     elif old_type != new_period_type:
         requires_close = True
 
-        # Determine if new period would have already started
-        if new_start > current_start and new_start <= today:
-            # New period should have started already
-            adjustment_period = (current_start, new_start - datetime.timedelta(days=1))
-            adj_days = (adjustment_period[1] - adjustment_period[0]).days + 1
+        if settings.DEBUG:
+            logger.debug("[DEBUG PERIOD] [check_period_change_impact] CASE 3: Period type change detected")
+            logger.debug(f"[DEBUG PERIOD]   old_type={old_type}, new_period_type={new_period_type}")
 
-            message = f"Changing from {dict(config.PERIOD_TYPES)[old_type]} to {dict(config.PERIOD_TYPES)[new_period_type]} will create an adjustment period of {adj_days} days (from {adjustment_period[0].strftime('%b %d')} to {adjustment_period[1].strftime('%b %d')}). Your new {dict(config.PERIOD_TYPES)[new_period_type].lower()} cycle will start on {new_start.strftime('%b %d, %Y')}."
+        # Define period hierarchy: W < B < M (Weekly < Bi-weekly < Monthly)
+        period_order = {'W': 1, 'B': 2, 'M': 3}
+
+        # Check if moving from smaller to larger period
+        is_moving_to_larger = period_order[new_period_type] > period_order[old_type]
+
+        if settings.DEBUG:
+            logger.debug(f"[DEBUG PERIOD]   is_moving_to_larger={is_moving_to_larger}")
+            logger.debug(f"[DEBUG PERIOD]   current_start={current_start}, current_end={current_end}")
+            logger.debug(f"[DEBUG PERIOD]   new_start={new_start}, new_end={new_end}")
+            logger.debug(f"[DEBUG PERIOD]   today={today}")
+
+        if is_moving_to_larger:
+            # Moving from smaller to larger period (W→B, W→M, B→M)
+            # Strategy: Close current period early and create adjustment period
+            # The adjustment period replaces the current period, ending the day before new period starts
+
+            if new_start <= current_start:
+                # New period would have started before or at current period start
+                # Use new period boundaries directly, no adjustment needed
+                message = _("Changing from %(old_type)s to %(new_type)s will adjust the current period. The new %(new_type_lower)s cycle starts on %(start_date)s.") % {
+                    'old_type': dict(config.PERIOD_TYPES)[old_type],
+                    'new_type': dict(config.PERIOD_TYPES)[new_period_type],
+                    'new_type_lower': dict(config.PERIOD_TYPES)[new_period_type].lower(),
+                    'start_date': new_start.strftime('%b %d, %Y')
+                }
+            else:
+                # New period start is after current period start
+                # Create adjustment period: from current start to day before new period starts
+                # This closes the current period early to align with new period type
+                adjustment_period = (current_start, new_start - datetime.timedelta(days=1))
+                adj_days = (adjustment_period[1] - adjustment_period[0]).days + 1
+
+                if settings.DEBUG:
+                    logger.debug(f"[DEBUG PERIOD]   Creating adjustment period: {adjustment_period[0]} to {adjustment_period[1]} ({adj_days} days)")
+
+                message = _("Changing from %(old_type)s to %(new_type)s will close the current period early, creating an adjustment period of %(adj_days)s days (from %(adj_start)s to %(adj_end)s). Your new %(new_type_lower)s cycle will start on %(start_date)s.") % {
+                    'old_type': dict(config.PERIOD_TYPES)[old_type],
+                    'new_type': dict(config.PERIOD_TYPES)[new_period_type],
+                    'adj_days': adj_days,
+                    'adj_start': adjustment_period[0].strftime('%b %d'),
+                    'adj_end': adjustment_period[1].strftime('%b %d'),
+                    'new_type_lower': dict(config.PERIOD_TYPES)[new_period_type].lower(),
+                    'start_date': new_start.strftime('%b %d, %Y')
+                }
         else:
-            message = f"Changing from {dict(config.PERIOD_TYPES)[old_type]} to {dict(config.PERIOD_TYPES)[new_period_type]} will adjust the current period. The new {dict(config.PERIOD_TYPES)[new_period_type].lower()} cycle starts on {new_start.strftime('%b %d, %Y')}."
+            # Moving from larger to smaller period (M→B, M→W, B→W)
+            # Strategy: Close current period and create adjustment if needed
 
-    return {
+            if new_start > current_start and new_start <= today:
+                # New period should have started already
+                adjustment_period = (current_start, new_start - datetime.timedelta(days=1))
+                adj_days = (adjustment_period[1] - adjustment_period[0]).days + 1
+
+                message = _("Changing from %(old_type)s to %(new_type)s will create an adjustment period of %(adj_days)s days (from %(adj_start)s to %(adj_end)s). Your new %(new_type_lower)s cycle will start on %(start_date)s.") % {
+                    'old_type': dict(config.PERIOD_TYPES)[old_type],
+                    'new_type': dict(config.PERIOD_TYPES)[new_period_type],
+                    'adj_days': adj_days,
+                    'adj_start': adjustment_period[0].strftime('%b %d'),
+                    'adj_end': adjustment_period[1].strftime('%b %d'),
+                    'new_type_lower': dict(config.PERIOD_TYPES)[new_period_type].lower(),
+                    'start_date': new_start.strftime('%b %d, %Y')
+                }
+            else:
+                message = _("Changing from %(old_type)s to %(new_type)s will adjust the current period. The new %(new_type_lower)s cycle starts on %(start_date)s.") % {
+                    'old_type': dict(config.PERIOD_TYPES)[old_type],
+                    'new_type': dict(config.PERIOD_TYPES)[new_period_type],
+                    'new_type_lower': dict(config.PERIOD_TYPES)[new_period_type].lower(),
+                    'start_date': new_start.strftime('%b %d, %Y')
+                }
+
+    result = {
         'requires_close': requires_close,
         'current_period': (current_start, current_end, current_label),
         'new_current_period': (new_start, new_end, new_label),
         'adjustment_period': adjustment_period,
         'message': message
     }
+
+    if settings.DEBUG:
+        logger.debug("[DEBUG PERIOD] [check_period_change_impact] Returning:")
+        logger.debug(f"[DEBUG PERIOD]   requires_close={requires_close}")
+        logger.debug(f"[DEBUG PERIOD]   adjustment_period={adjustment_period}")
+        logger.debug(f"[DEBUG PERIOD]   message={message}")
+
+    return result
 
 
 def apply_period_configuration_change(family, old_config, new_config, adjustment_period=None):
