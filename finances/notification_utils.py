@@ -30,14 +30,14 @@ def create_overdue_notifications(family, member):
     notifications_created = 0
     
     for transaction in overdue_transactions:
-        # Checks if an unrecognized notification already exists for this transaction.
+        # Checks if a notification already exists for this transaction (acknowledged or not).
+        # Once user dismisses an overdue notification, we don't create it again.
         existing = Notification.objects.filter(
             member=member,
             transaction=transaction,
-            notification_type='OVERDUE',
-            is_acknowledged=False
+            notification_type='OVERDUE'
         ).exists()
-        
+
         if not existing:
             days_overdue = (today - transaction.date).days
             if days_overdue == 1:
@@ -95,14 +95,14 @@ def create_overbudget_notifications(family, member):
         
         # Verifica se está acima do orçamento
         if realized_total > budgeted:
-            # Check if an unrecognized notification already exists.
+            # Check if a notification already exists (acknowledged or not).
+            # Once user dismisses an overbudget notification, we don't create it again.
             existing = Notification.objects.filter(
                 member=member,
                 flow_group=flow_group,
-                notification_type='OVERBUDGET',
-                is_acknowledged=False
+                notification_type='OVERBUDGET'
             ).exists()
-            
+
             if not existing:
                 over_amount = (realized_total - budgeted).quantize(Decimal('0.01'))
                 message = _("'%(name)s' is over budget by %(amount)s") % {

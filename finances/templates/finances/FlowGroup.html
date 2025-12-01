@@ -52,7 +52,7 @@
                             {% if current_member.role == 'CHILD' %}disabled{% endif %}
                             class="kids-group-realized-toggle relative inline-block w-12 h-7 transition duration-200 ease-in-out rounded-full {% if current_member.role == 'CHILD' %}cursor-not-allowed opacity-60{% else %}cursor-pointer{% endif %} {% if flow_group.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}"
                             title="{% if current_member.role == 'CHILD' %}Only Parents/Admins can change this{% else %}Click to toggle if budget was given to child{% endif %}">
-                        <span class="absolute left-0 inline-block w-5 h-5 mt-1 ml-1 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if flow_group.realized %}translate-x-5{% endif %}"></span>
+                        <span class="absolute left-1 top-1 inline-block w-5 h-5 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if flow_group.realized %}translate-x-5{% endif %}"></span>
                     </button>
                     <span class="text-xs text-slate-600 dark:text-slate-400">
                         {% if flow_group.realized %}
@@ -196,10 +196,10 @@
                 <tr>
                     <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 40px;"></th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Description" %}</th>
-                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Amount" %}</th>
                     <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider date-header-mobile">{% trans "Date" %}</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Member" %}</th>
                     <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mobile-hide-column">{% trans "Realized" %}</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Amount" %}</th>
                     <th class="px-6 py-3 text-center w-24 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mobile-hide-column">{% trans "Actions" %}</th>
                 </tr>
             </thead>
@@ -224,22 +224,38 @@
                     <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white cell-description-edit hidden">
                         <input type="text" value="{{ transaction.description }}" data-field="description" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm p-1">
                     </td>
-                    
-                    <td class="px-6 py-4 text-right text-primary cell-budget-display">{{ transaction.amount|intcomma }}</td>
-                    <td class="px-6 py-4 text-right text-primary cell-budget-edit hidden">
-                         <input type="text" inputmode="decimal" value="{{ transaction.amount.amount|default:transaction.amount|default:'0.00'|floatformat:2 }}" data-field="amount" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm text-right p-1">
-                    </td>
-                    
+
                     <td class="px-6 py-4 text-sm text-gray-500 cell-date-display">
                         <span class="date-full">{{ transaction.date|date:"Y-m-d" }}</span>
                         <span class="date-short">{{ transaction.date|date:"d/m" }}</span>
                     </td>
                     <td class="px-6 py-4 text-sm text-gray-500 cell-date-edit hidden">
-                        <input type="date" value="{{ transaction.date|date:'Y-m-d' }}" data-field="date" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm p-1 date-input-field">
+                        <input type="date" value="{{ transaction.date|date:'Y-m-d' }}" data-field="date" class="w-full border-b border-primary dark:text-white dark:bg-gray-800 bg-transparent focus:outline-none focus:ring-0 text-sm p-1 date-input-field">
                     </td>
-                    
-                    <td class="px-6 py-4 text-sm text-gray-500 cell-member-display member-cell-with-actions" data-member-id="{{ transaction.member.id }}">
+
+                    <td class="px-6 py-4 text-sm text-gray-500 cell-member-display" data-member-id="{{ transaction.member.id }}">
                         {{ transaction.member.user.username }}
+                    </td>
+                    <td class="px-6 py-2 cell-member-edit hidden">
+                        <select data-field="member_id" class="w-full border-b border-primary dark:text-white dark:bg-gray-800 bg-transparent focus:ring-0 focus:border-primary text-sm p-1">
+                            {% for member in family_members %}
+                                {% if member_role_for_period == 'ADMIN' or member.role != 'ADMIN' %}
+                                    <option value="{{ member.id }}" {% if member.id == transaction.member.id %}selected{% endif %}>{{ member.user.username }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </td>
+
+                    <td class="px-6 py-4 text-center mobile-hide-column">
+                        <div class="flex items-center justify-center">
+                            <button type="button" onclick="toggleRealized('item-{{ transaction.id }}', {{ transaction.realized|yesno:'true,false' }})" class="realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-pointer {% if transaction.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}">
+                                <span class="absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if transaction.realized %}translate-x-4{% endif %}"></span>
+                            </button>
+                        </div>
+                    </td>
+
+                    <td class="px-6 py-4 text-right text-primary cell-budget-display amount-cell-with-actions">
+                        {{ transaction.amount|intcomma }}
                         <!-- Mobile action buttons (hidden behind row, revealed on swipe) -->
                         <div class="mobile-actions-btns">
                             <button type="button" onclick="toggleEditMode('item-{{ transaction.id }}', true)" class="mobile-action-btn edit-btn">
@@ -250,22 +266,8 @@
                             </button>
                         </div>
                     </td>
-                    <td class="px-6 py-2 cell-member-edit hidden">
-                        <select data-field="member_id" class="w-full border-b border-primary bg-transparent focus:ring-0 focus:border-primary text-sm p-1">
-                            {% for member in family_members %}
-                                {% if member_role_for_period == 'ADMIN' or member.role != 'ADMIN' %}
-                                    <option value="{{ member.id }}" {% if member.id == transaction.member.id %}selected{% endif %}>{{ member.user.username }}</option>
-                                {% endif %}
-                            {% endfor %}
-                        </select>
-                    </td>
-                    
-                    <td class="px-6 py-4 text-center mobile-hide-column">
-                        <div class="flex items-center justify-center">
-                            <button type="button" onclick="toggleRealized('item-{{ transaction.id }}', {{ transaction.realized|yesno:'true,false' }})" class="realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-pointer {% if transaction.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}">
-                                <span class="absolute left-0 inline-block w-4 h-4 mt-1 ml-1 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if transaction.realized %}translate-x-4{% endif %}"></span>
-                            </button>
-                        </div>
+                    <td class="px-6 py-4 text-right text-primary cell-budget-edit hidden">
+                         <input type="text" inputmode="decimal" value="{{ transaction.amount.amount|default:transaction.amount|default:'0.00'|floatformat:2 }}" data-field="amount" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm text-right p-1">
                     </td>
 
                     <td class="px-6 py-4 text-center whitespace-nowrap mobile-hide-column">
@@ -287,24 +289,25 @@
                 </tr>
                 {% endfor %}
                 
-                <tr id="new-item-template" data-item-id="NEW" data-mode="edit" class="hover:bg-slate-50 dark:hover:bg-gray-700/50 hidden">
-                    <td class="px-2 py-4 text-center"></td>
+                <tr id="new-item-template" data-item-id="NEW" data-mode="edit" class="swipeable-row hover:bg-slate-50 dark:hover:bg-gray-700/50 hidden">
+                    <td class="px-2 py-4 text-center drag-handle-cell">
+                        <button type="button" onclick="saveItem('new-item-template')" class="edit-save-icon">
+                            <span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span>
+                        </button>
+                    </td>
                     <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white cell-description-display hidden"></td>
                     <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white cell-description-edit">
                         <input type="text" data-field="description" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm p-1" placeholder="{% trans "New Item Description" %}">
                     </td>
-                    <td class="px-6 py-4 text-right text-primary cell-budget-display hidden"></td>
-                    <td class="px-6 py-4 text-right text-primary cell-budget-edit">
-                         <input type="number" step="0.01" data-field="amount" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm text-right p-1" value="0.00">
-                    </td>
+
                     <td class="px-6 py-4 text-sm text-gray-500 cell-date-display hidden"></td>
                     <td class="px-6 py-4 text-sm text-gray-500 cell-date-edit">
-                        <input type="date" data-field="date" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm p-1" value="{{ today_date }}">
+                        <input type="date" data-field="date" class="w-full border-b border-primary dark:text-white dark:bg-gray-800 bg-transparent focus:outline-none focus:ring-0 text-sm p-1 date-input-field" value="{{ today_date }}">
                     </td>
-                    
+
                     <td class="px-6 py-4 text-sm text-gray-500 cell-member-display hidden"></td>
                     <td class="px-6 py-2 cell-member-edit">
-                        <select data-field="member_id" class="w-full border-b border-primary bg-transparent focus:ring-0 focus:border-primary text-sm p-1">
+                        <select data-field="member_id" class="w-full border-b border-primary dark:text-white dark:bg-gray-800 bg-transparent focus:ring-0 focus:border-primary text-sm p-1">
                             {% for member in family_members %}
                                 {% if member_role_for_period == 'ADMIN' or member.role != 'ADMIN' %}
                                     <option value="{{ member.id }}" {% if member.id == current_member.id %}selected{% endif %}>{{ member.user.username }}</option>
@@ -312,16 +315,21 @@
                             {% endfor %}
                         </select>
                     </td>
-                    
-                    <td class="px-6 py-4 text-center">
+
+                    <td class="px-6 py-4 text-center mobile-hide-column">
                         <div class="flex items-center justify-center">
                             <div class="realized-toggle-new relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full bg-gray-300 dark:bg-gray-600">
-                                <span class="absolute left-0 inline-block w-4 h-4 mt-1 ml-1 transition-transform duration-200 ease-in-out transform bg-white rounded-full"></span>
+                                <span class="absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full"></span>
                             </div>
                         </div>
                     </td>
-                    
-                    <td class="px-6 py-4 text-center whitespace-nowrap">
+
+                    <td class="px-6 py-4 text-right text-primary cell-budget-display hidden"></td>
+                    <td class="px-6 py-4 text-right text-primary cell-budget-edit">
+                         <input type="number" step="0.01" data-field="amount" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm text-right p-1" value="0.00">
+                    </td>
+
+                    <td class="px-6 py-4 text-center whitespace-nowrap mobile-hide-column">
                         <div class="actions-display hidden"></div>
                         <div class="actions-edit space-x-2">
                              <button type="button" onclick="saveItem('new-item-template')" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
@@ -723,13 +731,13 @@
             'flow_group_id': document.getElementById('flow-group-form').getAttribute('data-flow-group-id'),
             'transaction_id': isNew ? null : row.getAttribute('data-item-id'),
             'description': row.querySelector('input[data-field="description"]').value,
-            'amount': amountValue,
+            'amount': amountValue,  // Send raw value, backend handles locale
             'date': row.querySelector('input[data-field="date"]').value,
             'member_id': row.querySelector('select[data-field="member_id"]').value,
             'realized': realizedValue,
             'is_child_expense': memberRoleForPeriod === 'CHILD',  // Flag for child expense
         };
-        
+
         if (!data.description || !data.amount || !data.date) {
             alert("{% trans 'Description, Amount, and Date are required.' %}");
             return;
@@ -748,7 +756,44 @@
         .then(data => {
             if (data.status === 'success') {
                 if (isNew) {
-                    window.location.reload();
+                    // Convert new item template to regular item
+                    const newRow = row;
+
+                    // Update row ID and attributes
+                    newRow.id = 'item-' + data.transaction_id;
+                    newRow.setAttribute('data-item-id', data.transaction_id);
+                    newRow.setAttribute('data-mode', 'display');
+                    newRow.setAttribute('data-realized', data.realized ? 'true' : 'false');
+                    newRow.setAttribute('data-amount', data.amount);
+                    newRow.setAttribute('data-date', data.date);
+
+                    // Update drag handle to show drag icon instead of check icon
+                    const dragHandle = newRow.querySelector('.drag-handle-cell');
+                    if (dragHandle) {
+                        dragHandle.innerHTML = '<span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle cursor-grab active:cursor-grabbing">drag_indicator</span>' +
+                            '<button type="button" onclick="saveItem(\'item-' + data.transaction_id + '\')" class="edit-save-icon" style="display: none;">' +
+                            '<span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span></button>';
+                    }
+
+                    // Populate display values
+                    updateRowDisplay('item-' + data.transaction_id, data);
+
+                    // Switch to display mode
+                    toggleEditMode('item-' + data.transaction_id, false);
+
+                    // Update onclick handlers with new row ID
+                    newRow.querySelectorAll('button[onclick*="new-item-template"]').forEach(btn => {
+                        const onclick = btn.getAttribute('onclick');
+                        if (onclick) {
+                            btn.setAttribute('onclick', onclick.replace('new-item-template', 'item-' + data.transaction_id));
+                        }
+                    });
+
+                    // Create a new empty template row
+                    addNewItem();
+
+                    // Update budget warning
+                    updateBudgetWarning();
                 } else {
                     updateRowDisplay(rowId, data);
                     toggleEditMode(rowId, false);
@@ -1251,6 +1296,47 @@
         };
     })();
 
+    // Note: normalizeDecimalInput function removed - backend now handles all locale parsing
+
+    // Mobile keyboard handling - scroll input into view when keyboard opens
+    function initMobileKeyboardHandling() {
+        // Só executa em mobile
+        if (window.innerWidth > 768) return;
+
+        const inputs = document.querySelectorAll('input, select, textarea');
+
+        inputs.forEach(input => {
+            input.addEventListener('focus', function() {
+                // Timeout para aguardar teclado aparecer
+                setTimeout(() => {
+                    if (window.visualViewport) {
+                        const keyboardHeight = window.innerHeight - window.visualViewport.height;
+
+                        if (keyboardHeight > 50) { // Teclado está visível
+                            this.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'center',
+                                inline: 'nearest'
+                            });
+                        }
+                    } else {
+                        // Fallback para browsers sem visualViewport API
+                        this.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center',
+                            inline: 'nearest'
+                        });
+                    }
+                }, 300); // Aguarda 300ms para teclado aparecer
+            });
+        });
+    }
+
+    // Inicializar quando DOM carregar
+    document.addEventListener('DOMContentLoaded', function() {
+        initMobileKeyboardHandling();
+    });
+
 </script>
 
 <!-- Mobile-specific CSS -->
@@ -1341,8 +1427,8 @@
             will-change: transform;
         }
 
-        /* Member cell needs to be positioned to contain absolute buttons */
-        .member-cell-with-actions {
+        /* Amount cell needs to be positioned to contain absolute buttons */
+        .amount-cell-with-actions {
             position: relative;
             overflow: visible;
         }

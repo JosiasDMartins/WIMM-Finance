@@ -882,6 +882,48 @@ def delete_period_ajax(request):
 
 
 @login_required
+def get_balance_summary_ajax(request):
+    """
+    AJAX: Returns updated balance summary (income, expense, result).
+    Used by dashboard to refresh balance after income/expense changes.
+    """
+    try:
+        from .views_utils import get_balance_summary
+
+        family, current_member, _unused = get_family_context(request.user)
+        if not family:
+            return JsonResponse({'status': 'error', 'error': _('User not in family')}, status=403)
+
+        # Get period from query parameter
+        query_period = request.GET.get('period')
+        start_date, end_date, _unused = get_current_period_dates(family, query_period)
+
+        # Get balance summary using the shared function
+        summary = get_balance_summary(family, current_member, start_date, end_date)
+
+        # Get currency symbol for formatting
+        period_currency = get_period_currency(family, start_date)
+        currency_symbol = get_currency_symbol(period_currency)
+
+        # Return formatted values as strings
+        return JsonResponse({
+            'status': 'success',
+            'balance': {
+                'estimated_income': str(summary['total_budgeted_income']),
+                'realized_income': str(summary['total_realized_income']),
+                'estimated_expense': str(summary['total_budgeted_expense']),
+                'realized_expense': str(summary['total_realized_expense']),
+                'estimated_result': str(summary['estimated_result']),
+                'realized_result': str(summary['realized_result']),
+                'currency_symbol': currency_symbol
+            }
+        })
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'error': str(e)}, status=500)
+
+
+@login_required
 def health_check_api(request):
     """
     Simple health check endpoint for the updater to verify the server is running.

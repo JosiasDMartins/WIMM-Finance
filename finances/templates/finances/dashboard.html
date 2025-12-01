@@ -160,11 +160,12 @@
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead>
                         <tr>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 35%;">{% trans "Description" %}</th>
-                            <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 20%;">{% trans "Date" %}</th>
-                            <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 10%;">✓</th>
-                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 20%;">{% trans "Amount" %}</th>
-                            <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 15%;">{% trans "Actions" %}</th>
+                            <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 40px;"></th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Description" %}</th>
+                            <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Date" %}</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Amount" %}</th>
+                            <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mobile-hide-column">✓</th>
+                            <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mobile-hide-column">{% trans "Actions" %}</th>
                         </tr>
                     </thead>
                     <tbody id="income-items-body" class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -182,8 +183,8 @@
                                     </td>
 
                                     <td class="py-3 px-2 text-center">
-                                        <button type="button" onclick="alert('{% trans "Only Parents/Admins can change this status" %}')" class="income-realized-toggle relative inline-block w-8 h-5 transition duration-200 ease-in-out rounded-full cursor-not-allowed opacity-60 {% if kids_income.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}" title="{% trans "Only Parents/Admins can change this" %}">
-                                            <span class="absolute left-0 inline-block w-3 h-3 mt-1 ml-1 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if kids_income.realized %}translate-x-3{% endif %}"></span>
+                                        <button type="button" onclick="alert('{% trans "Only Parents/Admins can change this status" %}')" class="income-realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-not-allowed opacity-60 {% if kids_income.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}" title="{% trans "Only Parents/Admins can change this" %}">
+                                            <span class="absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if kids_income.realized %}translate-x-4{% endif %}"></span>
                                         </button>
                                     </td>
 
@@ -202,7 +203,20 @@
 
                         {% comment %} Regular Income Transactions {% endcomment %}
                         {% for transaction in recent_income_transactions %}
-                            <tr id="income-item-{{ transaction.id }}" data-item-id="{{ transaction.id }}" data-realized="{{ transaction.realized|yesno:'true,false' }}" data-date="{{ transaction.date|date:'Y-m-d' }}" data-amount="{{ transaction.amount.amount }}" class="hover:bg-slate-50 dark:hover:bg-gray-700/50">
+                            <tr id="income-item-{{ transaction.id }}"
+                                data-item-id="{{ transaction.id }}"
+                                data-mode="display"
+                                data-realized="{{ transaction.realized|yesno:'true,false' }}"
+                                data-date="{{ transaction.date|date:'Y-m-d' }}"
+                                data-amount="{{ transaction.amount.amount }}"
+                                class="swipeable-row-income {% if transaction.realized %}row-realized-income{% else %}row-not-realized-income{% endif %} hover:bg-slate-50 dark:hover:bg-gray-700/50">
+
+                                <td class="px-2 py-4 text-center drag-handle-cell-income" data-row-id="income-item-{{ transaction.id }}">
+                                    <span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle-income cursor-grab active:cursor-grabbing">drag_indicator</span>
+                                    <button type="button" onclick="saveItem('income-item-{{ transaction.id }}')" class="edit-save-icon-income" style="display: none;">
+                                        <span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span>
+                                    </button>
+                                </td>
 
                                 <td class="py-3 px-3 text-sm text-[#0d171b] dark:text-white">
                                     <div class="cell-description-display">{{ transaction.description }}</div>
@@ -214,24 +228,34 @@
                                 <td class="py-3 px-2 text-xs text-gray-500 dark:text-gray-400 text-center">
                                     <div class="cell-date-display">{{ transaction.date|date:"d/m" }}</div>
                                     <div class="cell-date-edit hidden">
-                                        <input type="date" data-field="date" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs p-1 date-input-field-income" value="{{ transaction.date|date:'Y-m-d' }}">
+                                        <input type="date" data-field="date" class="w-full border-b border-primary dark:text-white dark:bg-gray-800 bg-transparent focus:outline-none focus:ring-0 text-xs p-1 date-input-field-income" value="{{ transaction.date|date:'Y-m-d' }}">
                                     </div>
                                 </td>
 
-                                <td class="py-3 px-2 text-center">
-                                    <button type="button" onclick="toggleIncomeRealized('income-item-{{ transaction.id }}')" class="income-realized-toggle relative inline-block w-8 h-5 transition duration-200 ease-in-out rounded-full cursor-pointer {% if transaction.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}">
-                                        <span class="absolute left-0 inline-block w-3 h-3 mt-1 ml-1 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if transaction.realized %}translate-x-3{% endif %}"></span>
-                                    </button>
-                                </td>
-
-                                <td class="py-3 px-3 text-sm text-right {% if transaction.realized %}text-green-600 dark:text-green-500{% else %}text-gray-400 dark:text-gray-500{% endif %}">
-                                    <div class="cell-amount-display"> {{ transaction.amount|intcomma }}</div>
+                                <td class="py-3 px-3 text-sm text-right {% if transaction.realized %}text-green-600 dark:text-green-500{% else %}text-gray-400 dark:text-gray-500{% endif %} amount-cell-with-actions">
+                                    <div class="cell-amount-display">{{ transaction.amount|intcomma }}</div>
                                     <div class="cell-amount-edit hidden">
                                         <input type="text" inputmode="decimal" data-field="amount" class="w-20 border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs text-right p-1" value="{{ transaction.amount.amount|floatformat:2 }}">
                                     </div>
+
+                                    <!-- Mobile action buttons (hidden behind row, revealed on swipe) -->
+                                    <div class="mobile-actions-btns-income">
+                                        <button type="button" onclick="toggleEditMode('income-item-{{ transaction.id }}', true)" class="mobile-action-btn-income edit-btn-income">
+                                            <span class="material-symbols-outlined">edit</span>
+                                        </button>
+                                        <button type="button" onclick="deleteItem('income-item-{{ transaction.id }}')" class="mobile-action-btn-income delete-btn-income">
+                                            <span class="material-symbols-outlined">delete</span>
+                                        </button>
+                                    </div>
                                 </td>
 
-                                <td class="px-2 py-3 text-center whitespace-nowrap">
+                                <td class="py-3 px-2 text-center mobile-hide-column">
+                                    <button type="button" onclick="toggleIncomeRealized('income-item-{{ transaction.id }}')" class="income-realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-pointer {% if transaction.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}">
+                                        <span class="absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if transaction.realized %}translate-x-4{% endif %}"></span>
+                                    </button>
+                                </td>
+
+                                <td class="px-2 py-3 text-center whitespace-nowrap mobile-hide-column">
                                         <div class="actions-display flex justify-center gap-1">
                                             <button type="button" onclick="toggleEditMode('income-item-{{ transaction.id }}', true)" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
                                             <button type="button" onclick="deleteItem('income-item-{{ transaction.id }}')" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
@@ -245,7 +269,7 @@
                         {% empty %}
                             {% if member_role_for_period != 'CHILD' or not kids_income_entries %}
                                 <tr id="income-empty-row">
-                                    <td colspan="5" class="py-4 px-4 text-center text-gray-500">{% trans "No income transactions recorded yet." %}</td>
+                                    <td colspan="6" class="py-4 px-4 text-center text-gray-500">{% trans "No income transactions recorded yet." %}</td>
                                 </tr>
                             {% endif %}
                         {% endfor %}
@@ -292,26 +316,56 @@
                             {% endfor %}
                         {% endif %}
                         
-                        <tr id="new-income-template" data-item-id="NEW" data-mode="edit" class="hover:bg-slate-50 dark:hover:bg-gray-700/50 hidden">
+                        <tr id="new-income-template" data-item-id="NEW" data-mode="edit" class="swipeable-row-income hover:bg-slate-50 dark:hover:bg-gray-700/50 hidden">
+                            <td class="px-2 py-4 text-center drag-handle-cell-income" data-row-id="new-income-template">
+                                <span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle-income cursor-grab active:cursor-grabbing" style="display: none;">drag_indicator</span>
+                                <button type="button" onclick="saveIncomeItem('new-income-template')" class="edit-save-icon-income">
+                                    <span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span>
+                                </button>
+                            </td>
+
                             <td class="py-3 px-3 text-sm text-[#0d171b] dark:text-white">
-                                <input type="text" data-field="description" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs p-1" placeholder="{% trans "Description" %}">
-                            </td>
-
-                            <td class="py-3 px-2 text-xs text-gray-500">
-                                <input type="date" data-field="date" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs p-1" value="{{ today_date }}">
-                            </td>
-
-                            <td class="py-3 px-2 text-center">
-                                <div class="income-realized-toggle-new relative inline-block w-8 h-5 transition duration-200 ease-in-out rounded-full bg-gray-300 dark:bg-gray-600 cursor-pointer">
-                                    <span class="absolute left-0 inline-block w-3 h-3 mt-1 ml-1 transition-transform duration-200 ease-in-out transform bg-white rounded-full"></span>
+                                <div class="cell-description-display" style="display: none;"></div>
+                                <div class="cell-description-edit">
+                                    <input type="text" data-field="description" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs p-1" placeholder="{% trans "Description" %}">
                                 </div>
                             </td>
 
-                            <td class="py-3 px-3 text-right" colspan="2">
-                                <div class="flex items-center justify-end gap-2">
-                                    <input type="number" step="0.01" data-field="amount" class="w-20 border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs text-right p-1" value="0.00">
-                                    <button type="button" onclick="saveIncomeItem('new-income-template')" class="p-1 text-green-500 hover:text-green-600"><span class="material-symbols-outlined text-base">check</span></button>
-                                    <button type="button" onclick="cancelNewIncomeRow('new-income-template')" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-base">close</span></button>
+                            <td class="py-3 px-2 text-xs text-gray-500 dark:text-gray-400 text-center">
+                                <div class="cell-date-display" style="display: none;"></div>
+                                <div class="cell-date-edit">
+                                    <input type="date" data-field="date" class="w-full border-b border-primary dark:text-white dark:bg-gray-800 bg-transparent focus:outline-none focus:ring-0 text-xs p-1 date-input-field-income" value="{{ today_date }}" data-display-value="{{ today_date|date:'d/m' }}">
+                                </div>
+                            </td>
+
+                            <td class="py-3 px-3 text-sm text-right text-gray-400 dark:text-gray-500 amount-cell-with-actions">
+                                <div class="cell-amount-display" style="display: none;"></div>
+                                <div class="cell-amount-edit">
+                                    <input type="text" inputmode="decimal" data-field="amount" class="w-20 border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs text-right p-1" value="0.00">
+                                </div>
+
+                                <!-- Mobile action buttons (hidden behind row, revealed on swipe) -->
+                                <div class="mobile-actions-btns-income">
+                                    <button type="button" onclick="saveIncomeItem('new-income-template')" class="mobile-action-btn-income edit-btn-income">
+                                        <span class="material-symbols-outlined">check</span>
+                                    </button>
+                                    <button type="button" onclick="cancelNewIncomeRow('new-income-template')" class="mobile-action-btn-income delete-btn-income">
+                                        <span class="material-symbols-outlined">close</span>
+                                    </button>
+                                </div>
+                            </td>
+
+                            <td class="py-3 px-2 text-center mobile-hide-column">
+                                <div class="income-realized-toggle-new relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full bg-gray-300 dark:bg-gray-600 cursor-pointer">
+                                    <span class="absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full"></span>
+                                </div>
+                            </td>
+
+                            <td class="px-2 py-3 text-center whitespace-nowrap mobile-hide-column">
+                                <div class="actions-display" style="display: none;"></div>
+                                <div class="actions-edit flex justify-center gap-1">
+                                    <button type="button" onclick="saveIncomeItem('new-income-template')" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
+                                    <button type="button" onclick="cancelNewIncomeRow('new-income-template')" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -685,63 +739,64 @@
     
     // === END CHARTS ===
 
-    // Function to update balance sheet
     function updateBalanceSheet() {
-        // Calculate totals from all income rows (excluding kids income for children)
-        let estimatedIncome = 0;
-        let realizedIncome = 0;
-        
-        document.querySelectorAll('#income-items-body tr[data-item-id]').forEach(row => {
-            if (row.id === 'new-income-template' || row.id === 'income-empty-row') return;
-            
-            // Skip child manual income rows in balance calculation
-            if (row.classList.contains('child-manual-income-row')) return;
-            
-            const amount = parseFloat(row.getAttribute('data-amount')) || 0;
-            const isRealized = row.getAttribute('data-realized') === 'true';
-            
-            estimatedIncome += amount;
-            if (isRealized) {
-                realizedIncome += amount;
+        // Fetch updated balance from backend
+        const urlParams = new URLSearchParams(window.location.search);
+        const period = urlParams.get('period') || '';
+        const url = "{% url 'get_balance_summary_ajax' %}" + (period ? `?period=${period}` : '');
+
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
             }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const balance = data.balance;
+                const symbol = balance.currency_symbol || '$';
+
+                // Update income
+                document.getElementById('balance-estimated-income').textContent = symbol + ' ' + formatCurrency(parseFloat(balance.estimated_income));
+                document.getElementById('balance-realized-income').textContent = symbol + ' ' + formatCurrency(parseFloat(balance.realized_income));
+
+                // Update expense
+                document.getElementById('balance-estimated-expense').textContent = symbol + ' ' + formatCurrency(parseFloat(balance.estimated_expense));
+                document.getElementById('balance-realized-expense').textContent = symbol + ' ' + formatCurrency(parseFloat(balance.realized_expense));
+
+                // Update result
+                const estimatedResult = parseFloat(balance.estimated_result);
+                const realizedResult = parseFloat(balance.realized_result);
+
+                const estResultCell = document.getElementById('balance-estimated-result');
+                const realResultCell = document.getElementById('balance-realized-result');
+
+                estResultCell.textContent = symbol + ' ' + formatCurrency(estimatedResult);
+                realResultCell.textContent = symbol + ' ' + formatCurrency(realizedResult);
+
+                // Update colors
+                if (estimatedResult >= 0) {
+                    estResultCell.className = 'py-4 px-4 text-sm text-green-600 dark:text-green-500 font-bold';
+                } else {
+                    estResultCell.className = 'py-4 px-4 text-sm text-red-600 dark:text-red-500 font-bold';
+                }
+
+                if (realizedResult >= 0) {
+                    realResultCell.className = 'py-4 px-4 text-sm text-green-600 dark:text-green-500 font-bold';
+                } else {
+                    realResultCell.className = 'py-4 px-4 text-sm text-red-600 dark:text-red-500 font-bold';
+                }
+
+                // Update metrics
+                updateMetrics();
+            } else {
+                console.error('Error fetching balance:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Fetch Error:', error);
         });
-        
-        // Update balance display
-        document.getElementById('balance-estimated-income').textContent = '$ ' + formatCurrency(estimatedIncome);
-        document.getElementById('balance-realized-income').textContent = '$ ' + formatCurrency(realizedIncome);
-        
-        // Get expense values (already set from backend)
-        const estimatedExpenseText = document.getElementById('balance-estimated-expense').textContent.replace('$', '').replace(/,/g, '').trim();
-        const realizedExpenseText = document.getElementById('balance-realized-expense').textContent.replace('$', '').replace(/,/g, '').trim();
-        const estimatedExpense = parseFloat(estimatedExpenseText) || 0;
-        const realizedExpense = parseFloat(realizedExpenseText) || 0;
-        
-        // Calculate results
-        const estimatedResult = estimatedIncome - estimatedExpense;
-        const realizedResult = realizedIncome - realizedExpense;
-        
-        // Update result cells
-        const estResultCell = document.getElementById('balance-estimated-result');
-        const realResultCell = document.getElementById('balance-realized-result');
-        
-        estResultCell.textContent = '$ ' + formatCurrency(estimatedResult);
-        realResultCell.textContent = '$ ' + formatCurrency(realizedResult);
-        
-        // Update colors
-        if (estimatedResult >= 0) {
-            estResultCell.className = 'py-4 px-4 text-sm text-green-600 dark:text-green-500 font-bold';
-        } else {
-            estResultCell.className = 'py-4 px-4 text-sm text-red-600 dark:text-red-500 font-bold';
-        }
-        
-        if (realizedResult >= 0) {
-            realResultCell.className = 'py-4 px-4 text-sm text-green-600 dark:text-green-500 font-bold';
-        } else {
-            realResultCell.className = 'py-4 px-4 text-sm text-red-600 dark:text-red-500 font-bold';
-        }
-        
-        // Update metrics
-        updateMetrics();
     }
 
     // Function to add a new income row
@@ -810,21 +865,27 @@
                 
                 // Update data attribute
                 row.setAttribute('data-realized', data.realized ? 'true' : 'false');
-                
+
                 if (data.realized) {
                     toggleBtn.classList.remove('bg-gray-300', 'dark:bg-gray-600');
                     toggleBtn.classList.add('bg-green-500');
                     toggleCircle.classList.add('translate-x-3');
                     amountCell.classList.remove('text-gray-400', 'dark:text-gray-500');
                     amountCell.classList.add('text-green-600', 'dark:text-green-500');
+                    // Update row background color
+                    row.classList.remove('row-not-realized-income');
+                    row.classList.add('row-realized-income');
                 } else {
                     toggleBtn.classList.remove('bg-green-500');
                     toggleBtn.classList.add('bg-gray-300', 'dark:bg-gray-600');
                     toggleCircle.classList.remove('translate-x-3');
                     amountCell.classList.remove('text-green-600', 'dark:text-green-500');
                     amountCell.classList.add('text-gray-400', 'dark:text-gray-500');
+                    // Update row background color
+                    row.classList.remove('row-realized-income');
+                    row.classList.add('row-not-realized-income');
                 }
-                
+
                 // Update balance sheet
                 updateBalanceSheet();
             } else {
@@ -840,21 +901,23 @@
     // Function to save new income item
     function saveIncomeItem(rowId) {
         const row = document.getElementById(rowId);
-        
+
         // Check toggle state
         const toggleNew = row.querySelector('.income-realized-toggle-new');
         const realizedValue = toggleNew.classList.contains('bg-green-500');
-        
+
+        const amountValue = row.querySelector('input[data-field="amount"]').value;
+
         const data = {
             'flow_group_id': incomeFlowGroupId,
             'transaction_id': null,
             'description': row.querySelector('input[data-field="description"]').value,
-            'amount': row.querySelector('input[data-field="amount"]').value,
+            'amount': amountValue,  // Send raw value, backend handles locale
             'date': row.querySelector('input[data-field="date"]').value,
             'realized': realizedValue,
             'is_child_manual': memberRoleForPeriod === 'CHILD',  // Flag for child manual income
         };
-        
+
         if (!data.description || !data.amount || !data.date) {
             alert("{% trans 'Description, Amount, and Date are required.' %}");
             return;
@@ -872,7 +935,92 @@
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
-                window.location.reload();
+                // Hide the new income template
+                row.classList.add('hidden');
+
+                // Create new row element based on existing income row structure
+                const tbody = document.getElementById('income-items-body');
+                const newRowId = 'income-item-' + data.transaction_id;
+
+                // Clone the template structure but make it a regular row
+                const newRowHTML = `
+                    <tr id="${newRowId}"
+                        data-item-id="${data.transaction_id}"
+                        data-mode="display"
+                        data-realized="${data.realized ? 'true' : 'false'}"
+                        data-date="${data.date}"
+                        data-amount="${data.amount}"
+                        class="swipeable-row-income ${data.realized ? 'row-realized-income' : 'row-not-realized-income'} hover:bg-slate-50 dark:hover:bg-gray-700/50">
+
+                        <td class="px-2 py-4 text-center drag-handle-cell-income" data-row-id="${newRowId}">
+                            <span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle-income cursor-grab active:cursor-grabbing">drag_indicator</span>
+                            <button type="button" onclick="saveItem('${newRowId}')" class="edit-save-icon-income" style="display: none;">
+                                <span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span>
+                            </button>
+                        </td>
+
+                        <td class="py-3 px-3 text-sm text-[#0d171b] dark:text-white">
+                            <div class="cell-description-display">${data.description}</div>
+                            <div class="cell-description-edit hidden">
+                                <input type="text" data-field="description" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs p-1" value="${data.description}">
+                            </div>
+                        </td>
+
+                        <td class="py-3 px-2 text-xs text-gray-500 dark:text-gray-400 text-center">
+                            <div class="cell-date-display">${new Date(data.date).toLocaleDateString('en-GB', {day: '2-digit', month: '2-digit'})}</div>
+                            <div class="cell-date-edit hidden">
+                                <input type="date" data-field="date" class="w-full border-b border-primary dark:text-white dark:bg-gray-800 bg-transparent focus:outline-none focus:ring-0 text-xs p-1 date-input-field-income" value="${data.date}">
+                            </div>
+                        </td>
+
+                        <td class="py-3 px-3 text-sm text-right ${data.realized ? 'text-green-600 dark:text-green-500' : 'text-gray-400 dark:text-gray-500'} amount-cell-with-actions">
+                            <div class="cell-amount-display">${data.currency_symbol} ${formatCurrency(data.amount)}</div>
+                            <div class="cell-amount-edit hidden">
+                                <input type="text" inputmode="decimal" data-field="amount" class="w-20 border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs text-right p-1" value="${formatAmountForInput(data.amount)}">
+                            </div>
+
+                            <div class="mobile-actions-btns-income">
+                                <button type="button" onclick="toggleEditMode('${newRowId}', true)" class="mobile-action-btn-income edit-btn-income">
+                                    <span class="material-symbols-outlined">edit</span>
+                                </button>
+                                <button type="button" onclick="deleteItem('${newRowId}')" class="mobile-action-btn-income delete-btn-income">
+                                    <span class="material-symbols-outlined">delete</span>
+                                </button>
+                            </div>
+                        </td>
+
+                        <td class="py-3 px-2 text-center mobile-hide-column">
+                            <button type="button" onclick="toggleIncomeRealized('${newRowId}')" class="income-realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-pointer ${data.realized ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}">
+                                <span class="absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full ${data.realized ? 'translate-x-4' : ''}"></span>
+                            </button>
+                        </td>
+
+                        <td class="px-2 py-3 text-center whitespace-nowrap mobile-hide-column">
+                            <div class="actions-display flex justify-center gap-1">
+                                <button type="button" onclick="toggleEditMode('${newRowId}', true)" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
+                                <button type="button" onclick="deleteItem('${newRowId}')" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
+                            </div>
+                            <div class="actions-edit hidden flex justify-center gap-1">
+                                <button type="button" onclick="saveItem('${newRowId}')" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
+                                <button type="button" onclick="toggleEditMode('${newRowId}', false)" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
+                            </div>
+                        </td>
+                    </tr>`;
+
+                // Insert the new row at the beginning of tbody (after kids entries if any)
+                const firstRegularRow = tbody.querySelector('tr[id^="income-item-"]:not([id="new-income-template"])');
+                if (firstRegularRow) {
+                    firstRegularRow.insertAdjacentHTML('beforebegin', newRowHTML);
+                } else {
+                    // If no regular rows exist, insert before the template
+                    row.insertAdjacentHTML('beforebegin', newRowHTML);
+                }
+
+                // Reset the template row
+                cancelNewIncomeRow('new-income-template');
+
+                // Update balance sheet
+                updateBalanceSheet();
             } else {
                 alert('{% trans "Error saving income:" %} ' + data.error);
             }
@@ -991,6 +1139,41 @@
         editElements.forEach(el => el.classList.toggle('hidden', !startEdit));
 
         row.setAttribute('data-mode', startEdit ? 'edit' : 'display');
+
+        // Mobile: Reset row position when entering/exiting edit mode
+        if (window.matchMedia('(max-width: 768px)').matches) {
+            row.style.transform = 'translateX(0)';
+            row.classList.remove('actions-revealed-income');
+
+            // Toggle drag handle visibility based on edit mode
+            const dragHandle = row.querySelector('.drag-handle-cell-income');
+            if (dragHandle) {
+                const dragIcon = dragHandle.querySelector('.drag-handle-income');
+                const checkIcon = dragHandle.querySelector('.edit-save-icon-income');
+
+                if (startEdit) {
+                    // Show check icon, hide drag icon
+                    if (dragIcon) dragIcon.style.display = 'none';
+                    if (checkIcon) checkIcon.style.display = 'inline-block';
+
+                    // Update date input display value for mobile button-style input
+                    const dateInput = row.querySelector('.date-input-field-income');
+                    if (dateInput) {
+                        const dateValue = dateInput.value; // YYYY-MM-DD format
+                        if (dateValue) {
+                            const [year, month, day] = dateValue.split('-');
+                            const displayValue = `${day}/${month}`;
+                            dateInput.setAttribute('data-display-value', displayValue);
+                        }
+                    }
+                } else {
+                    // Show drag icon, hide check icon
+                    if (dragIcon) dragIcon.style.display = 'inline-block';
+                    if (checkIcon) checkIcon.style.display = 'none';
+                }
+            }
+        }
+
         if(startEdit) {
              row.querySelector('.cell-description-edit input').focus();
         }
@@ -1006,7 +1189,7 @@
             'flow_group_id': incomeFlowGroupId,
             'transaction_id': transactionId,
             'description': row.querySelector('input[data-field="description"]').value,
-            'amount': row.querySelector('input[data-field="amount"]').value,
+            'amount': row.querySelector('input[data-field="amount"]').value,  // Send raw value, backend handles locale
             'date': row.querySelector('input[data-field="date"]').value,
             'realized': realizedStatus,
         };
@@ -1241,17 +1424,111 @@
         });
     }
 
-    // Mobile date input optimization for Recent Income
-    (function initMobileDateInputs() {
+    // ========== MOBILE-SPECIFIC FUNCTIONALITY FOR INCOME ==========
+    // Initialize mobile swipe and tap functionality for income items
+    (function initMobileIncomeFeatures() {
         'use strict';
 
         const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
         if (!isMobile) {
+            console.log('[MOBILE INCOME] Not mobile viewport, skipping mobile features');
             return; // Only run on mobile devices
         }
 
-        console.log('[MOBILE INCOME] Initializing mobile date inputs');
+        console.log('[MOBILE INCOME] Initializing mobile features for income items');
+        const swipeableRows = document.querySelectorAll('.swipeable-row-income');
+        console.log('[MOBILE INCOME] Found', swipeableRows.length, 'swipeable rows');
+
+        swipeableRows.forEach(row => {
+            let startX = 0;
+            let currentX = 0;
+            let isDragging = false;
+            let startTime = 0;
+            const swipeThreshold = 60; // Minimum pixels to trigger swipe
+            const tapTimeThreshold = 200; // Max ms for tap detection
+
+            // Touch start
+            row.addEventListener('touchstart', (e) => {
+                // Ignore if touching action buttons or check icon
+                if (e.target.closest('.mobile-action-btn-income')) return;
+                if (e.target.closest('.edit-save-icon-income')) return;
+
+                startX = e.touches[0].clientX;
+                currentX = startX;
+                startTime = Date.now();
+                isDragging = false;
+            }, { passive: true });
+
+            // Touch move
+            row.addEventListener('touchmove', (e) => {
+                if (e.target.closest('.mobile-action-btn-income')) return;
+                if (e.target.closest('.edit-save-icon-income')) return;
+
+                currentX = e.touches[0].clientX;
+                const deltaX = currentX - startX;
+
+                // In edit mode: allow swipe right to cancel
+                if (row.dataset.mode === 'edit') {
+                    if (deltaX > 0) {
+                        isDragging = true;
+                        const translateX = Math.min(deltaX, 120);
+                        row.style.transform = `translateX(${translateX}px)`;
+                        row.style.transition = 'none';
+                    }
+                } else {
+                    // In display mode: allow swipe left to reveal actions
+                    if (deltaX < 0) {
+                        isDragging = true;
+                        const translateX = Math.max(deltaX, -120);
+                        row.style.transform = `translateX(${translateX}px)`;
+                        row.style.transition = 'none';
+                    }
+                }
+            }, { passive: true });
+
+            // Touch end
+            row.addEventListener('touchend', (e) => {
+                const deltaX = currentX - startX;
+                const deltaTime = Date.now() - startTime;
+                row.style.transition = 'transform 0.3s ease-out';
+
+                // In edit mode: swipe right to cancel
+                if (row.dataset.mode === 'edit') {
+                    if (deltaX > swipeThreshold) {
+                        console.log('[MOBILE INCOME SWIPE] Canceling edit mode for:', row.id);
+                        toggleEditMode(row.id, false);
+                    } else {
+                        row.style.transform = 'translateX(0)';
+                    }
+                } else {
+                    // Tap detection for realized toggle
+                    if (!isDragging && Math.abs(deltaX) < 10 && deltaTime < tapTimeThreshold) {
+                        const rowId = row.id;
+                        console.log('[MOBILE INCOME TAP] Toggling realized:', rowId);
+                        toggleIncomeRealized(rowId);
+                    }
+                    // Swipe left to reveal actions
+                    else if (deltaX < -swipeThreshold) {
+                        row.style.transform = 'translateX(-120px)';
+                        row.classList.add('actions-revealed-income');
+                    } else {
+                        row.style.transform = 'translateX(0)';
+                        row.classList.remove('actions-revealed-income');
+                    }
+                }
+
+                isDragging = false;
+            }, { passive: true });
+
+            // Close actions when tapping outside
+            document.addEventListener('touchstart', (e) => {
+                if (!row.contains(e.target) && row.classList.contains('actions-revealed-income')) {
+                    row.style.transform = 'translateX(0)';
+                    row.classList.remove('actions-revealed-income');
+                }
+            }, { passive: true });
+        });
 
         // Add change event listener to all income date inputs to update display value
         const dateInputs = document.querySelectorAll('.date-input-field-income');
@@ -1276,14 +1553,166 @@
             });
         });
     })();
+
+    // Note: normalizeDecimalInput function removed - backend now handles all locale parsing
+
+    // Mobile keyboard handling - scroll input into view when keyboard opens
+    function initMobileKeyboardHandling() {
+        // Só executa em mobile
+        if (window.innerWidth > 768) return;
+
+        const inputs = document.querySelectorAll('input, select, textarea');
+
+        inputs.forEach(input => {
+            input.addEventListener('focus', function() {
+                // Timeout para aguardar teclado aparecer
+                setTimeout(() => {
+                    if (window.visualViewport) {
+                        const keyboardHeight = window.innerHeight - window.visualViewport.height;
+
+                        if (keyboardHeight > 50) { // Teclado está visível
+                            this.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'center',
+                                inline: 'nearest'
+                            });
+                        }
+                    } else {
+                        // Fallback para browsers sem visualViewport API
+                        this.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center',
+                            inline: 'nearest'
+                        });
+                    }
+                }, 300); // Aguarda 300ms para teclado aparecer
+            });
+        });
+    }
+
+    // Inicializar quando DOM carregar
+    document.addEventListener('DOMContentLoaded', function() {
+        initMobileKeyboardHandling();
+    });
 </script>
 
 <style>
     /* Mobile-specific CSS for Dashboard */
     @media (max-width: 768px) {
+        /* Hide columns on mobile */
+        .mobile-hide-column {
+            display: none !important;
+        }
+
         /* Hide badges on mobile to save space */
         .mobile-hide-badge {
             display: none !important;
+        }
+
+        /* ========== INCOME TABLE MOBILE STYLES ========== */
+
+        /* Swipeable row styles */
+        .swipeable-row-income {
+            position: relative;
+            transition: transform 0.3s ease-out;
+            will-change: transform;
+        }
+
+        /* Amount cell needs to be positioned to contain absolute buttons */
+        .amount-cell-with-actions {
+            position: relative;
+            overflow: visible;
+        }
+
+        /* Mobile actions container (hidden behind row, revealed on swipe left) */
+        .mobile-actions-btns-income {
+            position: absolute;
+            right: -120px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 0.5rem;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .swipeable-row-income.actions-revealed-income .mobile-actions-btns-income {
+            pointer-events: auto;
+        }
+
+        .mobile-action-btn-income {
+            width: 48px;
+            height: 48px;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            pointer-events: auto;
+            border: none;
+            cursor: pointer;
+        }
+
+        .mobile-action-btn-income.edit-btn-income {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        .mobile-action-btn-income.edit-btn-income:active {
+            background-color: #2563eb;
+            transform: scale(0.95);
+        }
+
+        .mobile-action-btn-income.delete-btn-income {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        .mobile-action-btn-income.delete-btn-income:active {
+            background-color: #dc2626;
+            transform: scale(0.95);
+        }
+
+        /* Realized status visual feedback */
+        .row-realized-income {
+            background-color: rgba(34, 197, 94, 0.15) !important;
+        }
+
+        .dark .row-realized-income {
+            background-color: rgba(34, 197, 94, 0.1) !important;
+        }
+
+        .row-not-realized-income {
+            background-color: rgba(148, 163, 184, 0.08) !important;
+        }
+
+        .dark .row-not-realized-income {
+            background-color: rgba(148, 163, 184, 0.05) !important;
+        }
+
+        /* Disable drag handle on mobile in display mode */
+        .drag-handle-cell-income .drag-handle-income {
+            cursor: default;
+            opacity: 0.3;
+        }
+
+        /* Edit save icon styling */
+        .edit-save-icon-income {
+            border: none;
+            background: transparent;
+            padding: 0;
+            cursor: pointer;
+        }
+
+        /* Ensure table doesn't clip buttons */
+        #income-items-body {
+            overflow: visible;
+        }
+
+        tbody tr {
+            overflow: visible;
         }
 
         /* Make date input work as a button - tap anywhere opens calendar */
@@ -1341,6 +1770,17 @@
         /* Position parent cell for absolute positioning */
         .cell-date-edit {
             position: relative;
+        }
+    }
+
+    /* Desktop: hide mobile action buttons */
+    @media (min-width: 769px) {
+        .mobile-actions-btns-income {
+            display: none !important;
+        }
+
+        .edit-save-icon-income {
+            display: none !important;
         }
     }
 </style>

@@ -28,3 +28,5 @@ db/db.sqlite3.old
 finances/tests_permissions.py
 .claude/settings.local.json
 _pycache_
+/finances/__pycache__
+*.pyc
