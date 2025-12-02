@@ -7,7 +7,7 @@ from .models import Notification
 logger = logging.getLogger(__name__)
 
 #Files version
-VERSION = "1.3.0"
+VERSION = "1.4.0-beta"
 
 #General contect for the entire system
 def database_version(request):
@@ -85,6 +85,15 @@ def user_role_processor(request):
             'is_child': False,
             'admin_warning_seen': True
         }
+
+
+def is_dashboard_view(request):
+    """
+    Context processor that checks if current view is dashboard.
+    """
+    return {
+        'is_dashboard': request.resolver_match and request.resolver_match.url_name == 'dashboard'
+    }
 
 
 def notifications_processor(request):

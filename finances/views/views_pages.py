@@ -62,7 +62,11 @@ def dashboard_view(request):
     config = getattr(family, 'configuration', None)
     if config:
         ensure_period_exists(family, start_date, end_date, config.period_type)
-    
+
+    # Ensure recurring FlowGroups and fixed transactions are created for this period
+    from ..recurring_utils import ensure_recurring_data_for_period
+    ensure_recurring_data_for_period(family, start_date)
+
     member_role_for_period = get_member_role_for_period(current_member, start_date)
     
     accessible_expense_groups, display_only_expense_groups = get_visible_flow_groups_for_dashboard(
@@ -865,7 +869,11 @@ def edit_flow_group_view(request, group_id):
     
     query_period = request.GET.get('period') or group.period_start_date.strftime('%Y-%m-%d')
     start_date, end_date, _unused = get_current_period_dates(family, query_period)
-    
+
+    # Ensure recurring FlowGroups and fixed transactions are created for this period
+    from ..recurring_utils import ensure_recurring_data_for_period
+    ensure_recurring_data_for_period(family, start_date)
+
     member_role_for_period = get_member_role_for_period(current_member, start_date)
     
     can_edit_group = (group.owner == request.user or current_member.role in ['ADMIN', 'PARENT'])

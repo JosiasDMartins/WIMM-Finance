@@ -74,6 +74,7 @@ TEMPLATES = [
                 'finances.context_processors.app_version',
                 'finances.context_processors.demo_mode_processor',
                 'finances.context_processors.user_role_processor',
+                'finances.context_processors.is_dashboard_view',
                 'finances.context_processors.notifications_processor',
             ],
         },

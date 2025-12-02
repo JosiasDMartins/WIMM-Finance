@@ -45,6 +45,10 @@ urlpatterns = [
     # Toggle Kids group realized status
     path('api/kids-group/toggle-realized/', views.toggle_kids_group_realized_ajax, name='toggle_kids_group_realized_ajax'),
 
+    # Toggle recurring FlowGroup and fixed Transaction status
+    path('api/flowgroup/toggle-recurring/', views.toggle_flowgroup_recurring_ajax, name='toggle_flowgroup_recurring_ajax'),
+    path('api/transaction/toggle-fixed/', views.toggle_transaction_fixed_ajax, name='toggle_transaction_fixed_ajax'),
+
     # Get balance summary for dashboard
     path('api/balance-summary/', views.get_balance_summary_ajax, name='get_balance_summary_ajax'),
 

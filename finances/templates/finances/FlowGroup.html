@@ -12,22 +12,22 @@
     <div class="flex justify-between items-center mb-6">
         <a href="{% url 'dashboard' %}{% if selected_period %}?period={{ selected_period }}{% endif %}" class="flex items-center text-primary hover:text-primary/80 transition-colors">
             <span class="material-symbols-outlined mr-2">arrow_back</span>
-            {% trans "Back to Dashboard" %}
+            {% trans "Back" %}
         </a>
 
         <div class="flex space-x-4">
             {% if not is_new and can_edit_group %}
-            <button type="button" onclick="deleteFlowGroup()" class="rounded-lg border border-red-500 text-red-500 text-base font-medium p-3 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+            <button type="button" onclick="deleteFlowGroup()" class="rounded-lg border border-red-500 text-red-500 text-base font-medium p-3 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center">
                 <span class="material-symbols-outlined text-lg mr-2">delete</span>
-                {% trans "Delete Group" %}
+                {% trans "Group" %}
             </button>
             {% endif %}
             <button type="button" onclick="history.back()" class="rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-base font-medium p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                 {% trans "Discard" %}
             </button>
-            <button type="submit" form="flow-group-form" class="rounded-lg bg-primary text-white text-base font-medium p-3 hover:bg-primary/90 transition-colors shadow-lg">
+            <button type="submit" form="flow-group-form" class="rounded-lg bg-primary text-white text-base font-medium p-3 hover:bg-primary/90 transition-colors shadow-lg flex items-center">
                 <span class="material-symbols-outlined text-lg mr-2">save</span>
-                {% trans "Save Changes" %}
+                {% trans "Save" %}
             </button>
         </div>
     </div>
@@ -43,54 +43,74 @@
         <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-8">
             <div class="flex justify-between items-center mb-6">
                 <h1 class="text-3xl font-bold text-[#0d171b] dark:text-white">{{ flow_group.name|default:"Create New Flow Group" }}</h1>
-                
-                {% if flow_group.is_kids_group and not is_new %}
-                <div class="flex items-center gap-3 p-3 border-2 border-green-500/50 dark:border-green-500/30 rounded-lg bg-green-50 dark:bg-green-900/20">
-                    <span class="text-sm font-medium text-slate-700 dark:text-slate-300">{% trans "Budget Given:" %}</span>
-                    <button type="button" 
-                            onclick="toggleKidsGroupRealized({{ flow_group.realized|yesno:'true,false' }})"
-                            {% if current_member.role == 'CHILD' %}disabled{% endif %}
-                            class="kids-group-realized-toggle relative inline-block w-12 h-7 transition duration-200 ease-in-out rounded-full {% if current_member.role == 'CHILD' %}cursor-not-allowed opacity-60{% else %}cursor-pointer{% endif %} {% if flow_group.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}"
-                            title="{% if current_member.role == 'CHILD' %}Only Parents/Admins can change this{% else %}Click to toggle if budget was given to child{% endif %}">
-                        <span class="absolute left-1 top-1 inline-block w-5 h-5 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if flow_group.realized %}translate-x-5{% endif %}"></span>
+
+                <div class="flex items-center gap-4">
+                    {% if not is_new and current_member.role != 'CHILD' %}
+                    <!-- Recurring Button -->
+                    <button type="button"
+                            onclick="toggleFlowGroupRecurring()"
+                            id="recurring-btn"
+                            class="recurring-btn inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 {% if flow_group.is_recurring %}bg-blue-600 text-white hover:bg-blue-700{% else %}bg-blue-600/30 text-blue-600 dark:text-blue-400 hover:bg-blue-600/50{% endif %}"
+                            title="{% trans 'Mark this group as recurring to automatically copy it to new periods' %}">
+                        <span class="text-sm font-medium">{% trans "Recurrent" %}</span>
+                        <span class="flex items-center justify-center w-6 h-6 rounded {% if flow_group.is_recurring %}bg-blue-800{% else %}bg-blue-700/50{% endif %}">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                      d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8m0-5v5h5" />
+                            </svg>
+                        </span>
                     </button>
-                    <span class="text-xs text-slate-600 dark:text-slate-400">
-                        {% if flow_group.realized %}
-                            ✓ Marked as given
-                        {% else %}
-                            Not given yet
-                        {% endif %}
-                    </span>
+                    {% endif %}
+
+                    {% if flow_group.is_kids_group and not is_new %}
+                    <div class="flex items-center gap-3 p-3 border-2 border-green-500/50 dark:border-green-500/30 rounded-lg bg-green-50 dark:bg-green-900/20">
+                        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">{% trans "Budget Given:" %}</span>
+                        <button type="button"
+                                onclick="toggleKidsGroupRealized({{ flow_group.realized|yesno:'true,false' }})"
+                                {% if current_member.role == 'CHILD' %}disabled{% endif %}
+                                class="kids-group-realized-toggle relative inline-block w-12 h-7 transition duration-200 ease-in-out rounded-full {% if current_member.role == 'CHILD' %}cursor-not-allowed opacity-60{% else %}cursor-pointer{% endif %} {% if flow_group.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}"
+                                title="{% if current_member.role == 'CHILD' %}Only Parents/Admins can change this{% else %}Click to toggle if budget was given to child{% endif %}">
+                            <span class="absolute left-1 top-1 inline-block w-5 h-5 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if flow_group.realized %}translate-x-5{% endif %}"></span>
+                        </button>
+                        <span class="text-xs text-slate-600 dark:text-slate-400">
+                            {% if flow_group.realized %}
+                                ✓ Marked as given
+                            {% else %}
+                                Not given yet
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% endif %}
                 </div>
-                {% endif %}
             </div>
             
             <div class="flex flex-col gap-6">
 
-                <!-- Group Name - compact width -->
-                <div class="flex flex-col">
-                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="{{ form.name.id_for_label }}">{% trans "Group Name" %}</label>
-                    <div class="w-64">
-                        {{ form.name }}
+                <!-- Group Name and Budgeted Amount in same row - using flexbox -->
+                <div class="flex flex-row gap-4 items-start">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="{{ form.name.id_for_label }}">{% trans "Group Name" %}</label>
+                        <div style="width: 200px;">
+                            {{ form.name }}
+                        </div>
                     </div>
-                </div>
-
-                <!-- Budgeted Amount and Checkboxes in same row -->
-                <div class="flex flex-wrap items-end gap-6">
-                    <!-- Budgeted Amount - compact width -->
-                    <div class="flex flex-col">
+                    <div>
                         <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1" for="{{ form.budgeted_amount.id_for_label }}">
                             {% trans "Budgeted Amount" %} ($)
                             {% if current_member.role == 'CHILD' %}
                             <span class="text-xs text-gray-500">({% trans "Read-only for children" %})</span>
                             {% endif %}
                         </label>
-                        <div class="w-64">
+                        <div style="width: 150px;">
                             {{ form.budgeted_amount }}
                         </div>
                     </div>
+                </div>
 
-                    <input type="hidden" name="group_type" value="EXPENSE_MAIN">
+                <input type="hidden" name="group_type" value="EXPENSE_MAIN">
+
+                <!-- Share, Kids, Investment checkboxes -->
+                <div class="flex flex-wrap items-start gap-6">
 
                     {% if current_member.role != 'CHILD' %}
                     <!-- Checkboxes aligned with bottom of Budgeted Amount input -->
@@ -156,6 +176,7 @@
                     </div>
                     {% endif %}
                 </div>
+                </div>
             </div>
             
             {% if form.errors %}
@@ -172,180 +193,224 @@
                 </div>
             {% endif %}
 
-        </div>
-    </form>
 
-    {% if flow_group %}
-    <div id="budget-warning-container" class="{% if not budget_warning %}hidden{% endif %} bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-500 p-4 mb-6 rounded">
-        <div class="flex">
-            <div class="flex-shrink-0">
-                <span class="material-symbols-outlined text-yellow-400">warning</span>
+
+            {% if flow_group %}
+            <div id="budget-warning-container" class="{% if not budget_warning %}hidden{% endif %} bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-500 p-4 mb-6 rounded">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <span class="material-symbols-outlined text-yellow-400">warning</span>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-yellow-700 dark:text-yellow-300">
+                            <strong>{% trans "Budget Warning:" %}</strong> <span id="budget-warning-text">{% blocktrans with estimated=total_estimated|floatformat:2|intcomma budgeted=flow_group.budgeted_amount|floatformat:2|intcomma %}Estimated expenses ($ {{ estimated }}) exceed the budgeted amount ($ {{ budgeted }}).{% endblocktrans %}</span>
+                        </p>
+                    </div>
+                </div>
             </div>
-            <div class="ml-3">
-                <p class="text-sm text-yellow-700 dark:text-yellow-300">
-                    <strong>{% trans "Budget Warning:" %}</strong> <span id="budget-warning-text">{% blocktrans with estimated=total_estimated|floatformat:2|intcomma budgeted=flow_group.budgeted_amount|floatformat:2|intcomma %}Estimated expenses ($ {{ estimated }}) exceed the budgeted amount ($ {{ budgeted }}).{% endblocktrans %}</span>
-                </p>
-            </div>
-        </div>
-    </div>
 
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
 
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead>
-                <tr>
-                    <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 40px;"></th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Description" %}</th>
-                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider date-header-mobile">{% trans "Date" %}</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Member" %}</th>
-                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mobile-hide-column">{% trans "Realized" %}</th>
-                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Amount" %}</th>
-                    <th class="px-6 py-3 text-center w-24 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mobile-hide-column">{% trans "Actions" %}</th>
-                </tr>
-            </thead>
-            <tbody id="expense-items-body" class="divide-y divide-gray-200 dark:divide-gray-700">
-                {% for transaction in transactions %}
-                <tr id="item-{{ transaction.id }}"
-                    data-item-id="{{ transaction.id }}"
-                    data-mode="display"
-                    data-realized="{{ transaction.realized|yesno:'true,false' }}"
-                    data-amount="{{ transaction.amount.amount|default:transaction.amount|default:'0.00' }}"
-                    data-order="{{ forloop.counter }}"
-                    draggable="true"
-                    class="draggable-row swipeable-row {% if transaction.realized %}row-realized{% else %}row-not-realized{% endif %} hover:bg-slate-50 dark:hover:bg-gray-700/50">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead>
+                        <tr>
+                            <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 40px;"></th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Description" %}</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider date-header-mobile">{% trans "Date" %}</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Member" %}</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mobile-hide-column">{% trans "Realized" %}</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mobile-hide-column">{% trans "Fixed" %}</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Amount" %}</th>
+                            <th class="px-6 py-3 text-center w-24 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mobile-hide-column">{% trans "Actions" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expense-items-body" class="divide-y divide-gray-200 dark:divide-gray-700">
+                        {% for transaction in transactions %}
+                        <tr id="item-{{ transaction.id }}"
+                            data-item-id="{{ transaction.id }}"
+                            data-mode="display"
+                            data-realized="{{ transaction.realized|yesno:'true,false' }}"
+                            data-is-fixed="{{ transaction.is_fixed|yesno:'true,false' }}"
+                            data-amount="{{ transaction.amount.amount|default:transaction.amount|default:'0.00' }}"
+                            data-order="{{ forloop.counter }}"
+                            draggable="true"
+                            class="draggable-row swipeable-row {% if transaction.realized %}row-realized{% else %}row-not-realized{% endif %} {% if transaction.is_fixed %}row-fixed{% endif %} hover:bg-slate-50 dark:hover:bg-gray-700/50">
 
-                    <td class="px-2 py-4 text-center drag-handle-cell" data-row-id="item-{{ transaction.id }}">
-                        <span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle cursor-grab active:cursor-grabbing">drag_indicator</span>
-                        <button type="button" onclick="saveItem('item-{{ transaction.id }}')" class="edit-save-icon" style="display: none;">
-                            <span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span>
-                        </button>
-                    </td>
-                    <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white cell-description-display">{{ transaction.description }}</td>
-                    <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white cell-description-edit hidden">
-                        <input type="text" value="{{ transaction.description }}" data-field="description" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm p-1">
-                    </td>
-
-                    <td class="px-6 py-4 text-sm text-gray-500 cell-date-display">
-                        <span class="date-full">{{ transaction.date|date:"Y-m-d" }}</span>
-                        <span class="date-short">{{ transaction.date|date:"d/m" }}</span>
-                    </td>
-                    <td class="px-6 py-4 text-sm text-gray-500 cell-date-edit hidden">
-                        <input type="date" value="{{ transaction.date|date:'Y-m-d' }}" data-field="date" class="w-full border-b border-primary dark:text-white dark:bg-gray-800 bg-transparent focus:outline-none focus:ring-0 text-sm p-1 date-input-field">
-                    </td>
-
-                    <td class="px-6 py-4 text-sm text-gray-500 cell-member-display" data-member-id="{{ transaction.member.id }}">
-                        {{ transaction.member.user.username }}
-                    </td>
-                    <td class="px-6 py-2 cell-member-edit hidden">
-                        <select data-field="member_id" class="w-full border-b border-primary dark:text-white dark:bg-gray-800 bg-transparent focus:ring-0 focus:border-primary text-sm p-1">
-                            {% for member in family_members %}
-                                {% if member_role_for_period == 'ADMIN' or member.role != 'ADMIN' %}
-                                    <option value="{{ member.id }}" {% if member.id == transaction.member.id %}selected{% endif %}>{{ member.user.username }}</option>
+                            <td class="px-2 py-4 text-center drag-handle-cell" data-row-id="item-{{ transaction.id }}">
+                                <!-- Mobile Fixed Button (hidden behind row, revealed on swipe right) -->
+                                {% if current_member.role != 'CHILD' %}
+                                <div class="mobile-fixed-btn-container">
+                                    <button type="button"
+                                            onclick="toggleTransactionFixed('item-{{ transaction.id }}')"
+                                            class="mobile-fixed-btn {% if transaction.is_fixed %}active{% endif %}"
+                                            title="{% trans 'Mark as recurring expense' %}">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                                d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8m0-5v5h5" />
+                                        </svg>
+                                    </button>
+                                </div>
                                 {% endif %}
-                            {% endfor %}
-                        </select>
-                    </td>
+                                <span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle cursor-grab active:cursor-grabbing">drag_indicator</span>
+                                <button type="button" onclick="saveItem('item-{{ transaction.id }}')" class="edit-save-icon" style="display: none;">
+                                    <span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span>
+                                </button>
+                            </td>
+                            <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white cell-description-display">{{ transaction.description }}</td>
+                            <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white cell-description-edit hidden">
+                                <input type="text" value="{{ transaction.description }}" data-field="description" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm p-1">
+                            </td>
 
-                    <td class="px-6 py-4 text-center mobile-hide-column">
-                        <div class="flex items-center justify-center">
-                            <button type="button" onclick="toggleRealized('item-{{ transaction.id }}', {{ transaction.realized|yesno:'true,false' }})" class="realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-pointer {% if transaction.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}">
-                                <span class="absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if transaction.realized %}translate-x-4{% endif %}"></span>
-                            </button>
-                        </div>
-                    </td>
+                            <td class="px-6 py-4 text-sm text-gray-500 cell-date-display">
+                                <span class="date-full">{{ transaction.date|date:"Y-m-d" }}</span>
+                                <span class="date-short">{{ transaction.date|date:"d/m" }}</span>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-500 cell-date-edit hidden">
+                                <input type="date" value="{{ transaction.date|date:'Y-m-d' }}" data-field="date" class="w-full border-b border-primary dark:text-white dark:bg-gray-800 bg-transparent focus:outline-none focus:ring-0 text-sm p-1 date-input-field">
+                            </td>
 
-                    <td class="px-6 py-4 text-right text-primary cell-budget-display amount-cell-with-actions">
-                        {{ transaction.amount|intcomma }}
-                        <!-- Mobile action buttons (hidden behind row, revealed on swipe) -->
-                        <div class="mobile-actions-btns">
-                            <button type="button" onclick="toggleEditMode('item-{{ transaction.id }}', true)" class="mobile-action-btn edit-btn">
-                                <span class="material-symbols-outlined">edit</span>
-                            </button>
-                            <button type="button" onclick="deleteItem('item-{{ transaction.id }}')" class="mobile-action-btn delete-btn">
-                                <span class="material-symbols-outlined">delete</span>
-                            </button>
-                        </div>
-                    </td>
-                    <td class="px-6 py-4 text-right text-primary cell-budget-edit hidden">
-                         <input type="text" inputmode="decimal" value="{{ transaction.amount.amount|default:transaction.amount|default:'0.00'|floatformat:2 }}" data-field="amount" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm text-right p-1">
-                    </td>
+                            <td class="px-6 py-4 text-sm text-gray-500 cell-member-display" data-member-id="{{ transaction.member.id }}">
+                                {{ transaction.member.user.username }}
+                            </td>
+                            <td class="px-6 py-2 cell-member-edit hidden">
+                                <select data-field="member_id" class="w-full border-b border-primary dark:text-white dark:bg-gray-800 bg-transparent focus:ring-0 focus:border-primary text-sm p-1">
+                                    {% for member in family_members %}
+                                        {% if member_role_for_period == 'ADMIN' or member.role != 'ADMIN' %}
+                                            <option value="{{ member.id }}" {% if member.id == transaction.member.id %}selected{% endif %}>{{ member.user.username }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </td>
 
-                    <td class="px-6 py-4 text-center whitespace-nowrap mobile-hide-column">
-                        <div class="actions-display">
-                            <button type="button" onclick="toggleEditMode('item-{{ transaction.id }}', true)" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
-                            <button type="button" onclick="deleteItem('item-{{ transaction.id }}')" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
-                        </div>
-                        <div class="actions-edit hidden space-x-2">
-                             <button type="button" onclick="saveItem('item-{{ transaction.id }}')" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
-                             <button type="button" onclick="toggleEditMode('item-{{ transaction.id }}', false)" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
-                        </div>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="7" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
-                        {% trans "No transactions found for this Flow Group." %}
-                    </td>
-                </tr>
-                {% endfor %}
+                            <td class="px-6 py-4 text-center mobile-hide-column">
+                                <div class="flex items-center justify-center">
+                                    <button type="button" onclick="toggleRealized('item-{{ transaction.id }}', {{ transaction.realized|yesno:'true,false' }})" class="realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-pointer {% if transaction.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}">
+                                        <span class="absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if transaction.realized %}translate-x-4{% endif %}"></span>
+                                    </button>
+                                </div>
+                            </td>
+
+                            <td class="px-6 py-4 text-center mobile-hide-column">
+                                <div class="flex items-center justify-center">
+                                    {% if current_member.role != 'CHILD' %}
+                                    <button type="button"
+                                            onclick="toggleTransactionFixed('item-{{ transaction.id }}')"
+                                            class="fixed-toggle-btn inline-flex items-center justify-center w-8 h-8 rounded transition-all duration-200 {% if transaction.is_fixed %}bg-blue-600 text-white hover:bg-blue-700{% else %}bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 hover:bg-blue-200 dark:hover:bg-blue-900/30{% endif %}"
+                                            title="{% trans 'Mark as recurring expense' %}">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8m0-5v5h5" />
+                                        </svg>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            <td class="px-6 py-4 text-right text-primary cell-budget-display amount-cell-with-actions">
+                                {{ transaction.amount|intcomma }}
+                                <!-- Mobile action buttons (hidden behind row, revealed on swipe) -->
+                                <div class="mobile-actions-btns">
+                                    <button type="button" onclick="toggleEditMode('item-{{ transaction.id }}', true)" class="mobile-action-btn edit-btn">
+                                        <span class="material-symbols-outlined">edit</span>
+                                    </button>
+                                    <button type="button" onclick="deleteItem('item-{{ transaction.id }}')" class="mobile-action-btn delete-btn">
+                                        <span class="material-symbols-outlined">delete</span>
+                                    </button>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-right text-primary cell-budget-edit hidden">
+                                <input type="text" inputmode="decimal" value="{{ transaction.amount.amount|default:transaction.amount|default:'0.00'|floatformat:2 }}" data-field="amount" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm text-right p-1">
+                            </td>
+
+                            <td class="px-6 py-4 text-center whitespace-nowrap mobile-hide-column">
+                                <div class="actions-display">
+                                    <button type="button" onclick="toggleEditMode('item-{{ transaction.id }}', true)" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
+                                    <button type="button" onclick="deleteItem('item-{{ transaction.id }}')" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
+                                </div>
+                                <div class="actions-edit hidden space-x-2">
+                                    <button type="button" onclick="saveItem('item-{{ transaction.id }}')" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
+                                    <button type="button" onclick="toggleEditMode('item-{{ transaction.id }}', false)" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                                {% trans "No transactions found for this Flow Group." %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        
+                        <tr id="new-item-template" data-item-id="NEW" data-mode="edit" class="swipeable-row hover:bg-slate-50 dark:hover:bg-gray-700/50 hidden">
+                            <td class="px-2 py-4 text-center drag-handle-cell">
+                                <button type="button" onclick="saveItem('new-item-template')" class="edit-save-icon">
+                                    <span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span>
+                                </button>
+                            </td>
+                            <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white cell-description-display hidden"></td>
+                            <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white cell-description-edit">
+                                <input type="text" data-field="description" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm p-1" placeholder="{% trans "New Item Description" %}">
+                            </td>
+
+                            <td class="px-6 py-4 text-sm text-gray-500 cell-date-display hidden"></td>
+                            <td class="px-6 py-4 text-sm text-gray-500 cell-date-edit">
+                                <input type="date" data-field="date" class="w-full border-b border-primary dark:text-white dark:bg-gray-800 bg-transparent focus:outline-none focus:ring-0 text-sm p-1 date-input-field" value="{{ today_date }}">
+                            </td>
+
+                            <td class="px-6 py-4 text-sm text-gray-500 cell-member-display hidden"></td>
+                            <td class="px-6 py-2 cell-member-edit">
+                                <select data-field="member_id" class="w-full border-b border-primary dark:text-white dark:bg-gray-800 bg-transparent focus:ring-0 focus:border-primary text-sm p-1">
+                                    {% for member in family_members %}
+                                        {% if member_role_for_period == 'ADMIN' or member.role != 'ADMIN' %}
+                                            <option value="{{ member.id }}" {% if member.id == current_member.id %}selected{% endif %}>{{ member.user.username }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </td>
+
+                            <td class="px-6 py-4 text-center mobile-hide-column">
+                                <div class="flex items-center justify-center">
+                                    <div class="realized-toggle-new relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full bg-gray-300 dark:bg-gray-600">
+                                        <span class="absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full"></span>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <td class="px-6 py-4 text-center mobile-hide-column">
+                                <div class="flex items-center justify-center">
+                                    {% if current_member.role != 'CHILD' %}
+                                    <div class="fixed-toggle-new relative inline-block w-8 h-8 rounded transition-all duration-200 bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/30">
+                                        <!-- Empty for new items - will be set on save -->
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            <td class="px-6 py-4 text-right text-primary cell-budget-display hidden"></td>
+                            <td class="px-6 py-4 text-right text-primary cell-budget-edit">
+                                <input type="text" inputmode="decimal" data-field="amount" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm text-right p-1" value="0.00">
+                            </td>
+
+                            <td class="px-6 py-4 text-center whitespace-nowrap mobile-hide-column">
+                                <div class="actions-display hidden"></div>
+                                <div class="actions-edit space-x-2">
+                                    <button type="button" onclick="saveItem('new-item-template')" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
+                                    <button type="button" onclick="cancelNewRow('new-item-template')" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
                 
-                <tr id="new-item-template" data-item-id="NEW" data-mode="edit" class="swipeable-row hover:bg-slate-50 dark:hover:bg-gray-700/50 hidden">
-                    <td class="px-2 py-4 text-center drag-handle-cell">
-                        <button type="button" onclick="saveItem('new-item-template')" class="edit-save-icon">
-                            <span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span>
-                        </button>
-                    </td>
-                    <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white cell-description-display hidden"></td>
-                    <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white cell-description-edit">
-                        <input type="text" data-field="description" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm p-1" placeholder="{% trans "New Item Description" %}">
-                    </td>
+                <div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50">
+                    <button type="button" onclick="addNewRow()" class="flex items-center text-primary hover:text-primary/80 text-sm font-medium">
+                        <span class="material-symbols-outlined text-lg mr-1">add_circle</span>
+                        {% trans "Add New Item" %}
+                    </button>
+                </div>
 
-                    <td class="px-6 py-4 text-sm text-gray-500 cell-date-display hidden"></td>
-                    <td class="px-6 py-4 text-sm text-gray-500 cell-date-edit">
-                        <input type="date" data-field="date" class="w-full border-b border-primary dark:text-white dark:bg-gray-800 bg-transparent focus:outline-none focus:ring-0 text-sm p-1 date-input-field" value="{{ today_date }}">
-                    </td>
-
-                    <td class="px-6 py-4 text-sm text-gray-500 cell-member-display hidden"></td>
-                    <td class="px-6 py-2 cell-member-edit">
-                        <select data-field="member_id" class="w-full border-b border-primary dark:text-white dark:bg-gray-800 bg-transparent focus:ring-0 focus:border-primary text-sm p-1">
-                            {% for member in family_members %}
-                                {% if member_role_for_period == 'ADMIN' or member.role != 'ADMIN' %}
-                                    <option value="{{ member.id }}" {% if member.id == current_member.id %}selected{% endif %}>{{ member.user.username }}</option>
-                                {% endif %}
-                            {% endfor %}
-                        </select>
-                    </td>
-
-                    <td class="px-6 py-4 text-center mobile-hide-column">
-                        <div class="flex items-center justify-center">
-                            <div class="realized-toggle-new relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full bg-gray-300 dark:bg-gray-600">
-                                <span class="absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full"></span>
-                            </div>
-                        </div>
-                    </td>
-
-                    <td class="px-6 py-4 text-right text-primary cell-budget-display hidden"></td>
-                    <td class="px-6 py-4 text-right text-primary cell-budget-edit">
-                         <input type="number" step="0.01" data-field="amount" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm text-right p-1" value="0.00">
-                    </td>
-
-                    <td class="px-6 py-4 text-center whitespace-nowrap mobile-hide-column">
-                        <div class="actions-display hidden"></div>
-                        <div class="actions-edit space-x-2">
-                             <button type="button" onclick="saveItem('new-item-template')" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
-                             <button type="button" onclick="cancelNewRow('new-item-template')" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
-                        </div>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-        
-        <div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50">
-            <button type="button" onclick="addNewRow()" class="flex items-center text-primary hover:text-primary/80 text-sm font-medium">
-                <span class="material-symbols-outlined text-lg mr-1">add_circle</span>
-                {% trans "Add New Item" %}
-            </button>
-        </div>
+            </div>
+        </form>
     </div>
     {% endif %}
 </div>
@@ -438,6 +503,68 @@
                 }, 3000);
             } else {
                 alert('{% trans "Error updating status:" %} ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Fetch Error:', error);
+            alert('{% trans "A network error occurred." %}');
+        });
+    }
+
+    // Function to toggle FlowGroup recurring status (Parents/Admins only)
+    function toggleFlowGroupRecurring() {
+        const flowGroupId = document.getElementById('flow-group-form').getAttribute('data-flow-group-id');
+
+        if (flowGroupId === 'NEW') {
+            alert('{% trans "Please save the Flow Group first before marking it as recurring." %}');
+            return;
+        }
+
+        fetch("{% url 'toggle_flowgroup_recurring_ajax' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                'flow_group_id': flowGroupId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Update button visual state
+                const recurringBtn = document.getElementById('recurring-btn');
+                const iconContainer = recurringBtn.querySelector('span:last-child');
+
+                if (data.is_recurring) {
+                    // Active state: solid blue
+                    recurringBtn.classList.remove('bg-blue-600/30', 'text-blue-600', 'dark:text-blue-400', 'hover:bg-blue-600/50');
+                    recurringBtn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+                    iconContainer.classList.remove('bg-blue-700/50');
+                    iconContainer.classList.add('bg-blue-800');
+                } else {
+                    // Inactive state: translucent blue
+                    recurringBtn.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+                    recurringBtn.classList.add('bg-blue-600/30', 'text-blue-600', 'dark:text-blue-400', 'hover:bg-blue-600/50');
+                    iconContainer.classList.remove('bg-blue-800');
+                    iconContainer.classList.add('bg-blue-700/50');
+                }
+
+                // Show success message
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+                messageDiv.textContent = data.is_recurring
+                    ? '{% trans "Group marked as recurring - will be copied to new periods" %}'
+                    : '{% trans "Group is no longer recurring" %}';
+                document.body.appendChild(messageDiv);
+
+                setTimeout(() => {
+                    messageDiv.remove();
+                }, 3000);
+            } else {
+                alert('{% trans "Error updating recurring status:" %} ' + data.error);
             }
         })
         .catch(error => {
@@ -697,6 +824,95 @@
         });
     }
 
+    // Function to toggle transaction fixed status (Parents/Admins only)
+    function toggleTransactionFixed(rowId) {
+        const row = document.getElementById(rowId);
+        const transactionId = row.getAttribute('data-item-id');
+
+        if (transactionId === 'NEW') {
+            alert('{% trans "Please save the transaction first before marking it as fixed." %}');
+            return;
+        }
+
+        fetch("{% url 'toggle_transaction_fixed_ajax' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                'transaction_id': transactionId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Update data attribute
+                row.setAttribute('data-is-fixed', data.is_fixed ? 'true' : 'false');
+
+                // Update desktop toggle button
+                const desktopBtn = row.querySelector('.fixed-toggle-btn');
+                if (desktopBtn) {
+                    if (data.is_fixed) {
+                        desktopBtn.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-400', 'dark:text-gray-500', 'hover:bg-blue-200', 'dark:hover:bg-blue-900/30');
+                        desktopBtn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+                    } else {
+                        desktopBtn.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+                        desktopBtn.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-400', 'dark:text-gray-500', 'hover:bg-blue-200', 'dark:hover:bg-blue-900/30');
+                    }
+                }
+
+                // Update mobile button
+                const mobileBtn = row.querySelector('.mobile-fixed-btn');
+                if (mobileBtn) {
+                    if (data.is_fixed) {
+                        mobileBtn.classList.add('active');
+                    } else {
+                        mobileBtn.classList.remove('active');
+                    }
+                }
+
+                // Update row visual state (thick border for fixed items on mobile)
+                if (data.is_fixed) {
+                    row.classList.add('row-fixed');
+                } else {
+                    row.classList.remove('row-fixed');
+                }
+
+                // If FlowGroup recurring status was updated, update the recurring button
+                if (data.flow_group_updated) {
+                    const recurringBtn = document.getElementById('recurring-btn');
+                    if (recurringBtn) {
+                        const iconContainer = recurringBtn.querySelector('span:last-child');
+                        recurringBtn.classList.remove('bg-blue-600/30', 'text-blue-600', 'dark:text-blue-400', 'hover:bg-blue-600/50');
+                        recurringBtn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+                        iconContainer.classList.remove('bg-blue-700/50');
+                        iconContainer.classList.add('bg-blue-800');
+                    }
+                }
+
+                // Show success message
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+                messageDiv.textContent = data.is_fixed
+                    ? '{% trans "Transaction marked as fixed - will be copied to new periods" %}'
+                    : '{% trans "Transaction is no longer fixed" %}';
+                document.body.appendChild(messageDiv);
+
+                setTimeout(() => {
+                    messageDiv.remove();
+                }, 3000);
+            } else {
+                alert('{% trans "Error updating fixed status:" %} ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Fetch Error:', error);
+            alert('{% trans "A network error occurred." %}');
+        });
+    }
+
     // Function to add a new row using the template
     function addNewRow() {
         const templateRow = document.getElementById('new-item-template');
@@ -727,6 +943,12 @@
         // Get amount value - send as-is, backend will handle locale parsing
         let amountValue = row.querySelector('input[data-field="amount"]').value;
 
+        // Get is_fixed value (default false for new items)
+        let isFixedValue = false;
+        if (!isNew) {
+            isFixedValue = row.getAttribute('data-is-fixed') === 'true';
+        }
+
         const data = {
             'flow_group_id': document.getElementById('flow-group-form').getAttribute('data-flow-group-id'),
             'transaction_id': isNew ? null : row.getAttribute('data-item-id'),
@@ -735,6 +957,7 @@
             'date': row.querySelector('input[data-field="date"]').value,
             'member_id': row.querySelector('select[data-field="member_id"]').value,
             'realized': realizedValue,
+            'is_fixed': isFixedValue,  // Include is_fixed field
             'is_child_expense': memberRoleForPeriod === 'CHILD',  // Flag for child expense
         };
 
@@ -1184,8 +1407,9 @@
 
             // Touch start
             row.addEventListener('touchstart', (e) => {
-                // Ignore if touching action buttons or check icon
+                // Ignore if touching action buttons, fixed button, or check icon
                 if (e.target.closest('.mobile-action-btn')) return;
+                if (e.target.closest('.mobile-fixed-btn')) return;
                 if (e.target.closest('.edit-save-icon')) return;
 
                 startX = e.touches[0].clientX;
@@ -1197,6 +1421,7 @@
             // Touch move
             row.addEventListener('touchmove', (e) => {
                 if (e.target.closest('.mobile-action-btn')) return;
+                if (e.target.closest('.mobile-fixed-btn')) return;
                 if (e.target.closest('.edit-save-icon')) return;
 
                 currentX = e.touches[0].clientX;
@@ -1211,10 +1436,17 @@
                         row.style.transition = 'none';
                     }
                 } else {
-                    // In display mode: allow swipe left to reveal actions
+                    // In display mode: allow swipe left to reveal actions OR swipe right to reveal fixed button
                     if (deltaX < 0) {
+                        // Swipe left - reveal actions
                         isDragging = true;
                         const translateX = Math.max(deltaX, -120); // Max 120px left
+                        row.style.transform = `translateX(${translateX}px)`;
+                        row.style.transition = 'none';
+                    } else if (deltaX > 0) {
+                        // Swipe right - reveal fixed button
+                        isDragging = true;
+                        const translateX = Math.min(deltaX, 60); // Max 60px right
                         row.style.transform = `translateX(${translateX}px)`;
                         row.style.transition = 'none';
                     }
@@ -1224,6 +1456,7 @@
             // Touch end
             row.addEventListener('touchend', (e) => {
                 if (e.target.closest('.mobile-action-btn')) return;
+                if (e.target.closest('.mobile-fixed-btn')) return;
                 if (e.target.closest('.edit-save-icon')) return;
 
                 const deltaX = currentX - startX;
@@ -1254,22 +1487,32 @@
                     else if (deltaX < -swipeThreshold) {
                         // Show actions (swipe left)
                         row.style.transform = 'translateX(-120px)';
+                        row.classList.remove('fixed-revealed');
                         row.classList.add('actions-revealed');
+                    }
+                    // Check if swipe right exceeded threshold
+                    else if (deltaX > swipeThreshold) {
+                        // Show fixed button (swipe right)
+                        row.style.transform = 'translateX(60px)';
+                        row.classList.remove('actions-revealed');
+                        row.classList.add('fixed-revealed');
                     } else {
                         // Reset to original position
                         row.style.transform = 'translateX(0)';
-                        row.classList.remove('actions-revealed');
+                        row.classList.remove('actions-revealed', 'fixed-revealed');
                     }
                 }
 
                 isDragging = false;
             }, { passive: true });
 
-            // Close actions when tapping outside
+            // Close actions/fixed button when tapping outside
             document.addEventListener('touchstart', (e) => {
-                if (!row.contains(e.target) && row.classList.contains('actions-revealed')) {
-                    row.style.transform = 'translateX(0)';
-                    row.classList.remove('actions-revealed');
+                if (!row.contains(e.target)) {
+                    if (row.classList.contains('actions-revealed') || row.classList.contains('fixed-revealed')) {
+                        row.style.transform = 'translateX(0)';
+                        row.classList.remove('actions-revealed', 'fixed-revealed');
+                    }
                 }
             }, { passive: true });
         });
@@ -1484,9 +1727,57 @@
             transform: scale(0.95);
         }
 
+        /* Mobile fixed button container (hidden behind row, revealed on swipe right) */
+        .mobile-fixed-btn-container {
+            position: absolute;
+            left: -56px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .swipeable-row.fixed-revealed .mobile-fixed-btn-container {
+            pointer-events: auto;
+        }
+
+        .mobile-fixed-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            pointer-events: auto;
+            border: none;
+            cursor: pointer;
+            background-color: #d1d5db;
+            color: #6b7280;
+        }
+
+        .mobile-fixed-btn.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        .mobile-fixed-btn:active {
+            transform: scale(0.95);
+        }
+
         /* Realized status visual feedback */
         .row-realized {
             background-color: rgba(34, 197, 94, 0.15) !important;
+        }
+
+        /* Fixed status visual feedback (thick border on mobile) */
+        @media (max-width: 768px) {
+            .row-fixed {
+                border-left: 4px solid #3b82f6 !important;
+            }
         }
 
         .dark .row-realized {
@@ -1499,6 +1790,38 @@
 
         .dark .row-not-realized {
             background-color: rgba(148, 163, 184, 0.05) !important;
+        }
+
+        /* Fixed/Recurring expenses border on mobile */
+        @media (max-width: 768px) {
+            .row-fixed {
+                border-left: 4px solid #3b82f6;
+                box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.2);
+            }
+
+            .dark .row-fixed {
+                border-left-color: #60a5fa;
+                box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.25);
+            }
+        }
+
+        /* Drag handle cell needs relative positioning for mobile fixed button */
+        .drag-handle-cell {
+            position: relative;
+        }
+
+        /* On desktop: hide overflow to prevent mobile button from showing */
+        @media (min-width: 769px) {
+            .drag-handle-cell {
+                overflow: hidden;
+            }
+        }
+
+        /* On mobile: allow overflow to show the fixed button when swiped */
+        @media (max-width: 768px) {
+            .drag-handle-cell {
+                overflow: visible;
+            }
         }
 
         /* Disable drag handle on mobile in display mode */
@@ -1547,6 +1870,10 @@
         }
 
         .mobile-actions-btns {
+            display: none !important;
+        }
+
+        .mobile-fixed-btn-container {
             display: none !important;
         }
 

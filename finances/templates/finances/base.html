@@ -147,7 +147,18 @@
                             </div>
                         </a>
                     </div>
-                    
+
+                    <!-- Logout button (mobile only) -->
+                    <div class="px-4 py-2 md:hidden">
+                        <form method="POST" action="{% url 'auth_logout' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="flex items-center w-full px-4 py-2 text-red-600 dark:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                <span class="material-symbols-outlined mr-3">logout</span>
+                                <span class="font-medium">{% trans "Logout" %}</span>
+                            </button>
+                        </form>
+                    </div>
+
                     <div class="px-4 py-2">
                         <span id="sidebar-version" class="text-xs text-gray-500 dark:text-gray-600">{% trans "Version" %} {{ db_version }}</span>
                         <div id="sidebar-update-indicator" class="hidden text-xs text-orange-500 dark:text-orange-400 mt-1">
@@ -167,8 +178,8 @@
                 
                 <div class="flex items-center space-x-4">
                     <div class="flex items-center space-x-3">
-                        
-                        {% if not is_child %}
+
+                        {% if not is_child and is_dashboard %}
                         <button onclick="openCreatePeriodModal()"
                                 class="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                                 title="{% trans 'Create New Period' %}">
@@ -190,11 +201,11 @@
                         {% endif %}
 
                         <div x-data="{ periodDropdownOpen: false }" class="relative">
-                            <button @click="periodDropdownOpen = !periodDropdownOpen" 
-                                    class="flex items-center space-x-2 px-3 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors">
+                            <button @click="{% if is_dashboard %}periodDropdownOpen = !periodDropdownOpen{% endif %}"
+                                    class="flex items-center space-x-2 px-3 py-2 bg-primary/10 text-primary rounded-lg {% if is_dashboard %}hover:bg-primary/20 cursor-pointer{% else %}cursor-default opacity-70{% endif %} transition-colors">
                                 <span class="material-symbols-outlined text-sm">calendar_month</span>
                                 <span class="text-sm font-medium">{{ current_period_label }}</span>
-                                <span class="material-symbols-outlined text-sm">expand_more</span>
+                                {% if is_dashboard %}<span class="material-symbols-outlined text-sm">expand_more</span>{% endif %}
                             </button>
                             
                             <div x-show="periodDropdownOpen" 
@@ -259,7 +270,7 @@
                         <span id="icon-light" class="material-symbols-outlined hidden dark:block">light_mode</span>
                     </button>
 
-                    <form method="POST" action="{% url 'auth_logout' %}" style="display: inline;">
+                    <form method="POST" action="{% url 'auth_logout' %}" style="display: inline;" class="hidden md:block">
                         {% csrf_token %}
                         <button type="submit" class="text-gray-600 dark:text-gray-400 hover:text-red-500" title="{% trans 'Logout' %}">
                             <span class="material-symbols-outlined">logout</span>

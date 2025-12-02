@@ -263,7 +263,13 @@ class FlowGroup(models.Model):
         default=False,
         help_text=_("If True, realized amounts are added to investment balance and deducted from expense calculations")
     )
-    
+
+    # NEW: Recurring flag - when checked, FlowGroup is copied to new periods
+    is_recurring = models.BooleanField(
+        default=False,
+        help_text=_("If True, this group and its fixed transactions will be copied to new periods")
+    )
+
     # For reordering FlowGroups in a list/dashboard
     order = models.PositiveIntegerField(default=0, db_index=True) 
 
@@ -301,7 +307,13 @@ class Transaction(models.Model):
         default=False,
         help_text=_("True if this is an expense added to a FlowGroup by a CHILD user)")
     )
-    
+
+    # NEW: Fixed/recurring flag - when checked, transaction is copied to new periods
+    is_fixed = models.BooleanField(
+        default=False,
+        help_text=_("If True, this transaction will be auto-copied to new periods")
+    )
+
     member = models.ForeignKey(FamilyMember, on_delete=models.SET_NULL, null=True, related_name='transactions')
     flow_group = models.ForeignKey(FlowGroup, on_delete=models.CASCADE, related_name='transactions')
     

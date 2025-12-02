@@ -646,6 +646,10 @@ def create_period_ajax(request):
             currency=config.base_currency
         )
 
+        # Replicate recurring FlowGroups and fixed transactions
+        from ..recurring_utils import replicate_recurring_flowgroups
+        replication_result = replicate_recurring_flowgroups(family, start_date)
+
         return JsonResponse({
             'status': 'success',
             'message': _('Period created successfully'),
@@ -654,6 +658,10 @@ def create_period_ajax(request):
                 'start_date': period.start_date.strftime('%Y-%m-%d'),
                 'end_date': period.end_date.strftime('%Y-%m-%d'),
                 'label': f"{period.start_date.strftime('%b %d')} - {period.end_date.strftime('%b %d, %Y')}"
+            },
+            'recurring_replication': {
+                'groups_created': replication_result['groups_created'],
+                'transactions_created': replication_result['transactions_created']
             }
         })
 
@@ -917,6 +925,118 @@ def get_balance_summary_ajax(request):
                 'realized_result': str(summary['realized_result']),
                 'currency_symbol': currency_symbol
             }
+        })
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def toggle_flowgroup_recurring_ajax(request):
+    """
+    AJAX: Toggle the is_recurring status of a FlowGroup.
+    Only ADMIN and PARENT users can toggle recurring status.
+    """
+    if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return HttpResponseBadRequest(_("Not an AJAX request."))
+
+    family, current_member, _unused = get_family_context(request.user)
+    if not family:
+        return HttpResponseForbidden(_("User is not associated with a family."))
+
+    # Only ADMIN and PARENT can mark groups as recurring
+    if current_member.role == 'CHILD':
+        return HttpResponseForbidden(_("Children cannot mark groups as recurring."))
+
+    try:
+        data = json.loads(request.body)
+        flow_group_id = data.get('flow_group_id')
+
+        if not flow_group_id:
+            return JsonResponse({'status': 'error', 'error': _('FlowGroup ID is required')}, status=400)
+
+        flow_group = get_object_or_404(FlowGroup, id=flow_group_id)
+
+        # Check access permissions
+        if not can_access_flow_group(flow_group, current_member):
+            return HttpResponseForbidden(_("You do not have permission to modify this FlowGroup."))
+
+        # Check if trying to unmark a group that has fixed transactions
+        if flow_group.is_recurring:
+            # User is trying to unmark as recurring
+            fixed_transactions_count = flow_group.transactions.filter(is_fixed=True).count()
+            if fixed_transactions_count > 0:
+                return JsonResponse({
+                    'status': 'error',
+                    'error': _('Cannot unmark group as recurring while it has fixed transactions. Please unmark all fixed transactions first.'),
+                    'fixed_count': fixed_transactions_count
+                }, status=400)
+
+        # Toggle the recurring status
+        flow_group.is_recurring = not flow_group.is_recurring
+        flow_group.save()
+
+        return JsonResponse({
+            'status': 'success',
+            'is_recurring': flow_group.is_recurring,
+            'message': _('Recurring status updated successfully')
+        })
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def toggle_transaction_fixed_ajax(request):
+    """
+    AJAX: Toggle the is_fixed status of a Transaction.
+    When marking first transaction as fixed, automatically marks parent FlowGroup as recurring.
+    Only ADMIN and PARENT users can toggle fixed status.
+    """
+    if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return HttpResponseBadRequest(_("Not an AJAX request."))
+
+    family, current_member, _unused = get_family_context(request.user)
+    if not family:
+        return HttpResponseForbidden(_("User is not associated with a family."))
+
+    # Only ADMIN and PARENT can mark transactions as fixed
+    if current_member.role == 'CHILD':
+        return HttpResponseForbidden(_("Children cannot mark transactions as fixed."))
+
+    try:
+        data = json.loads(request.body)
+        transaction_id = data.get('transaction_id')
+
+        if not transaction_id:
+            return JsonResponse({'status': 'error', 'error': _('Transaction ID is required')}, status=400)
+
+        transaction = get_object_or_404(Transaction, id=transaction_id)
+        flow_group = transaction.flow_group
+
+        # Check access permissions
+        if not can_access_flow_group(flow_group, current_member):
+            return HttpResponseForbidden(_("You do not have permission to modify this transaction."))
+
+        # Toggle the fixed status
+        transaction.is_fixed = not transaction.is_fixed
+        transaction.save()
+
+        # If this is the first fixed transaction in the group, auto-mark group as recurring
+        flow_group_updated = False
+        if transaction.is_fixed and not flow_group.is_recurring:
+            flow_group.is_recurring = True
+            flow_group.save()
+            flow_group_updated = True
+
+        return JsonResponse({
+            'status': 'success',
+            'is_fixed': transaction.is_fixed,
+            'flow_group_is_recurring': flow_group.is_recurring,
+            'flow_group_updated': flow_group_updated,
+            'message': _('Fixed status updated successfully')
         })
 
     except Exception as e:
