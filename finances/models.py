@@ -264,6 +264,18 @@ class FlowGroup(models.Model):
         help_text=_("If True, realized amounts are added to investment balance and deducted from expense calculations")
     )
 
+    # NEW: Credit Card flag - when checked, group represents credit card expenses
+    is_credit_card = models.BooleanField(
+        default=False,
+        help_text=_("If True, this is a credit card group with special billing cycle handling")
+    )
+
+    # NEW: Closed flag - for credit card groups, indicates if the bill is closed and paid
+    closed = models.BooleanField(
+        default=False,
+        help_text=_("For credit card groups: marks if the bill has been closed and paid")
+    )
+
     # NEW: Recurring flag - when checked, FlowGroup is copied to new periods
     is_recurring = models.BooleanField(
         default=False,

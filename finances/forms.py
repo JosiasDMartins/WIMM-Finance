@@ -244,12 +244,13 @@ class FlowGroupForm(forms.ModelForm):
     
     class Meta:
         model = FlowGroup
-        fields = ['name', 'budgeted_amount', 'is_shared', 'is_kids_group', 'is_investment', 'assigned_members', 'assigned_children']
+        fields = ['name', 'budgeted_amount', 'is_shared', 'is_kids_group', 'is_investment', 'is_credit_card', 'assigned_members', 'assigned_children']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'w-full border rounded-lg bg-white dark:bg-gray-700 border-slate-300 dark:border-slate-600 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2'}),
             'is_shared': forms.CheckboxInput(attrs={'class': 'shared-checkbox'}),
             'is_kids_group': forms.CheckboxInput(attrs={'class': 'kids-checkbox'}),
             'is_investment': forms.CheckboxInput(attrs={'class': 'investment-checkbox'}),
+            'is_credit_card': forms.CheckboxInput(attrs={'class': 'credit-card-checkbox'}),
         }
     
     def __init__(self, *args, **kwargs):

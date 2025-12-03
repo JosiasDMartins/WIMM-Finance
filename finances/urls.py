@@ -45,6 +45,9 @@ urlpatterns = [
     # Toggle Kids group realized status
     path('api/kids-group/toggle-realized/', views.toggle_kids_group_realized_ajax, name='toggle_kids_group_realized_ajax'),
 
+    # Toggle Credit Card group closed status
+    path('api/credit-card/toggle-closed/', views.toggle_credit_card_closed_ajax, name='toggle_credit_card_closed_ajax'),
+
     # Toggle recurring FlowGroup and fixed Transaction status
     path('api/flowgroup/toggle-recurring/', views.toggle_flowgroup_recurring_ajax, name='toggle_flowgroup_recurring_ajax'),
     path('api/transaction/toggle-fixed/', views.toggle_transaction_fixed_ajax, name='toggle_transaction_fixed_ajax'),

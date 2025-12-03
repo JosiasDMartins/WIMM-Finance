@@ -531,9 +531,12 @@ def get_balance_summary(family, current_member, start_date, end_date):
             if trans.realized:
                 realized_income += amt
 
+        # For credit card groups: only count realized if closed=True
         realized_exp = Transaction.objects.filter(
             flow_group__in=accessible_expense_groups, date__range=(start_date, end_date),
             realized=True, is_child_expense=True
+        ).filter(
+            Q(flow_group__is_credit_card=False) | Q(flow_group__is_credit_card=True, flow_group__closed=True)
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         realized_expense = Decimal(str(realized_exp.amount)) if hasattr(realized_exp, 'amount') else realized_exp
     else:
@@ -557,9 +560,12 @@ def get_balance_summary(family, current_member, start_date, end_date):
         ).aggregate(total=Sum('budgeted_amount'))['total'] or Decimal('0.00')
         kids_groups_realized_budget = Decimal(str(kids_realized_sum.amount)) if hasattr(kids_realized_sum, 'amount') else kids_realized_sum
 
+        # For credit card groups: only count realized if closed=True
         realized_exp_calc = Transaction.objects.filter(
             flow_group__in=accessible_expense_groups, date__range=(start_date, end_date),
             realized=True, is_child_expense=False
+        ).filter(
+            Q(flow_group__is_credit_card=False) | Q(flow_group__is_credit_card=True, flow_group__closed=True)
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         realized_expense = Decimal(str(realized_exp_calc.amount)) if hasattr(realized_exp_calc, 'amount') else realized_exp_calc
         realized_expense += kids_groups_realized_budget

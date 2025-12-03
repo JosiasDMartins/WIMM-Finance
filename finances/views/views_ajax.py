@@ -275,35 +275,79 @@ def toggle_kids_group_realized_ajax(request):
     family, current_member, _unused = get_family_context(request.user)
     if not family:
         return HttpResponseForbidden(_("User is not associated with a family."))
-    
+
     if current_member.role not in ['ADMIN', 'PARENT']:
         return HttpResponseForbidden(_("Only Parents and Admins can mark Kids groups as realized."))
-    
+
     try:
         data = json.loads(request.body)
         flow_group_id = data.get('flow_group_id')
         new_realized_status = data.get('realized', False)
-        
+
         if not flow_group_id:
             return JsonResponse({'error': _('Missing flow_group_id.')}, status=400)
-        
+
         flow_group = get_object_or_404(FlowGroup, id=flow_group_id, family=family)
-        
+
         if not flow_group.is_kids_group:
             return JsonResponse({'error': _('Can only toggle realized for Kids groups.')}, status=400)
-        
+
         flow_group.realized = new_realized_status
         flow_group.save()
-        
+
         budget_value = str(flow_group.budgeted_amount.amount)
-        
+
         return JsonResponse({
             'status': 'success',
             'flow_group_id': flow_group.id,
             'realized': flow_group.realized,
             'budget': budget_value
         })
-        
+
+    except Exception as e:
+        return JsonResponse({'error': _('A server error occurred: %(error)s') % {'error': str(e)}}, status=500)
+
+
+@login_required
+@require_POST
+@db_transaction.atomic
+def toggle_credit_card_closed_ajax(request):
+    """AJAX: Toggles the 'closed' status of a Credit Card group."""
+    if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return HttpResponseBadRequest(_("Not an AJAX request."))
+
+    family, current_member, _unused = get_family_context(request.user)
+    if not family:
+        return HttpResponseForbidden(_("User is not associated with a family."))
+
+    if current_member.role not in ['ADMIN', 'PARENT']:
+        return HttpResponseForbidden(_("Only Parents and Admins can mark Credit Card groups as closed."))
+
+    try:
+        data = json.loads(request.body)
+        flow_group_id = data.get('flow_group_id')
+        new_closed_status = data.get('closed', False)
+
+        if not flow_group_id:
+            return JsonResponse({'error': _('Missing flow_group_id.')}, status=400)
+
+        flow_group = get_object_or_404(FlowGroup, id=flow_group_id, family=family)
+
+        if not flow_group.is_credit_card:
+            return JsonResponse({'error': _('Can only toggle closed for Credit Card groups.')}, status=400)
+
+        flow_group.closed = new_closed_status
+        flow_group.save()
+
+        budget_value = str(flow_group.budgeted_amount.amount)
+
+        return JsonResponse({
+            'status': 'success',
+            'flow_group_id': flow_group.id,
+            'closed': flow_group.closed,
+            'budget': budget_value
+        })
+
     except Exception as e:
         return JsonResponse({'error': _('A server error occurred: %(error)s') % {'error': str(e)}}, status=500)
 

@@ -124,7 +124,7 @@
                                 </div>
                             </td>
                             <td class="py-4 px-4 text-sm {% if group.is_child_group %}font-medium{% elif group.budget_warning %}text-yellow-600 dark:text-yellow-500 font-semibold{% elif not group.is_accessible %}text-gray-400 dark:text-gray-500{% else %}text-gray-500 dark:text-gray-400{% endif %} text-right group-estimated" data-value="{{ group.total_estimated }}">{{ currency_symbol }} {{ group.total_estimated|intcomma }}</td>
-                            <td class="py-4 px-4 text-sm {% if group.is_child_group %}font-medium{% elif not group.is_accessible %}text-gray-400 dark:text-gray-500{% else %}text-red-600 dark:text-red-500{% endif %} text-right group-realized" data-value="{{ group.total_spent|default:'0.00' }}">
+                            <td class="py-4 px-4 text-sm {% if group.is_child_group %}font-medium{% elif group.is_credit_card and not group.closed %}text-orange-600 dark:text-orange-500 font-semibold{% elif not group.is_accessible %}text-gray-400 dark:text-gray-500{% else %}text-red-600 dark:text-red-500{% endif %} text-right group-realized" data-value="{{ group.total_spent|default:'0.00' }}">
                                 {% if group.is_kids_group and member_role_for_period in 'PARENT,ADMIN' %}
                                     {% if group.realized %}
                                         {{ group.budgeted_amount|intcomma }} ( {{ group.child_expenses|default:"0.00"|intcomma }})
@@ -132,7 +132,7 @@
                                         ({{ currency_symbol }} {{ group.child_expenses|default:"0.00"|intcomma }})
                                     {% endif %}
                                 {% else %}
-                                    {{ currency_symbol }} {{ group.total_spent|default:"0.00"|intcomma }}
+                                    {{ currency_symbol }} {{ group.total_spent|default:"0.00"|intcomma }}{% if group.is_credit_card and not group.closed %} *{% endif %}
                                 {% endif %}
                             </td>
                         </tr>

@@ -77,6 +77,7 @@ def dashboard_view(request):
     )
     
     # Annotate accessible groups
+    # For credit card groups: only count realized if closed=True
     accessible_expense_groups = accessible_expense_groups.annotate(
         total_estimated=Sum(
             'transactions__amount',
@@ -84,10 +85,15 @@ def dashboard_view(request):
         ),
         total_spent=Sum(
             'transactions__amount',
-            filter=Q(transactions__date__range=(start_date, end_date), transactions__realized=True)
+            filter=Q(
+                transactions__date__range=(start_date, end_date),
+                transactions__realized=True
+            ) & (
+                Q(is_credit_card=False) | Q(is_credit_card=True, closed=True)
+            )
         )
     ).order_by('order', 'name')
-    
+
     # Annotate display-only groups
     display_only_expense_groups = display_only_expense_groups.annotate(
         total_estimated=Sum(
@@ -96,7 +102,12 @@ def dashboard_view(request):
         ),
         total_spent=Sum(
             'transactions__amount',
-            filter=Q(transactions__date__range=(start_date, end_date), transactions__realized=True)
+            filter=Q(
+                transactions__date__range=(start_date, end_date),
+                transactions__realized=True
+            ) & (
+                Q(is_credit_card=False) | Q(is_credit_card=True, closed=True)
+            )
         )
     ).order_by('order', 'name')
     
