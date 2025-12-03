@@ -780,7 +780,6 @@ def create_flow_group_view(request):
 
     query_period = request.GET.get('period') or request.POST.get('period')
     start_date, end_date, _unused = get_current_period_dates(family, query_period)
-
     if request.method == 'POST':
         form = FlowGroupForm(request.POST, family=family)
         if form.is_valid():
@@ -852,6 +851,7 @@ def create_flow_group_view(request):
         
         child_max_budget = Decimal(str(child_sum.amount)) if hasattr(child_sum, 'amount') else child_sum
 
+   
     context = {
         'form': form,
         'is_new': True,

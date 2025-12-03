@@ -34,7 +34,7 @@
 
     <form id="flow-group-form" method="POST" 
           action="{% if flow_group.id %}{% url 'edit_flow_group' flow_group.id %}{% else %}{% url 'add_flow_group' %}{% endif %}" 
-          data-flow-group-id="{{ flow_group.id|default:'NEW' }}">
+          data-flow-group-id="{{ flow_group.id|default:'NEW' }}" novalidate>
         {% csrf_token %}
         {% if selected_period %}
         <input type="hidden" name="period" value="{{ selected_period }}">
