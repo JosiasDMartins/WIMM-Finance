@@ -212,15 +212,15 @@ class FamilyConfigurationForm(forms.ModelForm):
 
 # --- FlowGroup Form ---
 class FlowGroupForm(forms.ModelForm):
-    # Override budgeted_amount to use only number input (no currency selector)
+    # Override budgeted_amount to use text input with money mask
     budgeted_amount = forms.DecimalField(
         max_digits=14,
         decimal_places=2,
         required=True,
-        widget=forms.NumberInput(attrs={
-            'class': 'w-full border rounded-lg bg-white dark:bg-gray-700 border-slate-300 dark:border-slate-600 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2',
-            'step': '0.01',
-            'min': '0',
+        widget=forms.TextInput(attrs={
+            'class': 'w-full border rounded-lg bg-white dark:bg-gray-700 border-slate-300 dark:border-slate-600 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2 text-right',
+            'data-field': 'amount',
+            'inputmode': 'decimal',
             'placeholder': '0.00'
         }),
         label='Budgeted Amount'

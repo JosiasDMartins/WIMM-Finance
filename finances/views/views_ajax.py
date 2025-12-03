@@ -98,6 +98,7 @@ def save_flow_item_ajax(request):
         realized = data.get('realized', False)
         is_child_manual = data.get('is_child_manual', False)
         is_child_expense = data.get('is_child_expense', False)
+        is_fixed = data.get('is_fixed', False)
         
         print(f"[DEBUG] save_flow_item_ajax called - transaction_id: {transaction_id}, type: {type(transaction_id)}")
         
@@ -109,17 +110,27 @@ def save_flow_item_ajax(request):
         
         try:
             amount_clean = str(amount_str).strip()
-            amount_clean = amount_clean.replace(get_currency_symbol(currency), '')
-            amount_clean = amount_clean.replace(get_thousand_separator(), '')
+            print(f"[DEBUG] Step 1 - Raw input: '{amount_str}'")
 
-            # Replace decimal separator with standard dot for Decimal conversion
-            decimal_sep = get_decimal_separator()
-            if decimal_sep != '.':
-                amount_clean = amount_clean.replace(decimal_sep, '.')
+            # IMPORTANT: Frontend getRawValue() already sends values in standard format "1234.56"
+            # We should NOT do locale-based cleaning because:
+            # 1. Frontend already removes thousand separators
+            # 2. Frontend already converts decimal separator to dot
+            # 3. Doing locale cleaning here causes bugs (e.g., "12.34" becomes "1234" in PT_BR)
+
+            # Only remove currency symbol if present (edge case)
+            curr_symbol = get_currency_symbol(currency)
+            if curr_symbol in amount_clean:
+                amount_clean = amount_clean.replace(curr_symbol, '')
+                print(f"[DEBUG] Step 2 - After removing currency symbol '{curr_symbol}': '{amount_clean}'")
+
+            # DO NOT remove thousand separators or replace decimal separators!
+            # Frontend already sends in standard format "1234.56"
 
             if not amount_clean:
                 return JsonResponse({'error': _('Amount cannot be empty.')}, status=400)
             amount = Decimal(amount_clean)
+            print(f"[DEBUG] Step 3 - Final Decimal value: {amount}")
         except (ValueError, decimal.InvalidOperation) as e:
             return JsonResponse({'error': _('Invalid amount format: %(amount)s') % {'amount': amount_str}}, status=400)
             
@@ -155,10 +166,13 @@ def save_flow_item_ajax(request):
                 transaction.member = member
 
         transaction.description = description
-        transaction.amount = Money(abs(amount), currency)
+        money_obj = Money(abs(amount), currency)
+        print(f"[DEBUG] Creating Money object - Decimal: {abs(amount)}, Currency: {currency}, Money.amount: {money_obj.amount}")
+        transaction.amount = money_obj
         transaction.date = date
         transaction.realized = realized
-        
+        transaction.is_fixed = is_fixed
+
         if is_child_manual and current_member.role == 'CHILD' and flow_group.group_type == FLOW_TYPE_INCOME:
             transaction.is_child_manual_income = True
 
@@ -167,6 +181,7 @@ def save_flow_item_ajax(request):
         
         transaction.save()
         print(f"[DEBUG] Transaction saved with ID: {transaction.id}")
+        print(f"[DEBUG] After save - transaction.amount.amount: {transaction.amount.amount}")
 
         # Criar notificação SEMPRE (para novas transações e edições)
         print(f"[DEBUG] Attempting to create notification for transaction {transaction.id}")
@@ -205,6 +220,7 @@ def save_flow_item_ajax(request):
             'member_id': transaction.member.id,
             'member_name': transaction.member.user.username,
             'realized': transaction.realized,
+            'is_fixed': transaction.is_fixed,
         })
 
     except ValueError as e:
@@ -451,12 +467,15 @@ def save_bank_balance_ajax(request):
         period_start_date_str = data.get('period_start_date')
         balance_id = data.get('id')
 
-        # Clean and parse amount with locale support
+        # Parse amount - frontend getRawValue() already sends in standard format "1234.56"
+        # DO NOT do locale-based cleaning - it causes the 100x multiplication bug
         amount_clean = str(amount_str).strip()
-        amount_clean = amount_clean.replace(get_thousand_separator(), '')
-        decimal_sep = get_decimal_separator()
-        if decimal_sep != '.':
-            amount_clean = amount_clean.replace(decimal_sep, '.')
+
+        # Only remove currency symbol if present (edge case)
+        curr_symbol = get_currency_symbol(get_period_currency(family, dt_datetime.strptime(period_start_date_str, '%Y-%m-%d').date()))
+        if curr_symbol in amount_clean:
+            amount_clean = amount_clean.replace(curr_symbol, '')
+
         amount = Decimal(amount_clean)
 
         date = dt_datetime.strptime(date_str, '%Y-%m-%d').date()

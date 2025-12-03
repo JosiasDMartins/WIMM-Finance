@@ -341,7 +341,7 @@
                             <td class="py-3 px-3 text-sm text-right text-gray-400 dark:text-gray-500 amount-cell-with-actions">
                                 <div class="cell-amount-display" style="display: none;"></div>
                                 <div class="cell-amount-edit">
-                                    <input type="text" inputmode="decimal" data-field="amount" class="w-20 border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs text-right p-1" value="0.00">
+                                    <input type="text" inputmode="decimal" data-field="amount" class="w-20 border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs text-right p-1" value="0{{ decimal_separator }}00">
                                 </div>
 
                                 <!-- Mobile action buttons (hidden behind row, revealed on swipe) -->
@@ -440,6 +440,7 @@
     // Locale-specific separators from backend
     const decimalSeparator = "{{ decimal_separator }}";
     const thousandSeparator = "{{ thousand_separator }}";
+    console.log('[INIT] decimalSeparator:', decimalSeparator, 'thousandSeparator:', thousandSeparator);
 
     // Function to format number as currency for display
     function formatCurrency(amount) {
@@ -730,11 +731,109 @@
         }
     }
     
+    // Money mask functions
+    function applyMoneyMask(event) {
+        const input = event.target;
+        let value = input.value;
+
+        // Remove all non-digit characters
+        value = value.replace(/\D/g, '');
+
+        // If empty, set to 0
+        if (value === '') {
+            input.value = '0' + decimalSeparator + '00';
+            setTimeout(function() {
+                input.setSelectionRange(input.value.length, input.value.length);
+            }, 0);
+            return;
+        }
+
+        // Convert to integer (cents)
+        let cents = parseInt(value, 10);
+
+        // Format as currency with 2 decimal places
+        let integerPart = Math.floor(cents / 100).toString();
+        let decimalPart = (cents % 100).toString().padStart(2, '0');
+
+        // Add thousand separators to integer part
+        integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, thousandSeparator);
+
+        // Combine with decimal separator
+        input.value = integerPart + decimalSeparator + decimalPart;
+
+        // Position cursor at end
+        setTimeout(function() {
+            input.setSelectionRange(input.value.length, input.value.length);
+        }, 0);
+    }
+
+    function getRawValue(maskedValue) {
+        // Remove thousand separators and replace decimal separator with dot
+        console.log('[getRawValue] Input:', maskedValue);
+        console.log('[getRawValue] thousandSeparator:', thousandSeparator, 'decimalSeparator:', decimalSeparator);
+        let value = maskedValue.replace(new RegExp('\\' + thousandSeparator, 'g'), '');
+        console.log('[getRawValue] After removing thousand sep:', value);
+        value = value.replace(decimalSeparator, '.');
+        console.log('[getRawValue] Final output:', value);
+        return value;
+    }
+
     // Initialize charts on page load
     document.addEventListener('DOMContentLoaded', function() {
         initPieChart();
         initBarChart();
         updateMetrics();
+
+        // Add money mask to all amount fields using event delegation
+        document.addEventListener('input', function(event) {
+            if (event.target.matches('input[data-field="amount"]')) {
+                applyMoneyMask(event);
+            }
+        });
+
+        // Position cursor at end when clicking or focusing on amount field
+        document.addEventListener('focus', function(event) {
+            if (event.target.matches('input[data-field="amount"]')) {
+                setTimeout(function() {
+                    event.target.setSelectionRange(event.target.value.length, event.target.value.length);
+                }, 0);
+            }
+        }, true);
+
+        document.addEventListener('click', function(event) {
+            if (event.target.matches('input[data-field="amount"]')) {
+                event.target.setSelectionRange(event.target.value.length, event.target.value.length);
+            }
+        });
+
+        // Prevent cursor movement with arrow keys
+        document.addEventListener('keydown', function(event) {
+            if (event.target.matches('input[data-field="amount"]')) {
+                if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+                    event.preventDefault();
+                    event.target.setSelectionRange(event.target.value.length, event.target.value.length);
+                }
+            }
+        });
+
+        // Initialize existing amount fields with money mask on page load
+        document.querySelectorAll('input[data-field="amount"]').forEach(function(input) {
+            if (input.value && input.value.trim() !== '') {
+                let value = input.value.replace(',', '.');
+                let num = parseFloat(value);
+                if (!isNaN(num)) {
+                    let cents = Math.round(num * 100);
+                    let integerPart = Math.floor(cents / 100).toString();
+                    let decimalPart = (cents % 100).toString().padStart(2, '0');
+                    integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, thousandSeparator);
+                    input.value = integerPart + decimalSeparator + decimalPart;
+                } else {
+                    input.value = '0' + decimalSeparator + '00';
+                }
+            } else {
+                input.value = '0' + decimalSeparator + '00';
+            }
+        });
     });
     
     // === END CHARTS ===
@@ -819,29 +918,32 @@
     function toggleIncomeRealized(rowId) {
         const row = document.getElementById(rowId);
         const transactionId = row.getAttribute('data-item-id');
-        
+
         if (transactionId === 'NEW') return;
-        
+
         // Check if this is a kids income (should not be toggled)
         if (row.getAttribute('data-kids-income') === 'true') {
             alert('{% trans "Only Parents/Admins can change this status" %}');
             return;
         }
-        
+
         // Get current status from data attribute
         const currentStatus = row.getAttribute('data-realized') === 'true';
         const newStatus = !currentStatus;
-        
+
         // Get other field values
         const description = row.querySelector('.cell-description-display').textContent.trim();
         const fullDate = row.getAttribute('data-date');
-        const amount = row.getAttribute('data-amount');
+
+        // Get amount from edit input field and convert from masked format
+        const amountInput = row.querySelector('.cell-amount-edit input[data-field="amount"]');
+        const amountText = getRawValue(amountInput.value);
         
         const data = {
             'flow_group_id': incomeFlowGroupId,
             'transaction_id': transactionId,
             'description': description,
-            'amount': amount,
+            'amount': amountText,
             'date': fullDate,
             'realized': newStatus,
         };
@@ -906,7 +1008,7 @@
         const toggleNew = row.querySelector('.income-realized-toggle-new');
         const realizedValue = toggleNew.classList.contains('bg-green-500');
 
-        const amountValue = row.querySelector('input[data-field="amount"]').value;
+        const amountValue = getRawValue(row.querySelector('input[data-field="amount"]').value);
 
         const data = {
             'flow_group_id': incomeFlowGroupId,
@@ -1036,7 +1138,7 @@
         const row = document.getElementById(rowId);
         row.classList.add('hidden');
         row.querySelector('input[data-field="description"]').value = '';
-        row.querySelector('input[data-field="amount"]').value = '0.00';
+        row.querySelector('input[data-field="amount"]').value = '0' + decimalSeparator + '00';
         
         // Reset toggle
         const toggleNew = row.querySelector('.income-realized-toggle-new');
@@ -1118,13 +1220,19 @@
 
     // Function to format amount for input field based on user's locale
     function formatAmountForInput(amount) {
-        // Convert to number and format with 2 decimals
+        // Convert to number and apply money mask format
         const num = parseFloat(amount);
-        if (isNaN(num)) return amount;
+        if (isNaN(num)) return '0' + decimalSeparator + '00';
 
-        // Format to 2 decimal places and replace decimal separator
-        // decimalSeparator comes from backend template context
-        return num.toFixed(2).replace('.', decimalSeparator);
+        // Convert to cents
+        let cents = Math.round(num * 100);
+
+        // Format with mask
+        let integerPart = Math.floor(cents / 100).toString();
+        let decimalPart = (cents % 100).toString().padStart(2, '0');
+        integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, thousandSeparator);
+
+        return integerPart + decimalSeparator + decimalPart;
     }
 
     // Function to toggle between display and edit mode

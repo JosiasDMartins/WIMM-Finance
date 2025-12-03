@@ -742,7 +742,7 @@ def bank_reconciliation_view(request):
             'mode': 'detailed',
             'members_data': members_data,
         }
-    
+
     context = {
         'start_date': start_date,
         'end_date': end_date,
@@ -751,9 +751,12 @@ def bank_reconciliation_view(request):
         'member_role_for_period': member_role_for_period,
         'reconciliation_data': reconciliation_data,
         'mode': mode,
+        'decimal_separator': get_decimal_separator(),
+        'thousand_separator': get_thousand_separator(),
+        'currency_symbol': get_currency_symbol(get_period_currency(family, start_date)),
     }
     context.update(get_base_template_context(family, query_period, start_date))
-    
+
     return render(request, 'finances/bank_reconciliation.html', context)
 
 

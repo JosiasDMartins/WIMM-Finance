@@ -354,7 +354,7 @@
 
                             <td class="px-6 py-4 text-sm text-gray-500 cell-date-display hidden"></td>
                             <td class="px-6 py-4 text-sm text-gray-500 cell-date-edit">
-                                <input type="date" data-field="date" class="w-full border-b border-primary dark:text-white dark:bg-gray-800 bg-transparent focus:outline-none focus:ring-0 text-sm p-1 date-input-field" value="{{ today_date }}">
+                                <input type="date" data-field="date" class="w-full border-b border-primary text-gray-900 dark:text-white dark:bg-gray-800 bg-transparent focus:outline-none focus:ring-0 text-sm p-1 date-input-field" value="{{ today_date }}" data-display-value="{{ today_date|date:'d/m' }}">
                             </td>
 
                             <td class="px-6 py-4 text-sm text-gray-500 cell-member-display hidden"></td>
@@ -379,8 +379,14 @@
                             <td class="px-6 py-4 text-center mobile-hide-column">
                                 <div class="flex items-center justify-center">
                                     {% if current_member.role != 'CHILD' %}
-                                    <div class="fixed-toggle-new relative inline-block w-8 h-8 rounded transition-all duration-200 bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/30">
-                                        <!-- Empty for new items - will be set on save -->
+                                    <div class="fixed-toggle-new relative inline-flex items-center justify-center w-8 h-8 rounded transition-all duration-200 bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/30"
+                                         onclick="toggleNewItemFixed('new-item-template')"
+                                         data-is-fixed="false"
+                                         title="{% trans 'Mark as recurring expense' %}">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8m0-5v5h5" />
+                                        </svg>
                                     </div>
                                     {% endif %}
                                 </div>
@@ -388,7 +394,7 @@
 
                             <td class="px-6 py-4 text-right text-primary cell-budget-display hidden"></td>
                             <td class="px-6 py-4 text-right text-primary cell-budget-edit">
-                                <input type="text" inputmode="decimal" data-field="amount" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm text-right p-1" value="0.00">
+                                <input type="text" inputmode="decimal" data-field="amount" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm text-right p-1" value="0{{ decimal_separator }}00">
                             </td>
 
                             <td class="px-6 py-4 text-center whitespace-nowrap mobile-hide-column">
@@ -613,6 +619,51 @@
         }
     }
 
+    // Function to apply money mask - input from right to left starting with cents
+    function applyMoneyMask(event) {
+        const input = event.target;
+        let value = input.value;
+
+        // Remove all non-digit characters
+        value = value.replace(/\D/g, '');
+
+        // If empty, set to 0
+        if (value === '') {
+            input.value = '0' + decimalSeparator + '00';
+            // Position cursor at end
+            setTimeout(function() {
+                input.setSelectionRange(input.value.length, input.value.length);
+            }, 0);
+            return;
+        }
+
+        // Convert to integer (cents)
+        let cents = parseInt(value, 10);
+
+        // Format as currency with 2 decimal places
+        let integerPart = Math.floor(cents / 100).toString();
+        let decimalPart = (cents % 100).toString().padStart(2, '0');
+
+        // Add thousand separators to integer part
+        integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, thousandSeparator);
+
+        // Combine with decimal separator
+        input.value = integerPart + decimalSeparator + decimalPart;
+
+        // Position cursor at end
+        setTimeout(function() {
+            input.setSelectionRange(input.value.length, input.value.length);
+        }, 0);
+    }
+
+    // Function to get raw value from masked input (for sending to backend)
+    function getRawValue(maskedValue) {
+        // Remove thousand separators and replace decimal separator with dot
+        let value = maskedValue.replace(new RegExp('\\' + thousandSeparator, 'g'), '');
+        value = value.replace(decimalSeparator, '.');
+        return value;
+    }
+
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
         // Set initial state based on existing values
@@ -621,6 +672,65 @@
         initializeDragAndDrop();
         // Initialize toggle for new item
         initializeNewItemToggle();
+
+        // Add money mask to all amount fields using event delegation
+        // This ensures new dynamically added fields also get the mask
+        document.addEventListener('input', function(event) {
+            if (event.target.matches('input[data-field="amount"]')) {
+                applyMoneyMask(event);
+            }
+        });
+
+        // Position cursor at the end when clicking or focusing on amount field
+        document.addEventListener('focus', function(event) {
+            if (event.target.matches('input[data-field="amount"]')) {
+                // Move cursor to end
+                setTimeout(function() {
+                    event.target.setSelectionRange(event.target.value.length, event.target.value.length);
+                }, 0);
+            }
+        }, true);
+
+        document.addEventListener('click', function(event) {
+            if (event.target.matches('input[data-field="amount"]')) {
+                // Move cursor to end
+                event.target.setSelectionRange(event.target.value.length, event.target.value.length);
+            }
+        });
+
+        // Prevent cursor movement with arrow keys - always keep at end
+        document.addEventListener('keydown', function(event) {
+            if (event.target.matches('input[data-field="amount"]')) {
+                // If arrow keys, home, or end - prevent default and keep cursor at end
+                if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+                    event.preventDefault();
+                    event.target.setSelectionRange(event.target.value.length, event.target.value.length);
+                }
+            }
+        });
+
+        // Initialize existing amount fields with money mask on page load
+        document.querySelectorAll('input[data-field="amount"]').forEach(function(input) {
+            if (input.value && input.value.trim() !== '') {
+                // Parse existing decimal value (e.g., "23.58" or "23,58")
+                let value = input.value.replace(',', '.');
+                let num = parseFloat(value);
+                if (!isNaN(num)) {
+                    // Convert to cents
+                    let cents = Math.round(num * 100);
+                    // Format with mask
+                    let integerPart = Math.floor(cents / 100).toString();
+                    let decimalPart = (cents % 100).toString().padStart(2, '0');
+                    integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, thousandSeparator);
+                    input.value = integerPart + decimalSeparator + decimalPart;
+                } else {
+                    input.value = '0' + decimalSeparator + '00';
+                }
+            } else {
+                // Set default value for empty fields
+                input.value = '0' + decimalSeparator + '00';
+            }
+        });
     });
 
     // Function to format amount values with user's locale decimal separator
@@ -667,9 +777,8 @@
             return;
         }
 
-        // Parse budget value, replacing comma with period if needed
-        let budgetValue = budgetInput.value.replace(',', '.');
-        const budgetedAmount = parseFloat(budgetValue) || 0;
+        // Parse budget value using getRawValue to handle money mask format
+        const budgetedAmount = parseFloat(getRawValue(budgetInput.value)) || 0;
 
         console.log('[updateBudgetWarning] Budget input value:', budgetInput.value);
         console.log('[updateBudgetWarning] Budget parsed:', budgetedAmount);
@@ -747,24 +856,25 @@
     function toggleRealized(rowId, currentStatus) {
         const row = document.getElementById(rowId);
         const transactionId = row.getAttribute('data-item-id');
-        
+
         if (transactionId === 'NEW') return;
-        
+
         const newStatus = !currentStatus;
-        
+
         // Get other field values from display mode
         const description = row.querySelector('.cell-description-display').textContent;
-        // CORREÇÃO: Ler o 'amount' do atributo 'data-amount' para obter o valor numérico puro
-        const amountText = row.getAttribute('data-amount');
+        // Get amount from edit input and convert from masked format
+        const amountInput = row.querySelector('.cell-budget-edit input[data-field="amount"]');
+        const amountText = getRawValue(amountInput.value);
         // Get date from the hidden input (edit mode) which has the correct YYYY-MM-DD format
         const dateText = row.querySelector('.cell-date-edit input[data-field="date"]').value;
         const memberId = row.querySelector('.cell-member-display').getAttribute('data-member-id');
-        
+
         const data = {
             'flow_group_id': document.getElementById('flow-group-form').getAttribute('data-flow-group-id'),
             'transaction_id': transactionId,
             'description': description,
-            'amount': amountText, // Agora envia o valor numérico puro
+            'amount': amountText, // Send raw value in standard format
             'date': dateText,
             'member_id': memberId,
             'realized': newStatus,
@@ -913,10 +1023,45 @@
         });
     }
 
+    // Function to toggle fixed status for new items (before they are saved)
+    function toggleNewItemFixed(rowId) {
+        const row = document.getElementById(rowId);
+        const toggleBtn = row.querySelector('.fixed-toggle-new');
+
+        if (!toggleBtn) return;
+
+        const currentState = toggleBtn.getAttribute('data-is-fixed') === 'true';
+        const newState = !currentState;
+
+        // Update data attribute
+        toggleBtn.setAttribute('data-is-fixed', newState ? 'true' : 'false');
+
+        // Update button appearance
+        if (newState) {
+            toggleBtn.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-400', 'dark:text-gray-500');
+            toggleBtn.classList.add('bg-blue-600', 'text-white');
+        } else {
+            toggleBtn.classList.remove('bg-blue-600', 'text-white');
+            toggleBtn.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-400', 'dark:text-gray-500');
+        }
+
+        console.log('[DEBUG] New item fixed status toggled:', newState);
+    }
+
     // Function to add a new row using the template
     function addNewRow() {
         const templateRow = document.getElementById('new-item-template');
         if (templateRow && templateRow.classList.contains('hidden')) {
+             // Ensure date field is initialized BEFORE showing the row
+             const dateInput = templateRow.querySelector('input[data-field="date"]');
+             if (dateInput) {
+                 const today = new Date().toISOString().split('T')[0];
+                 dateInput.value = today;
+                 const [year, month, day] = today.split('-');
+                 const displayValue = `${day}/${month}`;
+                 dateInput.setAttribute('data-display-value', displayValue);
+             }
+
              templateRow.classList.remove('hidden');
              templateRow.querySelector('input[data-field="description"]').focus();
         } else if (templateRow) {
@@ -940,12 +1085,19 @@
             realizedValue = row.getAttribute('data-realized') === 'true';
         }
         
-        // Get amount value - send as-is, backend will handle locale parsing
-        let amountValue = row.querySelector('input[data-field="amount"]').value;
+        // Get amount value - convert from masked format to raw decimal
+        let amountValue = getRawValue(row.querySelector('input[data-field="amount"]').value);
 
-        // Get is_fixed value (default false for new items)
+        // Get is_fixed value
         let isFixedValue = false;
-        if (!isNew) {
+        if (isNew) {
+            // Para novos itens, ler do botão toggle
+            const toggleFixedNew = row.querySelector('.fixed-toggle-new');
+            if (toggleFixedNew) {
+                isFixedValue = toggleFixedNew.getAttribute('data-is-fixed') === 'true';
+            }
+        } else {
+            // Para itens existentes, ler do atributo da row
             isFixedValue = row.getAttribute('data-is-fixed') === 'true';
         }
 
@@ -975,59 +1127,216 @@
             },
             body: JSON.stringify(data)
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('[DEBUG] Response status:', response.status);
+            return response.json();
+        })
         .then(data => {
-            if (data.status === 'success') {
-                if (isNew) {
-                    // Convert new item template to regular item
-                    const newRow = row;
+            console.log('[DEBUG] Response data:', data);
+            try {
+                if (data.status === 'success') {
+                    if (isNew) {
+                        // Clone the template row instead of converting it
+                        const templateRow = row;
+                        const newRow = templateRow.cloneNode(true);
 
-                    // Update row ID and attributes
-                    newRow.id = 'item-' + data.transaction_id;
-                    newRow.setAttribute('data-item-id', data.transaction_id);
-                    newRow.setAttribute('data-mode', 'display');
-                    newRow.setAttribute('data-realized', data.realized ? 'true' : 'false');
-                    newRow.setAttribute('data-amount', data.amount);
-                    newRow.setAttribute('data-date', data.date);
+                        // Insert the new row before the template
+                        templateRow.parentNode.insertBefore(newRow, templateRow);
 
-                    // Update drag handle to show drag icon instead of check icon
-                    const dragHandle = newRow.querySelector('.drag-handle-cell');
-                    if (dragHandle) {
-                        dragHandle.innerHTML = '<span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle cursor-grab active:cursor-grabbing">drag_indicator</span>' +
-                            '<button type="button" onclick="saveItem(\'item-' + data.transaction_id + '\')" class="edit-save-icon" style="display: none;">' +
-                            '<span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span></button>';
-                    }
+                        // Update row ID and attributes
+                        console.log('[DEBUG] Updating row attributes...');
+                        newRow.id = 'item-' + data.transaction_id;
+                        newRow.setAttribute('data-item-id', data.transaction_id);
+                        newRow.setAttribute('data-mode', 'display');
+                        newRow.setAttribute('data-realized', data.realized ? 'true' : 'false');
+                        newRow.setAttribute('data-is-fixed', data.is_fixed ? 'true' : 'false');
+                        newRow.setAttribute('data-amount', data.amount);
+                        newRow.setAttribute('data-date', data.date);
+                        // Remove mobile-initialized flag so new row gets touch listeners
+                        newRow.removeAttribute('data-mobile-initialized');
 
-                    // Populate display values
-                    updateRowDisplay('item-' + data.transaction_id, data);
+                        // Update drag handle to show drag icon instead of check icon
+                        console.log('[DEBUG] Updating drag handle...');
+                        const dragHandle = newRow.querySelector('.drag-handle-cell');
+                        if (dragHandle) {
+                            // Build mobile fixed button HTML (if not CHILD role)
+                            let mobileFixedBtnHtml = '';
+                            if (memberRoleForPeriod !== 'CHILD') {
+                                const isFixed = data.is_fixed;
+                                const activeClass = isFixed ? 'active' : '';
+                                mobileFixedBtnHtml = '<div class="mobile-fixed-btn-container">' +
+                                    '<button type="button" onclick="toggleTransactionFixed(\'item-' + data.transaction_id + '\')" ' +
+                                    'class="mobile-fixed-btn ' + activeClass + '" title="Mark as recurring expense">' +
+                                    '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                                    '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8m0-5v5h5" />' +
+                                    '</svg></button></div>';
+                            }
 
-                    // Switch to display mode
-                    toggleEditMode('item-' + data.transaction_id, false);
-
-                    // Update onclick handlers with new row ID
-                    newRow.querySelectorAll('button[onclick*="new-item-template"]').forEach(btn => {
-                        const onclick = btn.getAttribute('onclick');
-                        if (onclick) {
-                            btn.setAttribute('onclick', onclick.replace('new-item-template', 'item-' + data.transaction_id));
+                            dragHandle.innerHTML = mobileFixedBtnHtml +
+                                '<span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle cursor-grab active:cursor-grabbing">drag_indicator</span>' +
+                                '<button type="button" onclick="saveItem(\'item-' + data.transaction_id + '\')" class="edit-save-icon" style="display: none;">' +
+                                '<span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span></button>';
                         }
-                    });
 
-                    // Create a new empty template row
-                    addNewItem();
+                        // Update action buttons (Edit and Delete)
+                        console.log('[DEBUG] Updating action buttons...');
+                        const actionsDisplay = newRow.querySelector('.actions-display');
+                        if (actionsDisplay) {
+                            actionsDisplay.innerHTML =
+                                '<button type="button" onclick="toggleEditMode(\'item-' + data.transaction_id + '\', true)" class="p-1 text-slate-500 hover:text-primary">' +
+                                '<span class="material-symbols-outlined text-lg">edit</span></button>' +
+                                '<button type="button" onclick="deleteItem(\'item-' + data.transaction_id + '\')" class="p-1 text-slate-500 hover:text-red-500">' +
+                                '<span class="material-symbols-outlined text-lg">delete</span></button>';
+                            actionsDisplay.classList.remove('hidden');
+                        }
 
-                    // Update budget warning
-                    updateBudgetWarning();
+                        // Hide action edit buttons (check and cancel)
+                        const actionsEdit = newRow.querySelector('.actions-edit');
+                        if (actionsEdit) {
+                            actionsEdit.classList.add('hidden');
+                        }
+
+                        // Convert Fixed toggle from new item to regular item
+                        console.log('[DEBUG] Converting Fixed toggle...');
+                        // Find the Fixed cell by looking for the fixed-toggle-new div
+                        const fixedToggleNew = newRow.querySelector('.fixed-toggle-new');
+                        if (fixedToggleNew && memberRoleForPeriod !== 'CHILD') {
+                            const fixedCell = fixedToggleNew.closest('td');
+                            console.log('[DEBUG] Fixed cell found:', fixedCell);
+                            const isFixed = data.is_fixed;
+                            const bgClass = isFixed ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 hover:bg-blue-200 dark:hover:bg-blue-900/30';
+                            fixedCell.innerHTML =
+                                '<div class="flex items-center justify-center">' +
+                                '<button type="button" onclick="toggleTransactionFixed(\'item-' + data.transaction_id + '\')" ' +
+                                'class="fixed-toggle-btn inline-flex items-center justify-center w-8 h-8 rounded transition-all duration-200 ' + bgClass + '" ' +
+                                'title="Mark as recurring expense">' +
+                                '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8m0-5v5h5" />' +
+                                '</svg></button>' +
+                                '</div>';
+                            console.log('[DEBUG] Fixed cell updated with button');
+                        } else {
+                            console.log('[DEBUG] Fixed cell NOT updated - toggle not found or user is CHILD');
+                        }
+
+                        // Create date display structure (date-full and date-short spans)
+                        console.log('[DEBUG] Creating date display structure...');
+                        const dateDisplayCell = newRow.querySelector('.cell-date-display');
+                        if (dateDisplayCell) {
+                            const dateObj = new Date(data.date + 'T00:00:00');
+                            const day = String(dateObj.getDate()).padStart(2, '0');
+                            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                            dateDisplayCell.innerHTML =
+                                '<span class="date-full">' + data.date + '</span>' +
+                                '<span class="date-short">' + day + '/' + month + '</span>';
+                        }
+
+                        // Add mobile action buttons to amount cell
+                        console.log('[DEBUG] Adding mobile action buttons...');
+                        const budgetDisplayCell = newRow.querySelector('.cell-budget-display');
+                        if (budgetDisplayCell) {
+                            // Ensure cell has the correct class for mobile buttons
+                            budgetDisplayCell.classList.add('amount-cell-with-actions');
+
+                            // Add mobile action buttons (they should already exist from clone, but update IDs)
+                            let mobileActionsDiv = budgetDisplayCell.querySelector('.mobile-actions-btns');
+                            if (!mobileActionsDiv) {
+                                // If not present, create them
+                                mobileActionsDiv = document.createElement('div');
+                                mobileActionsDiv.className = 'mobile-actions-btns';
+                                budgetDisplayCell.appendChild(mobileActionsDiv);
+                            }
+
+                            mobileActionsDiv.innerHTML =
+                                '<button type="button" onclick="toggleEditMode(\'item-' + data.transaction_id + '\', true)" class="mobile-action-btn edit-btn">' +
+                                '<span class="material-symbols-outlined">edit</span></button>' +
+                                '<button type="button" onclick="deleteItem(\'item-' + data.transaction_id + '\')" class="mobile-action-btn delete-btn">' +
+                                '<span class="material-symbols-outlined">delete</span></button>';
+                        }
+
+                        // Switch to display mode FIRST (so display elements are visible)
+                        console.log('[DEBUG] Toggling edit mode...');
+                        toggleEditMode('item-' + data.transaction_id, false);
+
+                        // Then populate display values
+                        console.log('[DEBUG] Calling updateRowDisplay...');
+                        updateRowDisplay('item-' + data.transaction_id, data);
+
+                        // Update onclick handlers with new row ID
+                        console.log('[DEBUG] Updating onclick handlers...');
+                        newRow.querySelectorAll('button[onclick*="new-item-template"]').forEach(btn => {
+                            const onclick = btn.getAttribute('onclick');
+                            if (onclick) {
+                                btn.setAttribute('onclick', onclick.replace('new-item-template', 'item-' + data.transaction_id));
+                            }
+                        });
+
+                        // Reset and hide the template row for next use
+                        console.log('[DEBUG] Resetting template...');
+                        const descInput = templateRow.querySelector('input[data-field="description"]');
+                        if (descInput) descInput.value = '';
+
+                        const amountInput = templateRow.querySelector('input[data-field="amount"]');
+                        if (amountInput) amountInput.value = '0' + decimalSeparator + '00';
+
+                        const dateInput = templateRow.querySelector('input[data-field="date"]');
+                        if (dateInput) {
+                            const today = new Date().toISOString().split('T')[0];
+                            dateInput.value = today;
+                            const [year, month, day] = today.split('-');
+                            const displayValue = `${day}/${month}`;
+                            dateInput.setAttribute('data-display-value', displayValue);
+                            console.log('[DEBUG] Reset date input - value:', today, 'display-value:', displayValue);
+                        }
+
+                        // Reset realized toggle
+                        const realizedToggle = templateRow.querySelector('.realized-toggle-new');
+                        if (realizedToggle) {
+                            realizedToggle.classList.remove('bg-green-500');
+                            realizedToggle.classList.add('bg-gray-300', 'dark:bg-gray-600');
+                            const circle = realizedToggle.querySelector('span');
+                            if (circle) circle.classList.remove('translate-x-4');
+                        }
+
+                        // Reset fixed toggle
+                        const fixedToggle = templateRow.querySelector('.fixed-toggle-new');
+                        if (fixedToggle) {
+                            fixedToggle.setAttribute('data-is-fixed', 'false');
+                            fixedToggle.classList.remove('bg-blue-600', 'text-white');
+                            fixedToggle.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-400', 'dark:text-gray-500');
+                        }
+
+                        // Keep template hidden - user must click "Add" to show it
+                        templateRow.classList.add('hidden');
+
+                        console.log('[DEBUG] Template reset complete');
+
+                        // Update budget warning
+                        console.log('[DEBUG] Updating budget warning...');
+                        updateBudgetWarning();
+                        console.log('[DEBUG] Save completed successfully!');
+
+                        // Re-initialize mobile features for the new row
+                        if (typeof initMobileFeatures === 'function') {
+                            initMobileFeatures();
+                        }
+                    } else {
+                        updateRowDisplay(rowId, data);
+                        toggleEditMode(rowId, false);
+                        updateBudgetWarning();
+                    }
                 } else {
-                    updateRowDisplay(rowId, data);
-                    toggleEditMode(rowId, false);
-                    updateBudgetWarning();
+                    alert('{% trans "Error saving item:" %} ' + data.error);
                 }
-            } else {
-                alert('{% trans "Error saving item:" %} ' + data.error);
+            } catch (innerError) {
+                console.error('[ERROR] Error processing response:', innerError);
+                console.error('[ERROR] Stack trace:', innerError.stack);
+                throw innerError; // Re-throw to be caught by outer catch
             }
         })
         .catch(error => {
-            console.error('Fetch Error:', error);
+            console.error('[ERROR] Fetch Error:', error);
+            console.error('[ERROR] Error stack:', error.stack);
             alert('{% trans "A network error occurred." %}');
         });
     }
@@ -1035,77 +1344,120 @@
     // Function to update the row's display values after a successful save
     function updateRowDisplay(rowId, data) {
         const row = document.getElementById(rowId);
-        
+
+        console.log('[DEBUG updateRowDisplay] Received data:', data);
+        console.log('[DEBUG updateRowDisplay] Amount from backend:', data.amount, 'Type:', typeof data.amount);
+
         // CORREÇÃO: Atualizar também os atributos 'data-*'
-        row.setAttribute('data-item-id', data.transaction_id); 
+        row.setAttribute('data-item-id', data.transaction_id);
         row.setAttribute('data-realized', data.realized ? 'true' : 'false');
+        row.setAttribute('data-is-fixed', data.is_fixed ? 'true' : 'false');
         row.setAttribute('data-amount', data.amount);
 
         // Update display cells
-        row.querySelector('.cell-description-display').textContent = data.description;
+        const descDisplay = row.querySelector('.cell-description-display');
+        if (descDisplay) {
+            descDisplay.textContent = data.description;
+        }
+
         // Usar o currencySymbol global e formatar
-        row.querySelector('.cell-budget-display').textContent = `${currencySymbol} ${formatCurrency(data.amount)}`;
+        const formattedAmount = formatCurrency(data.amount);
+        console.log('[DEBUG updateRowDisplay] Formatted amount:', formattedAmount);
+        const budgetDisplay = row.querySelector('.cell-budget-display');
+        if (budgetDisplay) {
+            // Preserve mobile action buttons if they exist
+            const mobileActionsDiv = budgetDisplay.querySelector('.mobile-actions-btns');
+
+            // Update only the text content, not the entire innerHTML
+            // First, clear only text nodes (not element nodes)
+            const childNodes = Array.from(budgetDisplay.childNodes);
+            childNodes.forEach(node => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    node.remove();
+                }
+            });
+
+            // Add the formatted amount as first text node
+            budgetDisplay.insertAdjacentText('afterbegin', `${currencySymbol} ${formattedAmount}`);
+
+            // Mobile buttons div stays at the end (if it exists)
+        }
 
         // Update date: Update both the full and short format spans
         const dateCell = row.querySelector('.cell-date-display');
-        const dateObj = new Date(data.date + 'T00:00:00'); // Add time to avoid timezone issues
-        const dateFullSpan = dateCell.querySelector('.date-full');
-        const dateShortSpan = dateCell.querySelector('.date-short');
-        if (dateFullSpan) dateFullSpan.textContent = data.date;
-        if (dateShortSpan) {
-            const day = String(dateObj.getDate()).padStart(2, '0');
-            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-            dateShortSpan.textContent = `${day}/${month}`;
+        if (dateCell) {
+            const dateObj = new Date(data.date + 'T00:00:00'); // Add time to avoid timezone issues
+            const dateFullSpan = dateCell.querySelector('.date-full');
+            const dateShortSpan = dateCell.querySelector('.date-short');
+            if (dateFullSpan) dateFullSpan.textContent = data.date;
+            if (dateShortSpan) {
+                const day = String(dateObj.getDate()).padStart(2, '0');
+                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                dateShortSpan.textContent = `${day}/${month}`;
+            }
         }
 
         // Update edit input as well
         const dateEditInput = row.querySelector('.cell-date-edit input[data-field="date"]');
-        dateEditInput.value = data.date;
+        if (dateEditInput) {
+            dateEditInput.value = data.date;
 
-        // Update data-display-value for mobile button-style input
-        if (window.matchMedia('(max-width: 768px)').matches) {
-            const [year, month, day] = data.date.split('-');
-            const displayValue = `${day}/${month}`;
-            dateEditInput.setAttribute('data-display-value', displayValue);
+            // Update data-display-value for mobile button-style input
+            if (window.matchMedia('(max-width: 768px)').matches) {
+                const [year, month, day] = data.date.split('-');
+                const displayValue = `${day}/${month}`;
+                dateEditInput.setAttribute('data-display-value', displayValue);
+            }
         }
 
         // Update member - preserve mobile action buttons
         const memberCell = row.querySelector('.cell-member-display');
-        const mobileActionsDiv = memberCell.querySelector('.mobile-actions-btns');
+        if (memberCell) {
+            const mobileActionsDiv = memberCell.querySelector('.mobile-actions-btns');
 
-        // Clear text content while preserving mobile actions
-        const textNodes = Array.from(memberCell.childNodes).filter(node => node.nodeType === Node.TEXT_NODE);
-        textNodes.forEach(node => node.remove());
+            // Clear text content while preserving mobile actions
+            const textNodes = Array.from(memberCell.childNodes).filter(node => node.nodeType === Node.TEXT_NODE);
+            textNodes.forEach(node => node.remove());
 
-        // Add new member name as text node before mobile actions
-        if (mobileActionsDiv) {
-            memberCell.insertBefore(document.createTextNode(data.member_name), mobileActionsDiv);
-        } else {
-            memberCell.textContent = data.member_name;
+            // Add new member name as text node before mobile actions
+            if (mobileActionsDiv) {
+                memberCell.insertBefore(document.createTextNode(data.member_name), mobileActionsDiv);
+            } else {
+                memberCell.textContent = data.member_name;
+            }
+            memberCell.setAttribute('data-member-id', data.member_id);
         }
-        memberCell.setAttribute('data-member-id', data.member_id);
-        
+
         // Update realized toggle
         const toggleBtn = row.querySelector('.realized-toggle');
-        const toggleCircle = toggleBtn.querySelector('span');
-        
-        if (data.realized) {
-            toggleBtn.classList.remove('bg-gray-300', 'dark:bg-gray-600');
-            toggleBtn.classList.add('bg-green-500');
-            toggleCircle.classList.add('translate-x-4');
-            toggleBtn.setAttribute('onclick', `toggleRealized('${rowId}', true)`);
-        } else {
-            toggleBtn.classList.remove('bg-green-500');
-            toggleBtn.classList.add('bg-gray-300', 'dark:bg-gray-600');
-            toggleCircle.classList.remove('translate-x-4');
-            toggleBtn.setAttribute('onclick', `toggleRealized('${rowId}', false)`);
+        if (toggleBtn) {
+            const toggleCircle = toggleBtn.querySelector('span');
+
+            if (data.realized) {
+                toggleBtn.classList.remove('bg-gray-300', 'dark:bg-gray-600');
+                toggleBtn.classList.add('bg-green-500');
+                if (toggleCircle) toggleCircle.classList.add('translate-x-4');
+                toggleBtn.setAttribute('onclick', `toggleRealized('${rowId}', true)`);
+            } else {
+                toggleBtn.classList.remove('bg-green-500');
+                toggleBtn.classList.add('bg-gray-300', 'dark:bg-gray-600');
+                if (toggleCircle) toggleCircle.classList.remove('translate-x-4');
+                toggleBtn.setAttribute('onclick', `toggleRealized('${rowId}', false)`);
+            }
         }
         
         // Update edit inputs
-        row.querySelector('input[data-field="description"]').value = data.description;
-        row.querySelector('input[data-field="amount"]').value = formatAmountForInput(data.amount);
-        row.querySelector('input[data-field="date"]').value = data.date;
-        row.querySelector('select[data-field="member_id"]').value = data.member_id;
+        const descInput = row.querySelector('input[data-field="description"]');
+        if (descInput) descInput.value = data.description;
+
+        const amountInput = row.querySelector('input[data-field="amount"]');
+        if (amountInput) amountInput.value = formatAmountForInput(data.amount);
+
+        const dateInput = row.querySelector('input[data-field="date"]');
+        if (dateInput) dateInput.value = data.date;
+
+        const memberSelect = row.querySelector('select[data-field="member_id"]');
+        if (memberSelect) memberSelect.value = data.member_id;
     }
     
     // Function to delete an item
@@ -1160,7 +1512,7 @@
         // Mobile: Reset row position when entering/exiting edit mode
         if (window.matchMedia('(max-width: 768px)').matches) {
             row.style.transform = 'translateX(0)';
-            row.classList.remove('actions-revealed');
+            row.classList.remove('actions-revealed', 'fixed-revealed');
 
             // Toggle drag handle visibility based on edit mode
             const dragHandle = row.querySelector('.drag-handle-cell');
@@ -1196,17 +1548,53 @@
     
     // Function to remove the new row template
     function cancelNewRow(rowId) {
+        console.log('[cancelNewRow] Canceling row:', rowId);
         const row = document.getElementById(rowId);
-        row.classList.add('hidden');
-        row.querySelector('input[data-field="description"]').value = '';
-        row.querySelector('input[data-field="amount"]').value = '0.00';
-        
-        // Reset toggle for new item
+        if (!row) {
+            console.error('[cancelNewRow] Row not found:', rowId);
+            return;
+        }
+
+        // Reset all fields
+        const descInput = row.querySelector('input[data-field="description"]');
+        if (descInput) descInput.value = '';
+
+        const amountInput = row.querySelector('input[data-field="amount"]');
+        if (amountInput) amountInput.value = '0' + decimalSeparator + '00';
+
+        const dateInput = row.querySelector('input[data-field="date"]');
+        if (dateInput) {
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.value = today;
+            const [year, month, day] = today.split('-');
+            const displayValue = `${day}/${month}`;
+            dateInput.setAttribute('data-display-value', displayValue);
+        }
+
+        // Reset realized toggle
         const toggleNew = row.querySelector('.realized-toggle-new');
-        const toggleCircle = toggleNew.querySelector('span');
-        toggleNew.classList.remove('bg-green-500');
-        toggleNew.classList.add('bg-gray-300', 'dark:bg-gray-600');
-        toggleCircle.classList.remove('translate-x-4');
+        if (toggleNew) {
+            const toggleCircle = toggleNew.querySelector('span');
+            toggleNew.classList.remove('bg-green-500');
+            toggleNew.classList.add('bg-gray-300', 'dark:bg-gray-600');
+            if (toggleCircle) toggleCircle.classList.remove('translate-x-4');
+        }
+
+        // Reset fixed toggle
+        const fixedToggle = row.querySelector('.fixed-toggle-new');
+        if (fixedToggle) {
+            fixedToggle.setAttribute('data-is-fixed', 'false');
+            fixedToggle.classList.remove('bg-blue-600', 'text-white');
+            fixedToggle.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-400', 'dark:text-gray-500');
+        }
+
+        // Reset row position (in case it was swiped)
+        row.style.transform = 'translateX(0)';
+        row.classList.remove('actions-revealed', 'fixed-revealed');
+
+        // Hide the template
+        row.classList.add('hidden');
+        console.log('[cancelNewRow] Template hidden successfully');
     }
 
     // === DRAG AND DROP REORDERING FOR EXPENSE ITEMS ===
@@ -1380,7 +1768,7 @@
 
     // ========== MOBILE-SPECIFIC FUNCTIONALITY ==========
     // Initialize mobile swipe and tap functionality
-    (function initMobileFeatures() {
+    function initMobileFeatures() {
         'use strict';
 
         const isMobile = window.matchMedia('(max-width: 768px)').matches;
@@ -1395,6 +1783,12 @@
         console.log('[MOBILE] Found', swipeableRows.length, 'swipeable rows');
 
         swipeableRows.forEach(row => {
+            // Skip if already initialized
+            if (row.hasAttribute('data-mobile-initialized')) {
+                return;
+            }
+            row.setAttribute('data-mobile-initialized', 'true');
+
             let startX = 0;
             let currentX = 0;
             let isDragging = false;
@@ -1468,7 +1862,12 @@
                 if (row.dataset.mode === 'edit') {
                     if (deltaX > swipeThreshold) {
                         console.log('[MOBILE SWIPE] Canceling edit mode for:', row.id);
-                        toggleEditMode(row.id, false);
+                        // Check if it's the new item template
+                        if (row.id === 'new-item-template') {
+                            cancelNewRow(row.id);
+                        } else {
+                            toggleEditMode(row.id, false);
+                        }
                     } else {
                         // Reset position
                         row.style.transform = 'translateX(0)';
@@ -1537,7 +1936,14 @@
             if (originalAddNewItem) originalAddNewItem();
             setTimeout(initMobileFeatures, 100);
         };
-    })();
+    }
+
+    // Call initMobileFeatures on page load
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initMobileFeatures);
+    } else {
+        initMobileFeatures();
+    }
 
     // Note: normalizeDecimalInput function removed - backend now handles all locale parsing
 

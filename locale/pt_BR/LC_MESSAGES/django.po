@@ -260,6 +260,9 @@ msgstr "Grupo Financeiro"
 msgid "Back"
 msgstr "Voltar"
 
+msgid "Back to Dashboard"
+msgstr "Voltar ao Painel"
+
 #: .\finances\templates\finances\FlowGroup.html:22
 #: .\finances\templates\finances\dashboard.html:93
 msgid "Group"
@@ -324,10 +327,8 @@ msgid "Please correct the errors below:"
 msgstr "Por favor, corrija os erros abaixo:"
 
 #: .\finances\templates\finances\FlowGroup.html:205
-#, fuzzy
-#| msgid "Budget Given:"
 msgid "Budget Warning:"
-msgstr "Orçamento Entregue:"
+msgstr "Alerta de Orçamento:"
 
 #: .\finances\templates\finances\FlowGroup.html:205
 #, python-format
@@ -2943,9 +2944,6 @@ msgid ""
 "Version %(version)s will not be shown again until a newer version is "
 "available"
 msgstr ""
-
-#~ msgid "Back to Dashboard"
-#~ msgstr "Voltar ao Painel"
 
 #~ msgid "Delete Group"
 #~ msgstr "Excluir Grupo"
