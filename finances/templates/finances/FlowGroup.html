@@ -877,10 +877,21 @@
         // Combine with decimal separator
         input.value = integerPart + decimalSeparator + decimalPart;
 
-        // Position cursor at end
-        setTimeout(function() {
-            input.setSelectionRange(input.value.length, input.value.length);
-        }, 0);
+        // CORREÇÃO: Só posiciona cursor no final no primeiro input
+        // Se já tem a flag, significa que já digitou antes, não move cursor
+        if (!input.hasAttribute('data-first-input-done')) {
+            // Marca que já houve input (digitação) ANTES de agendar o cursor
+            input.setAttribute('data-first-input-done', 'true');
+            // Position cursor at end only on first input
+            setTimeout(function() {
+                // Verificar novamente a flag para evitar race conditions
+                // (pode ter havido blur/focus entre o set e o setTimeout)
+                if (input.hasAttribute('data-first-input-done')) {
+                    input.setSelectionRange(input.value.length, input.value.length);
+                }
+            }, 0);
+        }
+        // Se já digitou algo antes, não move mais o cursor
     }
 
     // Function to get raw value from masked input (for sending to backend)
@@ -908,33 +919,47 @@
             }
         });
 
-        // Position cursor at the end when clicking or focusing on amount field
+        // CORREÇÃO: Cursor orientado à direita apenas no primeiro clique/foco
+        // Após o primeiro foco, permitir seleção livre
         document.addEventListener('focus', function(event) {
             if (event.target.matches('input[data-field="amount"]')) {
-                // Move cursor to end
-                setTimeout(function() {
-                    event.target.setSelectionRange(event.target.value.length, event.target.value.length);
-                }, 0);
+                // Verificar se é o primeiro foco (campo não tem flag de já focado)
+                if (!event.target.hasAttribute('data-first-focus-done')) {
+                    // Primeiro foco: mover cursor para o final
+                    event.target.setAttribute('data-first-focus-done', 'true');
+                    setTimeout(function() {
+                        event.target.setSelectionRange(event.target.value.length, event.target.value.length);
+                    }, 0);
+                }
+                // Cliques subsequentes: permitir seleção livre (não fazer nada)
             }
         }, true);
 
         document.addEventListener('click', function(event) {
             if (event.target.matches('input[data-field="amount"]')) {
-                // Move cursor to end
-                event.target.setSelectionRange(event.target.value.length, event.target.value.length);
+                // Verificar se é o primeiro clique
+                if (!event.target.hasAttribute('data-first-click-done')) {
+                    // Primeiro clique: mover cursor para o final
+                    event.target.setAttribute('data-first-click-done', 'true');
+                    event.target.setSelectionRange(event.target.value.length, event.target.value.length);
+                }
+                // Cliques subsequentes: permitir seleção livre (não fazer nada)
             }
         });
 
-        // Prevent cursor movement with arrow keys - always keep at end
-        document.addEventListener('keydown', function(event) {
+        // CORREÇÃO: Resetar flags quando o campo perde o foco
+        // Isso garante que ao voltar ao campo, será tratado como primeiro foco novamente
+        document.addEventListener('blur', function(event) {
             if (event.target.matches('input[data-field="amount"]')) {
-                // If arrow keys, home, or end - prevent default and keep cursor at end
-                if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
-                    event.preventDefault();
-                    event.target.setSelectionRange(event.target.value.length, event.target.value.length);
-                }
+                event.target.removeAttribute('data-first-focus-done');
+                event.target.removeAttribute('data-first-click-done');
+                event.target.removeAttribute('data-first-input-done');
             }
-        });
+        }, true);
+
+        // CORREÇÃO: Remover bloqueio de teclas de navegação
+        // Agora o usuário pode usar setas para navegar livremente após o primeiro foco
+        // (Código de bloqueio de arrow keys REMOVIDO)
 
         // Initialize existing amount fields with money mask on page load
         document.querySelectorAll('input[data-field="amount"]').forEach(function(input) {
@@ -1079,6 +1104,26 @@
         });
     }
 
+    // CORREÇÃO: Função auxiliar para retry com backoff exponencial
+    function fetchWithRetry(url, options, maxRetries = 3, delay = 100) {
+        return fetch(url, options)
+            .then(response => response.json())
+            .then(data => {
+                // Se houver erro de "database is locked", tentar novamente
+                if (data.error && typeof data.error === 'string' && data.error.includes('database is locked')) {
+                    if (maxRetries > 0) {
+                        console.log(`[RETRY] Database locked, retrying in ${delay}ms... (${maxRetries} attempts left)`);
+                        return new Promise(resolve => {
+                            setTimeout(() => {
+                                resolve(fetchWithRetry(url, options, maxRetries - 1, delay * 2));
+                            }, delay);
+                        });
+                    }
+                }
+                return data;
+            });
+    }
+
     // Function to toggle realized status directly (without entering edit mode)
     function toggleRealized(rowId, currentStatus) {
         const row = document.getElementById(rowId);
@@ -1109,7 +1154,8 @@
             'is_fixed': isFixed,
         };
 
-        fetch("{% url 'save_flow_item_ajax' %}", {
+        // CORREÇÃO: Usar fetchWithRetry para lidar com database locks
+        fetchWithRetry("{% url 'save_flow_item_ajax' %}", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1118,7 +1164,6 @@
             },
             body: JSON.stringify(data)
         })
-        .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
                 // Update toggle visual state
@@ -1365,6 +1410,14 @@
             try {
                 if (data.status === 'success') {
                     if (isNew) {
+                        // CORREÇÃO: Remover linha de "No transactions found" se existir
+                        const tbody = document.getElementById('expense-items-body');
+                        const emptyRow = tbody.querySelector('tr:not([data-item-id]):not([id])');
+                        if (emptyRow) {
+                            console.log('[DEBUG] Removing empty placeholder row');
+                            emptyRow.remove();
+                        }
+
                         // Clone the template row instead of converting it
                         const templateRow = row;
                         const newRow = templateRow.cloneNode(true);
@@ -1423,6 +1476,41 @@
                         const actionsEdit = newRow.querySelector('.actions-edit');
                         if (actionsEdit) {
                             actionsEdit.classList.add('hidden');
+                        }
+
+                        // CORREÇÃO: Convert Realized toggle from new item to regular item
+                        console.log('[DEBUG] Converting Realized toggle...');
+                        const realizedToggleNew = newRow.querySelector('.realized-toggle-new');
+                        if (realizedToggleNew) {
+                            const realizedCell = realizedToggleNew.closest('td');
+                            console.log('[DEBUG] Realized cell found:', realizedCell);
+                            const isRealized = data.realized;
+                            const bgClass = isRealized ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600';
+                            const translateClass = isRealized ? 'translate-x-4' : '';
+                            realizedCell.innerHTML =
+                                '<div class="flex items-center justify-center">' +
+                                '<button type="button" ' +
+                                'class="realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-pointer ' + bgClass + '">' +
+                                '<span class="absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full ' + translateClass + '"></span>' +
+                                '</button>' +
+                                '</div>';
+
+                            // CORREÇÃO: Adicionar event listener diretamente em vez de onclick inline
+                            const realizedBtn = realizedCell.querySelector('.realized-toggle');
+                            if (realizedBtn) {
+                                // Remover qualquer listener anterior (prevenção)
+                                const newBtn = realizedBtn.cloneNode(true);
+                                realizedBtn.parentNode.replaceChild(newBtn, realizedBtn);
+
+                                // Adicionar novo listener
+                                newBtn.addEventListener('click', function() {
+                                    const currentRealized = newRow.getAttribute('data-realized') === 'true';
+                                    toggleRealized('item-' + data.transaction_id, currentRealized);
+                                });
+                                console.log('[DEBUG] Realized button event listener attached');
+                            }
+                        } else {
+                            console.log('[DEBUG] Realized cell NOT updated - toggle not found');
                         }
 
                         // Convert Fixed toggle from new item to regular item
@@ -1545,6 +1633,10 @@
                         updateBudgetWarning();
                         console.log('[DEBUG] Save completed successfully!');
 
+                        // CORREÇÃO: Reinicializar drag-and-drop para incluir a nova linha
+                        console.log('[DEBUG] Reinitializing drag-and-drop...');
+                        initializeDragAndDrop();
+
                         // Re-initialize mobile features for the new row
                         if (typeof initMobileFeatures === 'function') {
                             initMobileFeatures();
@@ -1666,12 +1758,18 @@
                 toggleBtn.classList.remove('bg-gray-300', 'dark:bg-gray-600');
                 toggleBtn.classList.add('bg-green-500');
                 if (toggleCircle) toggleCircle.classList.add('translate-x-4');
-                toggleBtn.setAttribute('onclick', `toggleRealized('${rowId}', true)`);
+                // CORREÇÃO: Só atualizar onclick se já existir (não sobrescrever event listener)
+                if (toggleBtn.hasAttribute('onclick')) {
+                    toggleBtn.setAttribute('onclick', `toggleRealized('${rowId}', true)`);
+                }
             } else {
                 toggleBtn.classList.remove('bg-green-500');
                 toggleBtn.classList.add('bg-gray-300', 'dark:bg-gray-600');
                 if (toggleCircle) toggleCircle.classList.remove('translate-x-4');
-                toggleBtn.setAttribute('onclick', `toggleRealized('${rowId}', false)`);
+                // CORREÇÃO: Só atualizar onclick se já existir (não sobrescrever event listener)
+                if (toggleBtn.hasAttribute('onclick')) {
+                    toggleBtn.setAttribute('onclick', `toggleRealized('${rowId}', false)`);
+                }
             }
         }
         
@@ -1838,6 +1936,13 @@
         const rows = tbody.querySelectorAll('tr.draggable-row');
 
         rows.forEach(row => {
+            // CORREÇÃO: Evitar duplicação de event listeners
+            // Verificar se já foi inicializado
+            if (row.hasAttribute('data-drag-initialized')) {
+                return;
+            }
+            row.setAttribute('data-drag-initialized', 'true');
+
             row.addEventListener('dragstart', handleDragStart);
             row.addEventListener('dragover', handleDragOver);
             row.addEventListener('dragenter', handleDragEnter);
@@ -1858,13 +1963,195 @@
         // Enable dragging only from handle
         const dragHandles = tbody.querySelectorAll('.drag-handle');
         dragHandles.forEach(handle => {
+            // CORREÇÃO: Evitar duplicação de event listeners
+            if (handle.hasAttribute('data-drag-handle-initialized')) {
+                return;
+            }
+            handle.setAttribute('data-drag-handle-initialized', 'true');
+
             handle.addEventListener('mousedown', function(e) {
                 const row = this.closest('tr');
                 if (row) {
                     row.setAttribute('draggable', 'true');
                 }
             });
+
+            // CORREÇÃO: Adicionar suporte touch para mobile drag
+            handle.addEventListener('touchstart', function(e) {
+                const row = this.closest('tr');
+                if (row && row.dataset.mode !== 'edit') {
+                    row.setAttribute('draggable', 'true');
+                    handleTouchDragStart(e, row);
+                }
+            }, { passive: false });
         });
+
+        // CORREÇÃO: NÃO adicionar touchmove/touchend nas rows aqui
+        // Eles serão adicionados no HANDLE, não na row
+        dragHandles.forEach(handle => {
+            handle.addEventListener('touchmove', function(e) {
+                const row = this.closest('tr');
+                if (row) {
+                    handleTouchDragMove.call(row, e);
+                }
+            }, { passive: false });
+
+            handle.addEventListener('touchend', function(e) {
+                const row = this.closest('tr');
+                if (row) {
+                    handleTouchDragEnd.call(row, e);
+                }
+            }, { passive: false });
+        });
+    }
+
+    // CORREÇÃO: Variáveis para mobile drag
+    let touchDraggedRow = null;
+    let touchStartY = 0;
+    let touchCurrentY = 0;
+    let touchDragPlaceholder = null;
+
+    function handleTouchDragStart(e, row) {
+        console.log('[DRAG START] Called for row:', row.id);
+
+        // Ignore if in edit mode or not on drag handle
+        if (row.dataset.mode === 'edit') {
+            console.log('[DRAG START] Edit mode, ignoring');
+            return;
+        }
+        if (!e.target.closest('.drag-handle')) {
+            console.log('[DRAG START] Not on drag handle, ignoring');
+            return;
+        }
+
+        console.log('[DRAG START] Starting drag for row:', row.id);
+        e.preventDefault();
+        touchDraggedRow = row;
+        touchStartY = e.touches[0].clientY;
+        touchCurrentY = touchStartY;
+
+        // Visual feedback
+        row.style.opacity = '0.4';
+        row.classList.add('dragging');
+
+        // CORREÇÃO: Disable pointer events on other rows to prevent conflicts
+        document.querySelectorAll('tr.draggable-row').forEach(r => {
+            if (r !== row) {
+                r.style.pointerEvents = 'none';
+            }
+        });
+    }
+
+    function handleTouchDragMove(e) {
+        if (!touchDraggedRow) return;
+        if (this !== touchDraggedRow) return;
+
+        e.preventDefault();
+        touchCurrentY = e.touches[0].clientY;
+
+        const deltaY = touchCurrentY - touchStartY;
+        console.log('[DRAG MOVE] deltaY:', deltaY);
+
+        // Find the row under the touch point
+        const elementBelow = document.elementFromPoint(
+            e.touches[0].clientX,
+            e.touches[0].clientY
+        );
+
+        const rowBelow = elementBelow ? elementBelow.closest('tr.draggable-row') : null;
+
+        // Remove previous highlights
+        document.querySelectorAll('tr.draggable-row').forEach(r => {
+            r.classList.remove('border-t-2', 'border-primary', 'border-b-2');
+        });
+
+        // Highlight the target row
+        if (rowBelow && rowBelow !== touchDraggedRow && rowBelow.id !== 'new-item-template') {
+            if (deltaY > 0) {
+                // Dragging down
+                rowBelow.classList.add('border-b-2', 'border-primary');
+            } else {
+                // Dragging up
+                rowBelow.classList.add('border-t-2', 'border-primary');
+            }
+        }
+
+        // Visual feedback - move the row
+        touchDraggedRow.style.transform = `translateY(${deltaY}px)`;
+    }
+
+    function handleTouchDragEnd(e) {
+        if (!touchDraggedRow) {
+            console.log('[DRAG END] No touchDraggedRow');
+            return;
+        }
+        if (this !== touchDraggedRow) {
+            console.log('[DRAG END] this !== touchDraggedRow');
+            return;
+        }
+
+        e.preventDefault();
+
+        const deltaY = touchCurrentY - touchStartY;
+        console.log('[DRAG END] deltaY:', deltaY);
+
+        // CORREÇÃO: Esconder temporariamente o elemento arrastado para elementFromPoint funcionar
+        touchDraggedRow.style.visibility = 'hidden';
+
+        // Find the row at the drop position
+        const elementBelow = document.elementFromPoint(
+            e.changedTouches[0].clientX,
+            e.changedTouches[0].clientY
+        );
+
+        // Restaurar visibilidade
+        touchDraggedRow.style.visibility = '';
+
+        console.log('[DRAG END] elementBelow:', elementBelow);
+        const targetRow = elementBelow ? elementBelow.closest('tr.draggable-row') : null;
+        console.log('[DRAG END] targetRow:', targetRow ? targetRow.id : 'null');
+
+        // Perform the drop
+        if (targetRow && targetRow !== touchDraggedRow && targetRow.id !== 'new-item-template') {
+            console.log('[DRAG END] Moving row from', touchDraggedRow.id, 'to', targetRow.id);
+            const tbody = document.getElementById('expense-items-body');
+            const allRows = Array.from(tbody.querySelectorAll('tr.draggable-row'));
+
+            const draggedIndex = allRows.indexOf(touchDraggedRow);
+            const targetIndex = allRows.indexOf(targetRow);
+
+            // Move the row
+            if (deltaY > 0) {
+                // Dragging down - insert after target
+                targetRow.parentNode.insertBefore(touchDraggedRow, targetRow.nextSibling);
+            } else {
+                // Dragging up - insert before target
+                targetRow.parentNode.insertBefore(touchDraggedRow, targetRow);
+            }
+
+            // Save new order to backend
+            saveItemsOrder();
+        }
+
+        // Reset visual feedback
+        touchDraggedRow.style.opacity = '1';
+        touchDraggedRow.style.transform = '';
+        touchDraggedRow.classList.remove('dragging');
+
+        // CORREÇÃO: Re-enable pointer events on all rows
+        document.querySelectorAll('tr.draggable-row').forEach(r => {
+            r.style.pointerEvents = '';
+        });
+
+        // Remove all highlights
+        document.querySelectorAll('tr.draggable-row').forEach(r => {
+            r.classList.remove('border-t-2', 'border-primary', 'border-b-2');
+        });
+
+        // Reset variables
+        touchDraggedRow = null;
+        touchStartY = 0;
+        touchCurrentY = 0;
     }
 
     function handleDragStart(e) {
@@ -2025,11 +2312,24 @@
             const swipeThreshold = 60; // Minimum pixels to trigger swipe
             const tapTimeThreshold = 200; // Max ms for tap detection
 
+            // CORREÇÃO: Variáveis para detectar drag vertical vs swipe horizontal
+            let startY = 0;
+            let currentY = 0;
+            let isDragMode = false; // true = vertical drag (reorder), false = horizontal swipe (actions)
+            let isDecided = false; // se já decidimos o modo
+
             // Prevent default drag behavior on mobile
             row.setAttribute('draggable', 'false');
 
             // Touch start
             row.addEventListener('touchstart', (e) => {
+                // CORREÇÃO: Se começou no drag handle, NÃO processar swipe - deixar o drag handle cuidar
+                const isDragHandle = e.target.closest('.drag-handle');
+                if (isDragHandle) {
+                    // Drag handle vai cuidar, não processar swipe aqui
+                    return;
+                }
+
                 // Ignore if touching action buttons, fixed button, or check icon
                 if (e.target.closest('.mobile-action-btn')) return;
                 if (e.target.closest('.mobile-fixed-btn')) return;
@@ -2037,19 +2337,29 @@
 
                 startX = e.touches[0].clientX;
                 currentX = startX;
+                startY = e.touches[0].clientY;
+                currentY = startY;
                 startTime = Date.now();
                 isDragging = false;
+                isDecided = false;
+                isDragMode = false;
             }, { passive: true });
 
             // Touch move
             row.addEventListener('touchmove', (e) => {
+                // Se já decidiu que é drag, ignora swipe
+                if (isDragMode) return;
+
                 if (e.target.closest('.mobile-action-btn')) return;
                 if (e.target.closest('.mobile-fixed-btn')) return;
                 if (e.target.closest('.edit-save-icon')) return;
 
                 currentX = e.touches[0].clientX;
+                currentY = e.touches[0].clientY;
                 const deltaX = currentX - startX;
+                const deltaY = currentY - startY;
 
+                // Processar apenas swipe horizontal
                 // In edit mode: allow swipe right to cancel
                 if (row.dataset.mode === 'edit') {
                     if (deltaX > 0) {
@@ -2078,6 +2388,9 @@
 
             // Touch end
             row.addEventListener('touchend', (e) => {
+                // Se foi drag, não processar swipe
+                if (isDragMode) return;
+
                 if (e.target.closest('.mobile-action-btn')) return;
                 if (e.target.closest('.mobile-fixed-btn')) return;
                 if (e.target.closest('.edit-save-icon')) return;
@@ -2132,6 +2445,8 @@
                 }
 
                 isDragging = false;
+                isDecided = false;
+                isDragMode = false;
             }, { passive: true });
 
             // Close actions/fixed button when tapping outside

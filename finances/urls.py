@@ -70,6 +70,7 @@ urlpatterns = [
     
     # Reorder items at the dashboard
     path('ajax/reorder-flow-groups/', views.reorder_flow_groups_ajax, name='reorder_flow_groups_ajax'),
+    path('ajax/reorder-income-items/', views.reorder_income_items_ajax, name='reorder_income_items_ajax'),
 
     # Bank Reconciliation
     path('bank-reconciliation/', views.bank_reconciliation_view, name='bank_reconciliation'),

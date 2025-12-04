@@ -400,6 +400,51 @@ def reorder_flow_groups_ajax(request):
 
 @login_required
 @require_POST
+def reorder_income_items_ajax(request):
+    """AJAX: Reorders Income items on the dashboard."""
+    if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return HttpResponseBadRequest(_("Not an AJAX request."))
+
+    family, current_member, _unused = get_family_context(request.user)
+    if not family:
+        return HttpResponseForbidden(_("User is not associated with a family."))
+
+    try:
+        data = json.loads(request.body)
+        items_data = data.get('items', [])
+
+        if not items_data:
+            return JsonResponse({'error': _('No items data provided.')}, status=400)
+
+        for item_data in items_data:
+            item_id = item_data.get('id')
+            new_order = item_data.get('order')
+
+            if item_id and new_order is not None:
+                income_item = Transaction.objects.filter(
+                    id=item_id,
+                    flow_group__family=family,
+                    flow_group__group_type='INCOME'
+                ).first()
+
+                if income_item:
+                    # Check permissions - income items don't have owner, check via member
+                    if income_item.member and (income_item.member.user == request.user or current_member.role == 'ADMIN'):
+                        income_item.order = new_order
+                        income_item.save(update_fields=['order'])
+                    elif current_member.role == 'ADMIN':
+                        # Allow admin to reorder any income
+                        income_item.order = new_order
+                        income_item.save(update_fields=['order'])
+
+        return JsonResponse({'status': 'success'})
+
+    except Exception as e:
+        return JsonResponse({'error': _('A server error occurred: %(error)s') % {'error': str(e)}}, status=500)
+
+
+@login_required
+@require_POST
 @db_transaction.atomic
 def delete_flow_group_view(request, group_id):
     """AJAX: Deletes a FlowGroup and all its transactions."""

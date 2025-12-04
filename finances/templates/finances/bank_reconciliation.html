@@ -57,7 +57,7 @@
                             <input type="date" class="cell-date-edit hidden w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:text-white" value="{{ balance.date|date:"Y-m-d" }}">
                         </td>
                         <td class="px-4 py-3 text-right">
-                            <span class="cell-amount-display text-sm text-green-600 dark:text-green-500 font-semibold">$ {{ balance.amount|intcomma }}</span>
+                            <span class="cell-amount-display text-sm text-green-600 dark:text-green-500 font-semibold">{{ balance.amount|intcomma }}</span>
                             <input type="text" inputmode="decimal" class="cell-amount-edit hidden w-full px-2 py-1 text-sm border rounded text-right dark:bg-gray-700 dark:text-white" value="{{ balance.amount.amount }}">
                         </td>
                         {% if mode == 'detailed' %}
@@ -356,10 +356,20 @@ function applyMoneyMask(event) {
     // Combine with decimal separator
     input.value = integerPart + decimalSeparator + decimalPart;
 
-    // Position cursor at end
-    setTimeout(function() {
-        input.setSelectionRange(input.value.length, input.value.length);
-    }, 0);
+    // CORREÇÃO: Só posiciona cursor no final no primeiro input
+    // Se já tem a flag, significa que já digitou antes, não move cursor
+    if (!input.hasAttribute('data-first-input-done')) {
+        // Marca que já houve input (digitação) ANTES de agendar o cursor
+        input.setAttribute('data-first-input-done', 'true');
+        // Position cursor at end only on first input
+        setTimeout(function() {
+            // Verificar novamente a flag para evitar race conditions
+            if (input.hasAttribute('data-first-input-done')) {
+                input.setSelectionRange(input.value.length, input.value.length);
+            }
+        }, 0);
+    }
+    // Se já digitou algo antes, não move mais o cursor
 }
 
 function getRawValue(maskedValue) {
@@ -382,30 +392,47 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Position cursor at end when clicking or focusing on amount field
+    // CORREÇÃO: Cursor orientado à direita apenas no primeiro clique/foco
+    // Após o primeiro foco, permitir seleção livre
     document.addEventListener('focus', function(event) {
         if (event.target.matches('.cell-amount-edit')) {
-            setTimeout(function() {
-                event.target.setSelectionRange(event.target.value.length, event.target.value.length);
-            }, 0);
+            // Verificar se é o primeiro foco (campo não tem flag de já focado)
+            if (!event.target.hasAttribute('data-first-focus-done')) {
+                // Primeiro foco: mover cursor para o final
+                event.target.setAttribute('data-first-focus-done', 'true');
+                setTimeout(function() {
+                    event.target.setSelectionRange(event.target.value.length, event.target.value.length);
+                }, 0);
+            }
+            // Cliques subsequentes: permitir seleção livre (não fazer nada)
         }
     }, true);
 
     document.addEventListener('click', function(event) {
         if (event.target.matches('.cell-amount-edit')) {
-            event.target.setSelectionRange(event.target.value.length, event.target.value.length);
+            // Verificar se é o primeiro clique
+            if (!event.target.hasAttribute('data-first-click-done')) {
+                // Primeiro clique: mover cursor para o final
+                event.target.setAttribute('data-first-click-done', 'true');
+                event.target.setSelectionRange(event.target.value.length, event.target.value.length);
+            }
+            // Cliques subsequentes: permitir seleção livre (não fazer nada)
         }
     });
 
-    // Prevent cursor movement with arrow keys
-    document.addEventListener('keydown', function(event) {
+    // CORREÇÃO: Resetar flags quando o campo perde o foco
+    // Isso garante que ao voltar ao campo, será tratado como primeiro foco novamente
+    document.addEventListener('blur', function(event) {
         if (event.target.matches('.cell-amount-edit')) {
-            if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
-                event.preventDefault();
-                event.target.setSelectionRange(event.target.value.length, event.target.value.length);
-            }
+            event.target.removeAttribute('data-first-focus-done');
+            event.target.removeAttribute('data-first-click-done');
+            event.target.removeAttribute('data-first-input-done');
         }
-    });
+    }, true);
+
+    // CORREÇÃO: Remover bloqueio de teclas de navegação
+    // Agora o usuário pode usar setas para navegar livremente após o primeiro foco
+    // (Código de bloqueio de arrow keys REMOVIDO)
 
     // Initialize existing amount fields with money mask on page load
     document.querySelectorAll('.cell-amount-edit').forEach(function(input) {

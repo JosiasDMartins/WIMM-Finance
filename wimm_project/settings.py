@@ -116,6 +116,10 @@ if os.path.exists(EXTERNAL_SETTINGS_PATH):
             'ENGINE': 'django.db.backends.sqlite3',
             #Django will use this path in the Docker volume.
             'NAME': DB_PATH,
+            'OPTIONS': {
+                'timeout': 20,  # Aumentar timeout de 5s (padrão) para 20s
+                'init_command': 'PRAGMA journal_mode=WAL;',  # Write-Ahead Logging para melhor concorrência
+            },
         }
     }
 
@@ -127,6 +131,10 @@ else:
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db/db.sqlite3',
+            'OPTIONS': {
+                'timeout': 20,  # Aumentar timeout de 5s (padrão) para 20s
+                'init_command': 'PRAGMA journal_mode=WAL;',  # Write-Ahead Logging para melhor concorrência
+            },
         }
     }
 
