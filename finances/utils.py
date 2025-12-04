@@ -598,6 +598,8 @@ def copy_previous_period_data(family, old_period_start, new_period_start, new_pe
                 is_kids_group=old_group.is_kids_group,
                 realized=False,  # Reset realized status
                 is_investment=old_group.is_investment,
+                is_credit_card=old_group.is_credit_card,  # Copy credit card flag
+                closed=False,  # Reset closed status for new period
                 order=old_group.order
             )
             

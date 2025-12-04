@@ -339,13 +339,22 @@ def toggle_credit_card_closed_ajax(request):
         flow_group.closed = new_closed_status
         flow_group.save()
 
+        # When closing the bill (closed=True), mark all transactions as realized
+        if new_closed_status:
+            transactions_updated = Transaction.objects.filter(
+                flow_group=flow_group
+            ).update(realized=True)
+        else:
+            transactions_updated = 0
+
         budget_value = str(flow_group.budgeted_amount.amount)
 
         return JsonResponse({
             'status': 'success',
             'flow_group_id': flow_group.id,
             'closed': flow_group.closed,
-            'budget': budget_value
+            'budget': budget_value,
+            'transactions_updated': transactions_updated
         })
 
     except Exception as e:

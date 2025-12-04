@@ -307,18 +307,18 @@
                                 <div class="space-y-4">
                                     <div>
                                         <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{% trans "Username" %}</label>
-                                        <input type="text" name="username" x-model="editUsername" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2" required>
+                                        <input type="text" name="username" x-model="editUsername" class="w-full border rounded-lg bg-white dark:bg-gray-700 border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-gray-900 dark:text-white p-2" required>
                                     </div>
 
                                     <div>
                                         <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{% trans "Email" %}</label>
-                                        <input type="email" name="email" x-model="editEmail" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2">
+                                        <input type="email" name="email" x-model="editEmail" class="w-full border rounded-lg bg-white dark:bg-gray-700 border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-gray-900 dark:text-white p-2">
                                     </div>
 
                                     {% if is_admin %}
                                     <div>
                                         <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{% trans "Role" %}</label>
-                                        <select name="role" x-model="editRole" class="w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2">
+                                        <select name="role" x-model="editRole" class="w-full border rounded-lg bg-white dark:bg-gray-700 border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-gray-900 dark:text-white p-2">
                                             <option value="ADMIN">{% trans "Admin" %}</option>
                                             <option value="PARENT">{% trans "Parent" %}</option>
                                             <option value="CHILD">{% trans "Child" %}</option>

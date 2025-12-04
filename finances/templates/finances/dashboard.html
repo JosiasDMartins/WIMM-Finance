@@ -131,8 +131,10 @@
                                     {% else %}
                                         ({{ currency_symbol }} {{ group.child_expenses|default:"0.00"|intcomma }})
                                     {% endif %}
+                                {% elif group.is_credit_card and not group.closed %}
+                                    {{ currency_symbol }} {{ group.credit_card_pending|default:"0.00"|intcomma }} *
                                 {% else %}
-                                    {{ currency_symbol }} {{ group.total_spent|default:"0.00"|intcomma }}{% if group.is_credit_card and not group.closed %} *{% endif %}
+                                    {{ currency_symbol }} {{ group.total_spent|default:"0.00"|intcomma }}
                                 {% endif %}
                             </td>
                         </tr>
@@ -207,6 +209,7 @@
                                 data-item-id="{{ transaction.id }}"
                                 data-mode="display"
                                 data-realized="{{ transaction.realized|yesno:'true,false' }}"
+                                data-is-fixed="{{ transaction.is_fixed|yesno:'true,false' }}"
                                 data-date="{{ transaction.date|date:'Y-m-d' }}"
                                 data-amount="{{ transaction.amount.amount }}"
                                 class="swipeable-row-income {% if transaction.realized %}row-realized-income{% else %}row-not-realized-income{% endif %} hover:bg-slate-50 dark:hover:bg-gray-700/50">
@@ -938,7 +941,8 @@
         // Get amount from edit input field and convert from masked format
         const amountInput = row.querySelector('.cell-amount-edit input[data-field="amount"]');
         const amountText = getRawValue(amountInput.value);
-        
+        const isFixed = row.getAttribute('data-is-fixed') === 'true';
+
         const data = {
             'flow_group_id': incomeFlowGroupId,
             'transaction_id': transactionId,
@@ -946,6 +950,7 @@
             'amount': amountText,
             'date': fullDate,
             'realized': newStatus,
+            'is_fixed': isFixed,
         };
 
         fetch("{% url 'save_flow_item_ajax' %}", {
@@ -1292,12 +1297,15 @@
         const row = document.getElementById(rowId);
         const transactionId = row.getAttribute('data-item-id');
         const realizedStatus = row.getAttribute('data-realized') === 'true';
-        
+
+        const amountInput = row.querySelector('input[data-field="amount"]');
+        const amountText = getRawValue(amountInput.value);
+
         const data = {
             'flow_group_id': incomeFlowGroupId,
             'transaction_id': transactionId,
             'description': row.querySelector('input[data-field="description"]').value,
-            'amount': row.querySelector('input[data-field="amount"]').value,  // Send raw value, backend handles locale
+            'amount': amountText,  // Send raw value in standard format
             'date': row.querySelector('input[data-field="date"]').value,
             'realized': realizedStatus,
         };

@@ -41,7 +41,8 @@
         {% endif %}
         
         <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-8">
-            <div class="flex justify-between items-center mb-6">
+            <!-- Desktop: Title and buttons on same line -->
+            <div class="hidden lg:!flex justify-between items-center mb-6">
                 <h1 class="text-3xl font-bold text-[#0d171b] dark:text-white">{{ flow_group.name|default:"Create New Flow Group" }}</h1>
 
                 <div class="flex items-center gap-4">
@@ -83,23 +84,21 @@
                     {% endif %}
 
                     {% if flow_group.is_credit_card and not is_new %}
-                    <div class="flex items-center gap-3 p-3 border-2 border-orange-500/50 dark:border-orange-500/30 rounded-lg bg-orange-50 dark:bg-orange-900/20">
-                        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">{% trans "Bill Closed:" %}</span>
-                        <button type="button"
-                                onclick="toggleCreditCardClosed({{ flow_group.closed|yesno:'true,false' }})"
-                                {% if current_member.role == 'CHILD' %}disabled{% endif %}
-                                class="credit-card-closed-toggle relative inline-block w-12 h-7 transition duration-200 ease-in-out rounded-full {% if current_member.role == 'CHILD' %}cursor-not-allowed opacity-60{% else %}cursor-pointer{% endif %} {% if flow_group.closed %}bg-red-500{% else %}bg-orange-300 dark:bg-orange-600{% endif %}"
-                                title="{% if current_member.role == 'CHILD' %}Only Parents/Admins can change this{% else %}Click to toggle if credit card bill is closed and paid{% endif %}">
-                            <span class="absolute left-1 top-1 inline-block w-5 h-5 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if flow_group.closed %}translate-x-5{% endif %}"></span>
-                        </button>
-                        <span class="text-xs text-slate-600 dark:text-slate-400">
-                            {% if flow_group.closed %}
-                                ✓ Closed and paid
-                            {% else %}
-                                Not closed yet
-                            {% endif %}
+                    <!-- Closed Button -->
+                    <button type="button"
+                            onclick="toggleCreditCardClosed({{ flow_group.closed|yesno:'true,false' }})"
+                            id="closed-btn"
+                            {% if current_member.role == 'CHILD' %}disabled{% endif %}
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200"
+                            style="{% if current_member.role == 'CHILD' %}border: 1px solid #d1d5db; opacity: 0.6; cursor: not-allowed;{% elif flow_group.closed %}background-color: #dc2626 !important; color: white !important; border: none;{% else %}background-color: rgba(220, 38, 38, 0.3) !important; color: #dc2626 !important; border: none;{% endif %}"
+                            title="{% if current_member.role == 'CHILD' %}Only Parents/Admins can change this{% else %}Click to toggle if credit card bill is closed and paid{% endif %}">
+                        <span class="text-sm font-medium">{% trans "Closed" %}</span>
+                        <span class="flex items-center justify-center w-6 h-6 rounded" style="{% if flow_group.closed %}background-color: #991b1b;{% else %}background-color: rgba(185, 28, 28, 0.5);{% endif %}">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                            </svg>
                         </span>
-                    </div>
+                    </button>
                     {% endif %}
                 </div>
             </div>
@@ -125,6 +124,44 @@
                             {{ form.budgeted_amount }}
                         </div>
                     </div>
+                </div>
+
+                <!-- Mobile: Buttons below name/budget fields -->
+                <div class="md:hidden flex flex-wrap items-center gap-3">
+                    {% if not is_new and current_member.role != 'CHILD' %}
+                    <!-- Recurring Button -->
+                    <button type="button"
+                            onclick="toggleFlowGroupRecurring()"
+                            id="recurring-btn-mobile"
+                            class="recurring-btn inline-flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 {% if flow_group.is_recurring %}bg-blue-600 text-white hover:bg-blue-700{% else %}bg-blue-600/30 text-blue-600 dark:text-blue-400 hover:bg-blue-600/50{% endif %}"
+                            title="{% trans 'Mark this group as recurring to automatically copy it to new periods' %}">
+                        <span class="text-sm font-medium">{% trans "Recurrent" %}</span>
+                        <span class="flex items-center justify-center w-5 h-5 rounded {% if flow_group.is_recurring %}bg-blue-800{% else %}bg-blue-700/50{% endif %}">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                      d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8m0-5v5h5" />
+                            </svg>
+                        </span>
+                    </button>
+                    {% endif %}
+
+                    {% if flow_group.is_credit_card and not is_new %}
+                    <!-- Closed Button -->
+                    <button type="button"
+                            onclick="toggleCreditCardClosed({{ flow_group.closed|yesno:'true,false' }})"
+                            id="closed-btn-mobile"
+                            {% if current_member.role == 'CHILD' %}disabled{% endif %}
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200"
+                            style="{% if current_member.role == 'CHILD' %}border: 1px solid #d1d5db; opacity: 0.6; cursor: not-allowed;{% elif flow_group.closed %}background-color: #dc2626 !important; color: white !important; border: none;{% else %}background-color: rgba(220, 38, 38, 0.3) !important; color: #dc2626 !important; border: none;{% endif %}"
+                            title="{% if current_member.role == 'CHILD' %}Only Parents/Admins can change this{% else %}Click to toggle if credit card bill is closed and paid{% endif %}">
+                        <span class="text-sm font-medium">{% trans "Closed" %}</span>
+                        <span class="flex items-center justify-center w-6 h-6 rounded" style="{% if flow_group.closed %}background-color: #991b1b;{% else %}background-color: rgba(185, 28, 28, 0.5);{% endif %}">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </span>
+                    </button>
+                    {% endif %}
                 </div>
 
                 <input type="hidden" name="group_type" value="EXPENSE_MAIN">
@@ -570,22 +607,40 @@
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
-                // Update button visual state
+                // Update button visual state (desktop and mobile)
                 const recurringBtn = document.getElementById('recurring-btn');
-                const iconContainer = recurringBtn.querySelector('span:last-child');
+                const recurringBtnMobile = document.getElementById('recurring-btn-mobile');
 
-                if (data.is_recurring) {
-                    // Active state: solid blue
-                    recurringBtn.classList.remove('bg-blue-600/30', 'text-blue-600', 'dark:text-blue-400', 'hover:bg-blue-600/50');
-                    recurringBtn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
-                    iconContainer.classList.remove('bg-blue-700/50');
-                    iconContainer.classList.add('bg-blue-800');
-                } else {
-                    // Inactive state: translucent blue
-                    recurringBtn.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700');
-                    recurringBtn.classList.add('bg-blue-600/30', 'text-blue-600', 'dark:text-blue-400', 'hover:bg-blue-600/50');
-                    iconContainer.classList.remove('bg-blue-800');
-                    iconContainer.classList.add('bg-blue-700/50');
+                // Update desktop button
+                if (recurringBtn) {
+                    const iconContainer = recurringBtn.querySelector('span:last-child');
+                    if (data.is_recurring) {
+                        recurringBtn.classList.remove('bg-blue-600/30', 'text-blue-600', 'dark:text-blue-400', 'hover:bg-blue-600/50');
+                        recurringBtn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+                        iconContainer.classList.remove('bg-blue-700/50');
+                        iconContainer.classList.add('bg-blue-800');
+                    } else {
+                        recurringBtn.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+                        recurringBtn.classList.add('bg-blue-600/30', 'text-blue-600', 'dark:text-blue-400', 'hover:bg-blue-600/50');
+                        iconContainer.classList.remove('bg-blue-800');
+                        iconContainer.classList.add('bg-blue-700/50');
+                    }
+                }
+
+                // Update mobile button
+                if (recurringBtnMobile) {
+                    const iconContainerMobile = recurringBtnMobile.querySelector('span:last-child');
+                    if (data.is_recurring) {
+                        recurringBtnMobile.classList.remove('bg-blue-600/30', 'text-blue-600', 'dark:text-blue-400', 'hover:bg-blue-600/50');
+                        recurringBtnMobile.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+                        iconContainerMobile.classList.remove('bg-blue-700/50');
+                        iconContainerMobile.classList.add('bg-blue-800');
+                    } else {
+                        recurringBtnMobile.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+                        recurringBtnMobile.classList.add('bg-blue-600/30', 'text-blue-600', 'dark:text-blue-400', 'hover:bg-blue-600/50');
+                        iconContainerMobile.classList.remove('bg-blue-800');
+                        iconContainerMobile.classList.add('bg-blue-700/50');
+                    }
                 }
 
                 // Show success message
@@ -681,29 +736,101 @@
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
-                // Update toggle visual state
-                const toggleBtn = document.querySelector('.credit-card-closed-toggle');
-                const toggleCircle = toggleBtn.querySelector('span');
-                const statusText = toggleBtn.parentElement.querySelector('.text-xs');
+                // Update button visual state (desktop and mobile)
+                const closedBtn = document.getElementById('closed-btn');
+                const closedBtnMobile = document.getElementById('closed-btn-mobile');
 
                 if (data.closed) {
-                    toggleBtn.classList.remove('bg-orange-300', 'dark:bg-orange-600');
-                    toggleBtn.classList.add('bg-red-500');
-                    toggleCircle.classList.add('translate-x-5');
-                    statusText.textContent = '{% trans "✓ Closed and paid" %}';
-                    toggleBtn.setAttribute('onclick', `toggleCreditCardClosed(true)`);
+                    // Update desktop button
+                    if (closedBtn) {
+                        const iconContainer = closedBtn.querySelector('span:last-child');
+                        closedBtn.style.backgroundColor = '#dc2626';
+                        closedBtn.style.color = 'white';
+                        closedBtn.style.border = 'none';
+                        iconContainer.style.backgroundColor = '#991b1b';
+                        closedBtn.setAttribute('onclick', `toggleCreditCardClosed(true)`);
+                    }
+
+                    // Update mobile button
+                    if (closedBtnMobile) {
+                        const iconContainerMobile = closedBtnMobile.querySelector('span:last-child');
+                        closedBtnMobile.style.backgroundColor = '#dc2626';
+                        closedBtnMobile.style.color = 'white';
+                        closedBtnMobile.style.border = 'none';
+                        iconContainerMobile.style.backgroundColor = '#991b1b';
+                        closedBtnMobile.setAttribute('onclick', `toggleCreditCardClosed(true)`);
+                    }
+
+                    // Update all transaction toggles to realized=true
+                    const tbody = document.getElementById('expense-items-body');
+                    console.log('[Credit Card Toggle] Looking for tbody:', tbody);
+                    if (tbody) {
+                        const rows = tbody.querySelectorAll('tr[id^="item-"]');
+                        console.log('[Credit Card Toggle] Found rows:', rows.length);
+                        rows.forEach(row => {
+                            const itemId = row.id.replace('item-', '');
+                            console.log('[Credit Card Toggle] Processing item:', itemId);
+                            if (itemId !== 'NEW') {
+                                // Update data attribute
+                                row.setAttribute('data-realized', 'true');
+
+                                // Update toggle button visual state
+                                const itemToggle = row.querySelector('.realized-toggle');
+                                console.log('[Credit Card Toggle] Found toggle for item', itemId, ':', itemToggle);
+                                if (itemToggle) {
+                                    const itemToggleCircle = itemToggle.querySelector('span');
+                                    console.log('[Credit Card Toggle] Found toggle circle:', itemToggleCircle);
+
+                                    // Remove gray and add green
+                                    itemToggle.classList.remove('bg-gray-300', 'dark:bg-gray-600');
+                                    itemToggle.classList.add('bg-green-500');
+
+                                    // Move the circle
+                                    if (itemToggleCircle) {
+                                        itemToggleCircle.classList.add('translate-x-4');
+                                    }
+
+                                    // Update onclick
+                                    itemToggle.setAttribute('onclick', `toggleRealized('item-${itemId}', true)`);
+                                }
+
+                                // Update mobile row visual state
+                                row.classList.remove('row-not-realized');
+                                row.classList.add('row-realized');
+                            }
+                        });
+                    } else {
+                        console.error('[Credit Card Toggle] tbody not found!');
+                    }
                 } else {
-                    toggleBtn.classList.remove('bg-red-500');
-                    toggleBtn.classList.add('bg-orange-300', 'dark:bg-orange-600');
-                    toggleCircle.classList.remove('translate-x-5');
-                    statusText.textContent = '{% trans "Not closed yet" %}';
-                    toggleBtn.setAttribute('onclick', `toggleCreditCardClosed(false)`);
+                    // Update desktop button
+                    if (closedBtn) {
+                        const iconContainer = closedBtn.querySelector('span:last-child');
+                        closedBtn.style.backgroundColor = 'rgba(220, 38, 38, 0.3)';
+                        closedBtn.style.color = '#dc2626';
+                        closedBtn.style.border = 'none';
+                        iconContainer.style.backgroundColor = 'rgba(185, 28, 28, 0.5)';
+                        closedBtn.setAttribute('onclick', `toggleCreditCardClosed(false)`);
+                    }
+                    // Update mobile button
+                    if (closedBtnMobile) {
+                        const iconContainer = closedBtnMobile.querySelector('span:last-child');
+                        closedBtnMobile.style.backgroundColor = 'rgba(220, 38, 38, 0.3)';
+                        closedBtnMobile.style.color = '#dc2626';
+                        closedBtnMobile.style.border = 'none';
+                        iconContainer.style.backgroundColor = 'rgba(185, 28, 28, 0.5)';
+                        closedBtnMobile.setAttribute('onclick', `toggleCreditCardClosed(false)`);
+                    }                    
                 }
 
                 // Show success message
                 const messageDiv = document.createElement('div');
                 messageDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-                messageDiv.textContent = data.closed ? '{% trans "Bill marked as closed and paid" %}' : '{% trans "Bill marked as not closed" %}';
+                if (data.closed) {
+                    messageDiv.textContent = '{% trans "Bill marked as closed and paid" %}' + (data.transactions_updated > 0 ? ` (${data.transactions_updated} {% trans "items marked as realized" %})` : '');
+                } else {
+                    messageDiv.textContent = '{% trans "Bill marked as not closed" %}';
+                }
                 document.body.appendChild(messageDiv);
 
                 setTimeout(() => {
@@ -969,6 +1096,7 @@
         // Get date from the hidden input (edit mode) which has the correct YYYY-MM-DD format
         const dateText = row.querySelector('.cell-date-edit input[data-field="date"]').value;
         const memberId = row.querySelector('.cell-member-display').getAttribute('data-member-id');
+        const isFixed = row.getAttribute('data-is-fixed') === 'true';
 
         const data = {
             'flow_group_id': document.getElementById('flow-group-form').getAttribute('data-flow-group-id'),
@@ -978,6 +1106,7 @@
             'date': dateText,
             'member_id': memberId,
             'realized': newStatus,
+            'is_fixed': isFixed,
         };
 
         fetch("{% url 'save_flow_item_ajax' %}", {

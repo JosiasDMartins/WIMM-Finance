@@ -91,6 +91,16 @@ def dashboard_view(request):
             ) & (
                 Q(is_credit_card=False) | Q(is_credit_card=True, closed=True)
             )
+        ),
+        # For open credit card groups: show realized amount separately (not in balance)
+        credit_card_pending=Sum(
+            'transactions__amount',
+            filter=Q(
+                transactions__date__range=(start_date, end_date),
+                transactions__realized=True,
+                is_credit_card=True,
+                closed=False
+            )
         )
     ).order_by('order', 'name')
 
@@ -108,6 +118,16 @@ def dashboard_view(request):
             ) & (
                 Q(is_credit_card=False) | Q(is_credit_card=True, closed=True)
             )
+        ),
+        # For open credit card groups: show realized amount separately (not in balance)
+        credit_card_pending=Sum(
+            'transactions__amount',
+            filter=Q(
+                transactions__date__range=(start_date, end_date),
+                transactions__realized=True,
+                is_credit_card=True,
+                closed=False
+            )
         )
     ).order_by('order', 'name')
     
@@ -117,9 +137,11 @@ def dashboard_view(request):
     for group in accessible_expense_groups:
         group.total_estimated = Decimal(str(group.total_estimated.amount)) if hasattr(group.total_estimated, 'amount') else (group.total_estimated or Decimal('0.00'))
         group.total_spent = Decimal(str(group.total_spent.amount)) if hasattr(group.total_spent, 'amount') else (group.total_spent or Decimal('0.00'))
+        group.credit_card_pending = Decimal(str(group.credit_card_pending.amount)) if hasattr(group.credit_card_pending, 'amount') else (group.credit_card_pending or Decimal('0.00'))
 
         group.total_estimated = group.total_estimated.quantize(Decimal('0.01'), rounding=ROUND_DOWN)
         group.total_spent = group.total_spent.quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+        group.credit_card_pending = group.credit_card_pending.quantize(Decimal('0.01'), rounding=ROUND_DOWN)
         group.is_accessible = True
 
         if group.is_kids_group and member_role_for_period in ['ADMIN', 'PARENT']:
@@ -160,9 +182,11 @@ def dashboard_view(request):
     for group in display_only_expense_groups:
         group.total_estimated = Decimal(str(group.total_estimated.amount)) if hasattr(group.total_estimated, 'amount') else (group.total_estimated or Decimal('0.00'))
         group.total_spent = Decimal(str(group.total_spent.amount)) if hasattr(group.total_spent, 'amount') else (group.total_spent or Decimal('0.00'))
+        group.credit_card_pending = Decimal(str(group.credit_card_pending.amount)) if hasattr(group.credit_card_pending, 'amount') else (group.credit_card_pending or Decimal('0.00'))
 
         group.total_estimated = group.total_estimated.quantize(Decimal('0.01'), rounding=ROUND_DOWN)
         group.total_spent = group.total_spent.quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+        group.credit_card_pending = group.credit_card_pending.quantize(Decimal('0.01'), rounding=ROUND_DOWN)
         group.is_accessible = False
 
         budgeted_amt = Decimal(str(group.budgeted_amount.amount)) if hasattr(group.budgeted_amount, 'amount') else Decimal(str(group.budgeted_amount))
@@ -225,13 +249,16 @@ def dashboard_view(request):
         income_flow_group_id = income_group.id
         context_kids_income = kids_income_entries
 
+        # Calculate realized expense excluding open credit card groups
         realized_exp = Transaction.objects.filter(
             flow_group__in=accessible_expense_groups,
             date__range=(start_date, end_date),
             realized=True,
             is_child_expense=True
+        ).filter(
+            Q(flow_group__is_credit_card=False) | Q(flow_group__is_credit_card=True, flow_group__closed=True)
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        
+
         realized_expense = Decimal(str(realized_exp.amount)) if hasattr(realized_exp, 'amount') else realized_exp
         
     else:
@@ -298,13 +325,16 @@ def dashboard_view(request):
         
         context_kids_income = []
         
+        # Calculate realized expense excluding open credit card groups
         realized_exp_calc = Transaction.objects.filter(
             flow_group__in=accessible_expense_groups,
             date__range=(start_date, end_date),
             realized=True,
             is_child_expense=False
+        ).filter(
+            Q(flow_group__is_credit_card=False) | Q(flow_group__is_credit_card=True, flow_group__closed=True)
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        
+
         realized_expense = Decimal(str(realized_exp_calc.amount)) if hasattr(realized_exp_calc, 'amount') else realized_exp_calc
         realized_expense += kids_groups_realized_budget
 
