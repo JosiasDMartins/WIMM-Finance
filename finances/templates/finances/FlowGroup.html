@@ -849,15 +849,20 @@
     // Function to apply money mask - input from right to left starting with cents
     function applyMoneyMask(event) {
         const input = event.target;
+        
+        // 1. Save cursor position and original value
+        const originalCursorPos = input.selectionStart;
+        const originalValue = input.value;
+
         let value = input.value;
 
         // Remove all non-digit characters
         value = value.replace(/\D/g, '');
 
-        // If empty, set to 0
+        // If empty, set to 0. This case is simple.
         if (value === '') {
             input.value = '0' + decimalSeparator + '00';
-            // Position cursor at end
+            // Position cursor at end for the default zero value
             setTimeout(function() {
                 input.setSelectionRange(input.value.length, input.value.length);
             }, 0);
@@ -874,14 +879,20 @@
         // Add thousand separators to integer part
         integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, thousandSeparator);
 
-        // Combine with decimal separator
+        // Set the new formatted value
         input.value = integerPart + decimalSeparator + decimalPart;
 
-        if (!input.hasAttribute('data-first-focus-done')) {
-            setTimeout(function() {
-                input.setSelectionRange(input.value.length, input.value.length);
-            }, 0);
+        // 3. Calculate and restore cursor position
+        const newLength = input.value.length;
+        const oldLength = originalValue.length;
+        let newCursorPos = originalCursorPos + (newLength - oldLength);
+
+        // Ensure cursor doesn't go to a negative position (can happen on delete)
+        if (newCursorPos < 0) {
+            newCursorPos = 0;
         }
+        
+        input.setSelectionRange(newCursorPos, newCursorPos);
     }
 
     // Function to get raw value from masked input (for sending to backend)
