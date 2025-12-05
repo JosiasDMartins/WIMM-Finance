@@ -2,7 +2,7 @@
 {% load static %}
 {% load humanize %}
 {% load i18n %}
-{% load l10n %} 
+{% load l10n %}
 
 {% block title %}{% trans "Flow Group" %}: {{ flow_group.name|default:"New Group" }}{% endblock title %}
 
@@ -1065,6 +1065,7 @@
         fetch("{% url 'delete_flow_group' flow_group.id|default:0 %}", {
             method: 'POST',
             headers: {
+                'Content-Type': 'application/json',
                 'X-CSRFToken': csrftoken,
                 'X-Requested-With': 'XMLHttpRequest'
             }
@@ -1186,6 +1187,11 @@
                     row.classList.remove('row-realized');
                     row.classList.add('row-not-realized');
                 }
+                
+                // Reset mobile swipe position
+                row.style.transform = 'translateX(0)';
+                row.classList.remove('actions-revealed', 'fixed-revealed'); // <-- Added for consistency
+
             } else {
                 alert('{% trans "Error updating realized status:" %} ' + data.error);
             }
@@ -1263,6 +1269,10 @@
                         iconContainer.classList.add('bg-blue-800');
                     }
                 }
+
+                // Reset mobile swipe position
+                row.style.transform = 'translateX(0)';
+                row.classList.remove('actions-revealed', 'fixed-revealed'); // <-- Added for this function
 
                 // Show success message
                 const messageDiv = document.createElement('div');
@@ -1597,10 +1607,10 @@
                         // Reset realized toggle
                         const realizedToggle = templateRow.querySelector('.realized-toggle-new');
                         if (realizedToggle) {
+                            const toggleCircle = realizedToggle.querySelector('span');
                             realizedToggle.classList.remove('bg-green-500');
                             realizedToggle.classList.add('bg-gray-300', 'dark:bg-gray-600');
-                            const circle = realizedToggle.querySelector('span');
-                            if (circle) circle.classList.remove('translate-x-4');
+                            if (toggleCircle) toggleCircle.classList.remove('translate-x-4');
                         }
 
                         // Reset fixed toggle
@@ -2252,7 +2262,7 @@
         }
     }
 
-    // ========== MOBILE-SPECIFIC FUNCTIONALITY ==========
+    // ========== MOBILE-SPECIFIC FUNCTIONALITY ========== 
     // Initialize mobile swipe and tap functionality
     function initMobileFeatures() {
         'use strict';
