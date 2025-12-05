@@ -764,20 +764,11 @@
         // Combine with decimal separator
         input.value = integerPart + decimalSeparator + decimalPart;
 
-        // CORREÇÃO: Só posiciona cursor no final no primeiro input
-        // Se já tem a flag, significa que já digitou antes, não move cursor
-        if (!input.hasAttribute('data-first-input-done')) {
-            // Marca que já houve input (digitação) ANTES de agendar o cursor
-            input.setAttribute('data-first-input-done', 'true');
-            // Position cursor at end only on first input
+        if (!input.hasAttribute('data-first-focus-done')) {
             setTimeout(function() {
-                // Verificar novamente a flag para evitar race conditions
-                if (input.hasAttribute('data-first-input-done')) {
-                    input.setSelectionRange(input.value.length, input.value.length);
-                }
+                input.setSelectionRange(input.value.length, input.value.length);
             }, 0);
         }
-        // Se já digitou algo antes, não move mais o cursor
     }
 
     function getRawValue(maskedValue) {
@@ -820,25 +811,12 @@
             }
         }, true);
 
-        document.addEventListener('click', function(event) {
-            if (event.target.matches('input[data-field="amount"]')) {
-                // Verificar se é o primeiro clique
-                if (!event.target.hasAttribute('data-first-click-done')) {
-                    // Primeiro clique: mover cursor para o final
-                    event.target.setAttribute('data-first-click-done', 'true');
-                    event.target.setSelectionRange(event.target.value.length, event.target.value.length);
-                }
-                // Cliques subsequentes: permitir seleção livre (não fazer nada)
-            }
-        });
 
         // CORREÇÃO: Resetar flags quando o campo perde o foco
         // Isso garante que ao voltar ao campo, será tratado como primeiro foco novamente
         document.addEventListener('blur', function(event) {
             if (event.target.matches('input[data-field="amount"]')) {
                 event.target.removeAttribute('data-first-focus-done');
-                event.target.removeAttribute('data-first-click-done');
-                event.target.removeAttribute('data-first-input-done');
             }
         }, true);
 
@@ -1546,19 +1524,39 @@
 
         const deltaY = touchCurrentYGroups - touchStartYGroups;
 
-        // CORREÇÃO: Esconder temporariamente o elemento arrastado para elementFromPoint funcionar
+        const rect = touchDraggedGroupRow.getBoundingClientRect();
+        const centerX = rect.left + (rect.width / 2);
+
         touchDraggedGroupRow.style.visibility = 'hidden';
-
-        // Find the row at the drop position
-        const elementBelow = document.elementFromPoint(
-            e.changedTouches[0].clientX,
-            e.changedTouches[0].clientY
-        );
-
-        // Restaurar visibilidade
+        const elementBelow = document.elementFromPoint(centerX, touchCurrentYGroups);
         touchDraggedGroupRow.style.visibility = '';
 
-        const targetRow = elementBelow ? elementBelow.closest('tr.draggable-row') : null;
+        let targetRow = elementBelow ? elementBelow.closest('tr.draggable-row') : null;
+
+        if (!targetRow) {
+            const tbody = document.getElementById('expense-groups-tbody');
+            const allRows = Array.from(tbody.querySelectorAll('tr.draggable-row'));
+
+            let closestRow = null;
+            let closestDistance = Infinity;
+
+            allRows.forEach(function(row) {
+                if (row === touchDraggedGroupRow) return;
+
+                const rowRect = row.getBoundingClientRect();
+                const rowCenterY = rowRect.top + (rowRect.height / 2);
+                const distance = Math.abs(touchCurrentYGroups - rowCenterY);
+
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestRow = row;
+                }
+            });
+
+            if (closestRow) {
+                targetRow = closestRow;
+            }
+        }
 
         // Perform the drop
         if (targetRow && targetRow !== touchDraggedGroupRow) {
@@ -1835,19 +1833,39 @@
 
         const deltaY = touchCurrentYIncome - touchStartYIncome;
 
-        // CORREÇÃO: Esconder temporariamente o elemento arrastado para elementFromPoint funcionar
+        const rect = touchDraggedIncomeRow.getBoundingClientRect();
+        const centerX = rect.left + (rect.width / 2);
+
         touchDraggedIncomeRow.style.visibility = 'hidden';
-
-        // Find the row at the drop position
-        const elementBelow = document.elementFromPoint(
-            e.changedTouches[0].clientX,
-            e.changedTouches[0].clientY
-        );
-
-        // Restaurar visibilidade
+        const elementBelow = document.elementFromPoint(centerX, touchCurrentYIncome);
         touchDraggedIncomeRow.style.visibility = '';
 
-        const targetRow = elementBelow ? elementBelow.closest('tr.swipeable-row-income') : null;
+        let targetRow = elementBelow ? elementBelow.closest('tr.swipeable-row-income') : null;
+
+        if (!targetRow) {
+            const tbody = document.getElementById('income-items-body');
+            const allRows = Array.from(tbody.querySelectorAll('tr.swipeable-row-income:not(#new-income-template)'));
+
+            let closestRow = null;
+            let closestDistance = Infinity;
+
+            allRows.forEach(function(row) {
+                if (row === touchDraggedIncomeRow) return;
+
+                const rowRect = row.getBoundingClientRect();
+                const rowCenterY = rowRect.top + (rowRect.height / 2);
+                const distance = Math.abs(touchCurrentYIncome - rowCenterY);
+
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestRow = row;
+                }
+            });
+
+            if (closestRow) {
+                targetRow = closestRow;
+            }
+        }
 
         // Perform the drop
         if (targetRow && targetRow !== touchDraggedIncomeRow && targetRow.id !== 'new-income-template') {

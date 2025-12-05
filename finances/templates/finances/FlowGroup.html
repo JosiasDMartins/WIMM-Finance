@@ -877,21 +877,11 @@
         // Combine with decimal separator
         input.value = integerPart + decimalSeparator + decimalPart;
 
-        // CORREÇÃO: Só posiciona cursor no final no primeiro input
-        // Se já tem a flag, significa que já digitou antes, não move cursor
-        if (!input.hasAttribute('data-first-input-done')) {
-            // Marca que já houve input (digitação) ANTES de agendar o cursor
-            input.setAttribute('data-first-input-done', 'true');
-            // Position cursor at end only on first input
+        if (!input.hasAttribute('data-first-focus-done')) {
             setTimeout(function() {
-                // Verificar novamente a flag para evitar race conditions
-                // (pode ter havido blur/focus entre o set e o setTimeout)
-                if (input.hasAttribute('data-first-input-done')) {
-                    input.setSelectionRange(input.value.length, input.value.length);
-                }
+                input.setSelectionRange(input.value.length, input.value.length);
             }, 0);
         }
-        // Se já digitou algo antes, não move mais o cursor
     }
 
     // Function to get raw value from masked input (for sending to backend)
@@ -935,25 +925,12 @@
             }
         }, true);
 
-        document.addEventListener('click', function(event) {
-            if (event.target.matches('input[data-field="amount"]')) {
-                // Verificar se é o primeiro clique
-                if (!event.target.hasAttribute('data-first-click-done')) {
-                    // Primeiro clique: mover cursor para o final
-                    event.target.setAttribute('data-first-click-done', 'true');
-                    event.target.setSelectionRange(event.target.value.length, event.target.value.length);
-                }
-                // Cliques subsequentes: permitir seleção livre (não fazer nada)
-            }
-        });
 
         // CORREÇÃO: Resetar flags quando o campo perde o foco
         // Isso garante que ao voltar ao campo, será tratado como primeiro foco novamente
         document.addEventListener('blur', function(event) {
             if (event.target.matches('input[data-field="amount"]')) {
                 event.target.removeAttribute('data-first-focus-done');
-                event.target.removeAttribute('data-first-click-done');
-                event.target.removeAttribute('data-first-input-done');
             }
         }, true);
 
@@ -2012,29 +1989,17 @@
     let touchDragPlaceholder = null;
 
     function handleTouchDragStart(e, row) {
-        console.log('[DRAG START] Called for row:', row.id);
+        if (row.dataset.mode === 'edit') return;
+        if (!e.target.closest('.drag-handle')) return;
 
-        // Ignore if in edit mode or not on drag handle
-        if (row.dataset.mode === 'edit') {
-            console.log('[DRAG START] Edit mode, ignoring');
-            return;
-        }
-        if (!e.target.closest('.drag-handle')) {
-            console.log('[DRAG START] Not on drag handle, ignoring');
-            return;
-        }
-
-        console.log('[DRAG START] Starting drag for row:', row.id);
         e.preventDefault();
         touchDraggedRow = row;
         touchStartY = e.touches[0].clientY;
         touchCurrentY = touchStartY;
 
-        // Visual feedback
         row.style.opacity = '0.4';
         row.classList.add('dragging');
 
-        // CORREÇÃO: Disable pointer events on other rows to prevent conflicts
         document.querySelectorAll('tr.draggable-row').forEach(r => {
             if (r !== row) {
                 r.style.pointerEvents = 'none';
@@ -2050,9 +2015,7 @@
         touchCurrentY = e.touches[0].clientY;
 
         const deltaY = touchCurrentY - touchStartY;
-        console.log('[DRAG MOVE] deltaY:', deltaY);
 
-        // Find the row under the touch point
         const elementBelow = document.elementFromPoint(
             e.touches[0].clientX,
             e.touches[0].clientY
@@ -2060,95 +2023,91 @@
 
         const rowBelow = elementBelow ? elementBelow.closest('tr.draggable-row') : null;
 
-        // Remove previous highlights
         document.querySelectorAll('tr.draggable-row').forEach(r => {
             r.classList.remove('border-t-2', 'border-primary', 'border-b-2');
         });
 
-        // Highlight the target row
         if (rowBelow && rowBelow !== touchDraggedRow && rowBelow.id !== 'new-item-template') {
             if (deltaY > 0) {
-                // Dragging down
                 rowBelow.classList.add('border-b-2', 'border-primary');
             } else {
-                // Dragging up
                 rowBelow.classList.add('border-t-2', 'border-primary');
             }
         }
 
-        // Visual feedback - move the row
         touchDraggedRow.style.transform = `translateY(${deltaY}px)`;
     }
 
     function handleTouchDragEnd(e) {
-        if (!touchDraggedRow) {
-            console.log('[DRAG END] No touchDraggedRow');
-            return;
-        }
-        if (this !== touchDraggedRow) {
-            console.log('[DRAG END] this !== touchDraggedRow');
-            return;
-        }
+        if (!touchDraggedRow) return;
+        if (this !== touchDraggedRow) return;
 
         e.preventDefault();
 
         const deltaY = touchCurrentY - touchStartY;
-        console.log('[DRAG END] deltaY:', deltaY);
 
-        // CORREÇÃO: Esconder temporariamente o elemento arrastado para elementFromPoint funcionar
+        const rect = touchDraggedRow.getBoundingClientRect();
+        const centerX = rect.left + (rect.width / 2);
+
         touchDraggedRow.style.visibility = 'hidden';
-
-        // Find the row at the drop position
-        const elementBelow = document.elementFromPoint(
-            e.changedTouches[0].clientX,
-            e.changedTouches[0].clientY
-        );
-
-        // Restaurar visibilidade
+        const elementBelow = document.elementFromPoint(centerX, touchCurrentY);
         touchDraggedRow.style.visibility = '';
 
-        console.log('[DRAG END] elementBelow:', elementBelow);
-        const targetRow = elementBelow ? elementBelow.closest('tr.draggable-row') : null;
-        console.log('[DRAG END] targetRow:', targetRow ? targetRow.id : 'null');
+        let targetRow = elementBelow ? elementBelow.closest('tr.draggable-row') : null;
 
-        // Perform the drop
+        if (!targetRow) {
+            const tbody = document.getElementById('expense-items-body');
+            const allRows = Array.from(tbody.querySelectorAll('tr.draggable-row:not(#new-item-template)'));
+
+            let closestRow = null;
+            let closestDistance = Infinity;
+
+            allRows.forEach(function(row) {
+                if (row === touchDraggedRow) return;
+
+                const rowRect = row.getBoundingClientRect();
+                const rowCenterY = rowRect.top + (rowRect.height / 2);
+                const distance = Math.abs(touchCurrentY - rowCenterY);
+
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestRow = row;
+                }
+            });
+
+            if (closestRow) {
+                targetRow = closestRow;
+            }
+        }
+
         if (targetRow && targetRow !== touchDraggedRow && targetRow.id !== 'new-item-template') {
-            console.log('[DRAG END] Moving row from', touchDraggedRow.id, 'to', targetRow.id);
             const tbody = document.getElementById('expense-items-body');
             const allRows = Array.from(tbody.querySelectorAll('tr.draggable-row'));
 
             const draggedIndex = allRows.indexOf(touchDraggedRow);
             const targetIndex = allRows.indexOf(targetRow);
 
-            // Move the row
             if (deltaY > 0) {
-                // Dragging down - insert after target
                 targetRow.parentNode.insertBefore(touchDraggedRow, targetRow.nextSibling);
             } else {
-                // Dragging up - insert before target
                 targetRow.parentNode.insertBefore(touchDraggedRow, targetRow);
             }
 
-            // Save new order to backend
             saveItemsOrder();
         }
 
-        // Reset visual feedback
         touchDraggedRow.style.opacity = '1';
         touchDraggedRow.style.transform = '';
         touchDraggedRow.classList.remove('dragging');
 
-        // CORREÇÃO: Re-enable pointer events on all rows
         document.querySelectorAll('tr.draggable-row').forEach(r => {
             r.style.pointerEvents = '';
         });
 
-        // Remove all highlights
         document.querySelectorAll('tr.draggable-row').forEach(r => {
             r.classList.remove('border-t-2', 'border-primary', 'border-b-2');
         });
 
-        // Reset variables
         touchDraggedRow = null;
         touchStartY = 0;
         touchCurrentY = 0;
@@ -2335,6 +2294,11 @@
                 if (e.target.closest('.mobile-fixed-btn')) return;
                 if (e.target.closest('.edit-save-icon')) return;
 
+                // Check if a drag operation is in progress (from drag-and-drop)
+                if (touchDraggedRow && touchDraggedRow === row) {
+                    return; // Drag-and-drop is active, don't handle swipe
+                }
+
                 startX = e.touches[0].clientX;
                 currentX = startX;
                 startY = e.touches[0].clientY;
@@ -2350,6 +2314,11 @@
                 // Se já decidiu que é drag, ignora swipe
                 if (isDragMode) return;
 
+                // Check if a drag operation is in progress (from drag-and-drop)
+                if (touchDraggedRow && touchDraggedRow === row) {
+                    return; // Drag-and-drop is active, don't handle swipe
+                }
+
                 if (e.target.closest('.mobile-action-btn')) return;
                 if (e.target.closest('.mobile-fixed-btn')) return;
                 if (e.target.closest('.edit-save-icon')) return;
@@ -2359,21 +2328,28 @@
                 const deltaX = currentX - startX;
                 const deltaY = currentY - startY;
 
-                // Processar apenas swipe horizontal
-                // In edit mode: allow swipe right to cancel
+                if (!isDecided) {
+                    const absDeltaX = Math.abs(deltaX);
+                    const absDeltaY = Math.abs(deltaY);
+
+                    if (absDeltaX > 10 || absDeltaY > 10) {
+                        isDecided = true;
+                        isDragMode = absDeltaY > absDeltaX;
+                        if (isDragMode) return;
+                    }
+                }
+
                 if (row.dataset.mode === 'edit') {
                     if (deltaX > 0) {
                         isDragging = true;
-                        const translateX = Math.min(deltaX, 120); // Max 120px right
+                        const translateX = Math.min(deltaX, 120);
                         row.style.transform = `translateX(${translateX}px)`;
                         row.style.transition = 'none';
                     }
                 } else {
-                    // In display mode: allow swipe left to reveal actions OR swipe right to reveal fixed button
                     if (deltaX < 0) {
-                        // Swipe left - reveal actions
                         isDragging = true;
-                        const translateX = Math.max(deltaX, -120); // Max 120px left
+                        const translateX = Math.max(deltaX, -120);
                         row.style.transform = `translateX(${translateX}px)`;
                         row.style.transition = 'none';
                     } else if (deltaX > 0) {
@@ -2390,6 +2366,11 @@
             row.addEventListener('touchend', (e) => {
                 // Se foi drag, não processar swipe
                 if (isDragMode) return;
+
+                // Check if a drag operation is in progress (from drag-and-drop)
+                if (touchDraggedRow && touchDraggedRow === row) {
+                    return; // Drag-and-drop is active, don't handle swipe
+                }
 
                 if (e.target.closest('.mobile-action-btn')) return;
                 if (e.target.closest('.mobile-fixed-btn')) return;
