@@ -1015,7 +1015,7 @@ def get_balance_summary_ajax(request):
     try:
         from .views_utils import get_balance_summary
 
-        family, current_member, _unused = get_family_context(request.user)
+        family, current_member, family_members = get_family_context(request.user)
         if not family:
             return JsonResponse({'status': 'error', 'error': _('User not in family')}, status=403)
 
@@ -1023,14 +1023,15 @@ def get_balance_summary_ajax(request):
         query_period = request.GET.get('period')
         start_date, end_date, _unused = get_current_period_dates(family, query_period)
 
-        # Get balance summary using the shared function
-        summary = get_balance_summary(family, current_member, start_date, end_date)
+        # Get balance summary using the new shared function
+        balance_data = get_balance_summary(family, current_member, family_members, start_date, end_date)
+        summary = balance_data['summary_totals']
 
         # Get currency symbol for formatting
         period_currency = get_period_currency(family, start_date)
         currency_symbol = get_currency_symbol(period_currency)
 
-        # Return formatted values as strings
+        # Return formatted values as strings, maintaining the original structure for the JS
         return JsonResponse({
             'status': 'success',
             'balance': {
