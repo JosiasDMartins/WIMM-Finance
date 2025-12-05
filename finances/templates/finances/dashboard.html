@@ -35,7 +35,7 @@
             <!-- Metrics Card -->
             <div class="flex flex-col">
                 <h3 class="text-lg font-semibold text-[#0d171b] dark:text-white mb-3">{% trans "Key Metrics (YTD)" %}</h3>
-                <div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 space-y-2" style="height: 220px;">
+                <div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 space-y-2">
                     <div class="flex justify-between items-center">
                         <span class="text-xs text-gray-600 dark:text-gray-400">{% trans "YTD Income" %}</span>
                         <span class="text-sm font-bold text-green-600 dark:text-green-500">{{ currency_symbol }} {{ ytd_metrics.ytd_income|floatformat:2|intcomma }}</span>
