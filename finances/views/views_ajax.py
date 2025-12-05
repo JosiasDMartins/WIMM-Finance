@@ -30,7 +30,8 @@ from .views_utils import (
     can_access_flow_group,
     get_currency_symbol,
     get_thousand_separator,
-    get_decimal_separator
+    get_decimal_separator,
+    get_balance_summary
 )
 
 
@@ -1186,3 +1187,109 @@ def health_check_api(request):
             'status': 'error',
             'error': str(e)
         }, status=503)
+
+@login_required
+def get_bank_reconciliation_summary_ajax(request):
+    """
+    AJAX: Returns updated bank reconciliation summary.
+    """
+    try:
+        family, current_member, family_members = get_family_context(request.user)
+        if not family:
+            return JsonResponse({'status': 'error', 'error': _('User not in family')}, status=403)
+
+        query_period = request.GET.get('period')
+        start_date, end_date, _unused = get_current_period_dates(family, query_period)
+        mode = request.GET.get('mode', 'general')
+        
+        config = family.configuration
+        tolerance = config.bank_reconciliation_tolerance
+
+        # This logic is duplicated from bank_reconciliation_view.
+        # It should be refactored into a reusable function if needed elsewhere.
+        bank_balances = BankBalance.objects.filter(family=family, period_start_date=start_date)
+        
+        balance_data = get_balance_summary(family, current_member, family_members, start_date, end_date)
+        
+        reconciliation_data = {}
+
+        if mode == 'general':
+            total_income = balance_data['summary_totals']['total_realized_income']
+            total_expenses = balance_data['summary_totals']['total_realized_expense']
+            
+            calculated_balance = total_income - total_expenses
+            
+            tot_bank = bank_balances.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            total_bank_balance = Decimal(str(tot_bank.amount)) if hasattr(tot_bank, 'amount') else tot_bank
+            
+            discrepancy = total_bank_balance - calculated_balance
+            discrepancy_percentage = abs(discrepancy / calculated_balance * 100) if calculated_balance != 0 else 0
+            has_warning = discrepancy_percentage > tolerance
+            
+            reconciliation_data = {
+                'mode': 'general',
+                'total_income': str(total_income.quantize(Decimal('0.01'))),
+                'total_expenses': str(total_expenses.quantize(Decimal('0.01'))),
+                'calculated_balance': str(calculated_balance.quantize(Decimal('0.01'))),
+                'total_bank_balance': str(total_bank_balance.quantize(Decimal('0.01'))),
+                'discrepancy': str(discrepancy.quantize(Decimal('0.01'))),
+                'discrepancy_percentage': str(discrepancy_percentage.quantize(Decimal('0.01'))),
+                'has_warning': has_warning,
+            }
+        else:
+            income_transactions = Transaction.objects.filter(
+                flow_group__family=family,
+                flow_group__period_start_date=start_date,
+                flow_group__group_type=FLOW_TYPE_INCOME,
+                date__range=(start_date, end_date),
+                realized=True
+            )
+            expense_transactions = Transaction.objects.filter(
+                flow_group__family=family,
+                flow_group__period_start_date=start_date,
+                flow_group__group_type__in=['EXPENSE_MAIN', 'EXPENSE_SECONDARY'],
+                date__range=(start_date, end_date),
+                realized=True
+            ).exclude(flow_group__is_investment=True)
+
+            members_data = []
+            for member in family_members:
+                mem_inc = income_transactions.filter(member=member).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+                mem_exp = expense_transactions.filter(member=member).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+                
+                member_income = Decimal(str(mem_inc.amount)) if hasattr(mem_inc, 'amount') else mem_inc
+                member_expenses = Decimal(str(mem_exp.amount)) if hasattr(mem_exp, 'amount') else mem_exp
+                
+                member_calculated_balance = member_income - member_expenses
+                
+                mem_bank = bank_balances.filter(member=member).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+                member_bank_balance = Decimal(str(mem_bank.amount)) if hasattr(mem_bank, 'amount') else mem_bank
+                
+                member_discrepancy = member_bank_balance - member_calculated_balance
+                member_discrepancy_percentage = abs(member_discrepancy / member_calculated_balance * 100) if member_calculated_balance != 0 else 0
+                member_has_warning = member_discrepancy_percentage > tolerance
+
+                members_data.append({
+                    'member_id': member.id,
+                    'member_name': member.user.username,
+                    'income': str(member_income.quantize(Decimal('0.01'))),
+                    'expenses': str(member_expenses.quantize(Decimal('0.01'))),
+                    'calculated_balance': str(member_calculated_balance.quantize(Decimal('0.01'))),
+                    'bank_balance': str(member_bank_balance.quantize(Decimal('0.01'))),
+                    'discrepancy': str(member_discrepancy.quantize(Decimal('0.01'))),
+                    'discrepancy_percentage': str(member_discrepancy_percentage.quantize(Decimal('0.01'))),
+                    'has_warning': member_has_warning,
+                })
+            
+            reconciliation_data = {
+                'mode': 'detailed',
+                'members_data': members_data,
+            }
+
+        return JsonResponse({
+            'status': 'success',
+            'reconciliation_data': reconciliation_data
+        })
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'error': str(e)}, status=500)

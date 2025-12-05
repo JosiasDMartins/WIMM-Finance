@@ -62,7 +62,7 @@
                         </td>
                         {% if mode == 'detailed' %}
                         <td class="px-4 py-3">
-                            <span class="cell-member-display text-sm text-gray-600 dark:text-gray-400">{{ balance.member.user.username|default:"Family" }}</span>
+                            <span class="cell-member-display text-sm text-gray-600 dark:text-gray-400" data-member-id="{{ balance.member.id|default_if_none:'' }}">{{ balance.member.user.username|default:"Family" }}</span>
                             <select class="cell-member-edit hidden w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:text-white">
                                 <option value="">{% trans "Family" %}</option>
                                 {% for member in family_members %}
@@ -142,7 +142,7 @@
                 <div class="text-right">
                     <span class="text-sm text-gray-600 dark:text-gray-400">{% trans "Total Bank Balance:" %}</span>
                     <span id="total-bank-balance" class="text-lg font-bold text-green-600 dark:text-green-500 ml-2">
-                        {{ currency_symbol }} {{ reconciliation_data.total_bank_balance|floatformat:2|intcomma }}
+                        {{ currency_symbol }} {{ reconciliation_data.total_bank_balance|default:"0.00"|intcomma }}
                     </span>
                 </div>
             </div>
@@ -150,6 +150,7 @@
     </div>
     
     <!-- Reconciliation Results -->
+    <div id="reconciliation-results-container">
     {% if mode == 'general' %}
     <!-- General Reconciliation -->
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
@@ -160,15 +161,15 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
                     <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">{% trans "Total Income" %}</div>
-                    <div class="text-2xl font-bold text-green-600 dark:text-green-500"> {{ currency_symbol }}{{ reconciliation_data.total_income|intcomma }}</div>
+                    <div id="reconciliation-total-income" class="text-2xl font-bold text-green-600 dark:text-green-500"> {{ currency_symbol }}{{ reconciliation_data.total_income|intcomma }}</div>
                 </div>
                 <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
                     <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">{% trans "Total Expenses" %}</div>
-                    <div class="text-2xl font-bold text-red-600 dark:text-red-500">{{ currency_symbol }} {{ reconciliation_data.total_expenses|intcomma }}</div>
+                    <div id="reconciliation-total-expenses" class="text-2xl font-bold text-red-600 dark:text-red-500">{{ currency_symbol }} {{ reconciliation_data.total_expenses|intcomma }}</div>
                 </div>
                 <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
                     <div class="text-sm text-gray-600 dark:text-gray-400 mb-1">{% trans "Calculated Balance" %}</div>
-                    <div class="text-2xl font-bold {% if reconciliation_data.calculated_balance >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %}">
+                    <div id="reconciliation-calculated-balance" class="text-2xl font-bold {% if reconciliation_data.calculated_balance >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %}">
                         {{ currency_symbol }} {{ reconciliation_data.calculated_balance|intcomma }}
                     </div>
                 </div>
@@ -178,27 +179,28 @@
                 <div class="flex items-center justify-between mb-4">
                     <div>
                         <div class="text-sm text-gray-600 dark:text-gray-400">{% trans "Bank Balance" %}</div>
-                        <div class="text-2xl font-bold text-[#0d171b] dark:text-white">{{ currency_symbol }} {{ reconciliation_data.total_bank_balance|intcomma }}</div>
+                        <div id="reconciliation-bank-balance" class="text-2xl font-bold text-[#0d171b] dark:text-white">{{ currency_symbol }} {{ reconciliation_data.total_bank_balance|intcomma }}</div>
                     </div>
                     <div class="text-4xl text-gray-300 dark:text-gray-600">−</div>
                     <div>
                         <div class="text-sm text-gray-600 dark:text-gray-400">{% trans "Calculated Balance" %}</div>
-                        <div class="text-2xl font-bold text-[#0d171b] dark:text-white">{{ currency_symbol }} {{ reconciliation_data.calculated_balance|intcomma }}</div>
+                        <div id="reconciliation-calculated-balance-2" class="text-2xl font-bold text-[#0d171b] dark:text-white">{{ currency_symbol }} {{ reconciliation_data.calculated_balance|intcomma }}</div>
                     </div>
                     <div class="text-4xl text-gray-300 dark:text-gray-600">=</div>
                     <div>
                         <div class="text-sm text-gray-600 dark:text-gray-400">{% trans "Discrepancy" %}</div>
-                        <div class="text-2xl font-bold {% if reconciliation_data.discrepancy >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %}">
+                        <div id="reconciliation-discrepancy" class="text-2xl font-bold {% if reconciliation_data.discrepancy >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %}">
                             {{ currency_symbol }} {{ reconciliation_data.discrepancy|intcomma }}
                         </div>
-                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <div id="reconciliation-discrepancy-percentage" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                             ({{ reconciliation_data.discrepancy_percentage|floatformat:2 }}%)
                         </div>
                     </div>
                 </div>
                 
+                <div id="reconciliation-warning-container" class="mt-4">
                 {% if reconciliation_data.has_warning %}
-                <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 mt-4">
+                <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4">
                     <div class="flex items-center">
                         <span class="material-symbols-outlined text-yellow-500 mr-3">warning</span>
                         <div>
@@ -210,7 +212,7 @@
                     </div>
                 </div>
                 {% else %}
-                <div class="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4 mt-4">
+                <div class="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4">
                     <div class="flex items-center">
                         <span class="material-symbols-outlined text-green-500 mr-3">check_circle</span>
                         <div>
@@ -222,6 +224,7 @@
                     </div>
                 </div>
                 {% endif %}
+                </div>
             </div>
         </div>
     </div>
@@ -233,21 +236,21 @@
         </div>
         <div class="p-6 space-y-6">
             {% for member_data in reconciliation_data.members_data %}
-            <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <div id="member-reconciliation-{{ member_data.member.id }}" class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                 <h4 class="text-lg font-semibold text-[#0d171b] dark:text-white mb-4">{{ member_data.member.user.username }}</h4>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
                         <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">{% trans "Income" %}</div>
-                        <div class="text-lg font-bold text-green-600 dark:text-green-500">{{ currency_symbol }} {{ member_data.income|intcomma }}</div>
+                        <div class="text-lg font-bold text-green-600 dark:text-green-500 reconciliation-member-income">{{ currency_symbol }} {{ member_data.income|intcomma }}</div>
                     </div>
                     <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
                         <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">{% trans "Expenses" %}</div>
-                        <div class="text-lg font-bold text-red-600 dark:text-red-500">{{ currency_symbol }} {{ member_data.expenses|intcomma }}</div>
+                        <div class="text-lg font-bold text-red-600 dark:text-red-500 reconciliation-member-expenses">{{ currency_symbol }} {{ member_data.expenses|intcomma }}</div>
                     </div>
                     <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
                         <div class="text-xs text-gray-600 dark:text-gray-400 mb-1">{% trans "Calculated" %}</div>
-                        <div class="text-lg font-bold {% if member_data.calculated_balance >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %}">
+                        <div class="text-lg font-bold {% if member_data.calculated_balance >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %} reconciliation-member-calculated">
                             {{ currency_symbol }} {{ member_data.calculated_balance|intcomma }}
                         </div>
                     </div>
@@ -256,27 +259,28 @@
                 <div class="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
                     <div class="flex-1 text-center">
                         <div class="text-xs text-gray-600 dark:text-gray-400">{% trans "Bank Balance" %}</div>
-                        <div class="text-xl font-bold text-[#0d171b] dark:text-white">{{ currency_symbol }} {{ member_data.bank_balance|intcomma }}</div>
+                        <div class="text-xl font-bold text-[#0d171b] dark:text-white reconciliation-member-bank">{{ currency_symbol }} {{ member_data.bank_balance|intcomma }}</div>
                     </div>
                     <div class="text-2xl text-gray-300 dark:text-gray-600 mx-2">−</div>
                     <div class="flex-1 text-center">
                         <div class="text-xs text-gray-600 dark:text-gray-400">{% trans "Calculated" %}</div>
-                        <div class="text-xl font-bold text-[#0d171b] dark:text-white">{{ currency_symbol }} {{ member_data.calculated_balance|intcomma }}</div>
+                        <div class="text-xl font-bold text-[#0d171b] dark:text-white reconciliation-member-calculated-2">{{ currency_symbol }} {{ member_data.calculated_balance|intcomma }}</div>
                     </div>
                     <div class="text-2xl text-gray-300 dark:text-gray-600 mx-2">=</div>
                     <div class="flex-1 text-center">
                         <div class="text-xs text-gray-600 dark:text-gray-400">{% trans "Discrepancy" %}</div>
-                        <div class="text-xl font-bold {% if member_data.discrepancy >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %}">
+                        <div class="text-xl font-bold {% if member_data.discrepancy >= 0 %}text-green-600 dark:text-green-500{% else %}text-red-600 dark:text-red-500{% endif %} reconciliation-member-discrepancy">
                             {{ currency_symbol }} {{ member_data.discrepancy|intcomma }}
                         </div>
-                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 reconciliation-member-discrepancy-percentage">
                             ({{ member_data.discrepancy_percentage|floatformat:2 }}%)
                         </div>
                     </div>
                 </div>
 
+                <div class="reconciliation-member-warning-container mt-4">
                 {% if member_data.has_warning %}
-                <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-3 mt-4">
+                <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-3">
                     <div class="flex items-center">
                         <span class="material-symbols-outlined text-yellow-500 mr-2 text-base">warning</span>
                         <p class="text-xs text-yellow-700 dark:text-yellow-400">
@@ -285,11 +289,13 @@
                     </div>
                 </div>
                 {% endif %}
+                </div>
             </div>
             {% endfor %}
         </div>
     </div>
     {% endif %}
+    </div>
 </div>
 
 <style>
@@ -324,7 +330,7 @@ const csrftoken = getCookie('csrftoken');
 // Money mask variables
 const decimalSeparator = "{{ decimal_separator }}";
 const thousandSeparator = "{{ thousand_separator }}";
-console.log('[INIT] decimalSeparator:', decimalSeparator, 'thousandSeparator:', thousandSeparator);
+const currencySymbol = "{{ currency_symbol }}";
 
 // Money mask functions
 function applyMoneyMask(event) {
@@ -376,55 +382,47 @@ function applyMoneyMask(event) {
 }
 
 function getRawValue(maskedValue) {
-    // Remove thousand separators and replace decimal separator with dot
-    console.log('[getRawValue] Input:', maskedValue);
-    console.log('[getRawValue] thousandSeparator:', thousandSeparator, 'decimalSeparator:', decimalSeparator);
     let value = maskedValue.replace(new RegExp('\\' + thousandSeparator, 'g'), '');
-    console.log('[getRawValue] After removing thousand sep:', value);
     value = value.replace(decimalSeparator, '.');
-    console.log('[getRawValue] Final output:', value);
     return value;
 }
 
+function formatCurrency(amount) {
+    const num = parseFloat(amount);
+    if (isNaN(num)) return amount;
+
+    const parts = num.toFixed(2).split('.');
+    const integerPart = parts[0];
+    const decimalPart = parts[1];
+    const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, thousandSeparator);
+
+    return currencySymbol + ' ' + formattedInteger + decimalSeparator + decimalPart;
+}
+
+
 // Initialize money mask on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Add money mask to all amount fields using event delegation
     document.addEventListener('input', function(event) {
         if (event.target.matches('.cell-amount-edit')) {
             applyMoneyMask(event);
         }
     });
-
-    // CORREÇÃO: Cursor orientado à direita apenas no primeiro clique/foco
-    // Após o primeiro foco, permitir seleção livre
     document.addEventListener('focus', function(event) {
         if (event.target.matches('.cell-amount-edit')) {
-            // Verificar se é o primeiro foco (campo não tem flag de já focado)
             if (!event.target.hasAttribute('data-first-focus-done')) {
-                // Primeiro foco: mover cursor para o final
                 event.target.setAttribute('data-first-focus-done', 'true');
                 setTimeout(function() {
                     event.target.setSelectionRange(event.target.value.length, event.target.value.length);
                 }, 0);
             }
-            // Cliques subsequentes: permitir seleção livre (não fazer nada)
         }
     }, true);
-
-
-    // CORREÇÃO: Resetar flags quando o campo perde o foco
-    // Isso garante que ao voltar ao campo, será tratado como primeiro foco novamente
     document.addEventListener('blur', function(event) {
         if (event.target.matches('.cell-amount-edit')) {
             event.target.removeAttribute('data-first-focus-done');
         }
     }, true);
 
-    // CORREÇÃO: Remover bloqueio de teclas de navegação
-    // Agora o usuário pode usar setas para navegar livremente após o primeiro foco
-    // (Código de bloqueio de arrow keys REMOVIDO)
-
-    // Initialize existing amount fields with money mask on page load
     document.querySelectorAll('.cell-amount-edit').forEach(function(input) {
         if (input.value && input.value.trim() !== '') {
             let value = input.value.replace(',', '.');
@@ -447,11 +445,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function addNewBalance() {
     const template = document.getElementById('new-balance-template');
     const emptyRow = document.getElementById('balance-empty-row');
-    
-    if (emptyRow) {
-        emptyRow.style.display = 'none';
-    }
-    
+    if (emptyRow) emptyRow.style.display = 'none';
     template.style.display = '';
     template.querySelector('.cell-description-edit').focus();
 }
@@ -463,15 +457,13 @@ function cancelNewBalance() {
     
     template.style.display = 'none';
     
-    // Reset inputs
     template.querySelector('.cell-description-edit').value = '';
     template.querySelector('.cell-amount-edit').value = '0' + decimalSeparator + '00';
     template.querySelector('.cell-date-edit').value = '{{ start_date|date:"Y-m-d" }}';
     const memberSelect = template.querySelector('.cell-member-edit');
     if (memberSelect) memberSelect.value = '';
     
-    // Show empty row if no other rows
-    const dataRows = tbody.querySelectorAll('tr[data-balance-id]:not(#new-balance-template):not(#balance-empty-row)');
+    const dataRows = tbody.querySelectorAll('tr[data-balance-id]:not(#new-balance-template)');
     if (dataRows.length === 0 && emptyRow) {
         emptyRow.style.display = '';
     }
@@ -479,28 +471,35 @@ function cancelNewBalance() {
 
 function toggleEditBalance(rowId, edit) {
     const row = document.getElementById(rowId);
+    row.setAttribute('data-mode', edit ? 'edit' : 'display');
     
+    const displayElements = row.querySelectorAll('.cell-description-display, .cell-amount-display, .cell-date-display, .cell-member-display, .actions-display');
+    const editElements = row.querySelectorAll('.cell-description-edit, .cell-amount-edit, .cell-date-edit, .cell-member-edit, .actions-edit');
+
+    displayElements.forEach(el => el.classList.toggle('hidden', edit));
+    editElements.forEach(el => el.classList.toggle('hidden', !edit));
+
     if (edit) {
-        row.setAttribute('data-mode', 'edit');
-        row.querySelectorAll('.cell-description-display, .cell-amount-display, .cell-date-display, .cell-member-display').forEach(el => el.classList.add('hidden'));
-        row.querySelectorAll('.cell-description-edit, .cell-amount-edit, .cell-date-edit, .cell-member-edit').forEach(el => el.classList.remove('hidden'));
-        row.querySelector('.actions-display').classList.add('hidden');
-        row.querySelector('.actions-edit').classList.remove('hidden');
-    } else {
-        row.setAttribute('data-mode', 'display');
-        row.querySelectorAll('.cell-description-display, .cell-amount-display, .cell-date-display, .cell-member-display').forEach(el => el.classList.remove('hidden'));
-        row.querySelectorAll('.cell-description-edit, .cell-amount-edit, .cell-date-edit, .cell-member-edit').forEach(el => el.classList.add('hidden'));
-        row.querySelector('.actions-display').classList.remove('hidden');
-        row.querySelector('.actions-edit').classList.add('hidden');
+        const amountInput = row.querySelector('.cell-amount-edit');
+        const rawValue = amountInput.value.replace(',', '.');
+        const num = parseFloat(rawValue);
+        if (!isNaN(num)) {
+            const cents = Math.round(num * 100);
+            const integerPart = Math.floor(cents / 100).toString();
+            const decimalPart = (cents % 100).toString().padStart(2, '0');
+            const formatted = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, thousandSeparator) + decimalSeparator + decimalPart;
+            amountInput.value = formatted;
+        }
     }
 }
 
 function saveBalance(rowId) {
     const row = document.getElementById(rowId);
     const balanceId = row.getAttribute('data-balance-id');
+    const isNew = balanceId === 'new';
 
     const description = row.querySelector('.cell-description-edit').value.trim();
-    const amount = parseFloat(getRawValue(row.querySelector('.cell-amount-edit').value)) || 0;
+    const amount = getRawValue(row.querySelector('.cell-amount-edit').value);
     const date = row.querySelector('.cell-date-edit').value;
     const memberSelect = row.querySelector('.cell-member-edit');
     const memberId = memberSelect ? memberSelect.value : null;
@@ -511,7 +510,7 @@ function saveBalance(rowId) {
     }
     
     const data = {
-        id: balanceId,
+        id: isNew ? null : balanceId,
         description: description,
         amount: amount,
         date: date,
@@ -530,8 +529,13 @@ function saveBalance(rowId) {
     .then(response => response.json())
     .then(data => {
         if (data.status === 'success') {
-            // Reload page to update calculations
-            window.location.reload();
+            if (isNew) {
+                location.reload(); // Simple reload for new item for now
+            } else {
+                updateRow(row, data);
+                toggleEditBalance(rowId, false);
+                updateReconciliationSummary();
+            }
         } else {
             alert("{% trans 'Error saving balance:' %} " + data.error);
         }
@@ -540,6 +544,25 @@ function saveBalance(rowId) {
         console.error('Error:', error);
         alert("{% trans 'Network error occurred' %}");
     });
+}
+
+function updateRow(row, data) {
+    row.querySelector('.cell-description-display').textContent = data.description;
+    row.querySelector('.cell-date-display').textContent = new Date(data.date + 'T00:00:00').toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    row.querySelector('.cell-amount-display').textContent = formatCurrency(data.amount);
+    
+    if (row.querySelector('.cell-member-display')) {
+        row.querySelector('.cell-member-display').textContent = data.member_name || 'Family';
+        row.querySelector('.cell-member-display').setAttribute('data-member-id', data.member_id || '');
+    }
+
+    // Update edit fields as well
+    row.querySelector('.cell-description-edit').value = data.description;
+    row.querySelector('.cell-date-edit').value = data.date;
+    row.querySelector('.cell-amount-edit').value = data.amount;
+    if (row.querySelector('.cell-member-edit')) {
+        row.querySelector('.cell-member-edit').value = data.member_id || '';
+    }
 }
 
 function deleteBalance(balanceId) {
@@ -558,7 +581,8 @@ function deleteBalance(balanceId) {
     .then(response => response.json())
     .then(data => {
         if (data.status === 'success') {
-            window.location.reload();
+            document.getElementById('balance-row-' + balanceId).remove();
+            updateReconciliationSummary();
         } else {
             alert("{% trans 'Error deleting balance:' %} " + data.error);
         }
@@ -566,6 +590,105 @@ function deleteBalance(balanceId) {
     .catch(error => {
         console.error('Error:', error);
         alert("{% trans 'Network error occurred' %}");
+    });
+}
+
+function updateReconciliationSummary() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const period = urlParams.get('period') || '{{ start_date|date:"Y-m-d" }}';
+    const mode = urlParams.get('mode') || 'general';
+    const baseUrl = "{% url 'get_reconciliation_summary_ajax' %}";
+    const url = `${baseUrl}?period=${period}&mode=${mode}`;
+
+    fetch(url)
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            const summary = data.reconciliation_data;
+            if (summary.mode === 'general') {
+                document.getElementById('reconciliation-total-income').textContent = formatCurrency(summary.total_income);
+                document.getElementById('reconciliation-total-expenses').textContent = formatCurrency(summary.total_expenses);
+                document.getElementById('reconciliation-calculated-balance').textContent = formatCurrency(summary.calculated_balance);
+                document.getElementById('reconciliation-calculated-balance-2').textContent = formatCurrency(summary.calculated_balance);
+                document.getElementById('reconciliation-bank-balance').textContent = formatCurrency(summary.total_bank_balance);
+                document.getElementById('total-bank-balance').textContent = formatCurrency(summary.total_bank_balance);
+                document.getElementById('reconciliation-discrepancy').textContent = formatCurrency(summary.discrepancy);
+                document.getElementById('reconciliation-discrepancy-percentage').textContent = `(${parseFloat(summary.discrepancy_percentage).toFixed(2)}%)`;
+                
+                const discrepancy_val = parseFloat(summary.discrepancy);
+                const discrepancy_el = document.getElementById('reconciliation-discrepancy');
+                discrepancy_el.classList.toggle('text-green-600', discrepancy_val >= 0);
+                discrepancy_el.classList.toggle('dark:text-green-500', discrepancy_val >= 0);
+                discrepancy_el.classList.toggle('text-red-600', discrepancy_val < 0);
+                discrepancy_el.classList.toggle('dark:text-red-500', discrepancy_val < 0);
+                
+                // Update warning
+                const warningContainer = document.getElementById('reconciliation-warning-container');
+                if (summary.has_warning) {
+                    warningContainer.innerHTML = `
+                    <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4">
+                        <div class="flex items-center">
+                            <span class="material-symbols-outlined text-yellow-500 mr-3">warning</span>
+                            <div>
+                                <h4 class="text-sm font-semibold text-yellow-800 dark:text-yellow-500">{% trans "Warning: Discrepancy Detected" %}</h4>
+                                <p class="text-sm text-yellow-700 dark:text-yellow-400 mt-1">
+                                    {% trans "The difference between your bank balance and calculated balance is greater than 5%. Please review your transactions." %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>`;
+                } else {
+                    warningContainer.innerHTML = `
+                    <div class="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4">
+                        <div class="flex items-center">
+                            <span class="material-symbols-outlined text-green-500 mr-3">check_circle</span>
+                            <div>
+                                <h4 class="text-sm font-semibold text-green-800 dark:text-green-500">{% trans "Reconciliation OK" %}</h4>
+                                <p class="text-sm text-green-700 dark:text-green-400 mt-1">
+                                    {% trans "Your bank balance matches your calculated balance within acceptable limits." %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>`;
+                }
+
+            } else { // detailed mode
+                summary.members_data.forEach(memberData => {
+                    const container = document.getElementById(`member-reconciliation-${memberData.member_id}`);
+                    if (container) {
+                        container.querySelector('.reconciliation-member-income').textContent = formatCurrency(memberData.income);
+                        container.querySelector('.reconciliation-member-expenses').textContent = formatCurrency(memberData.expenses);
+                        container.querySelector('.reconciliation-member-calculated').textContent = formatCurrency(memberData.calculated_balance);
+                        container.querySelector('.reconciliation-member-calculated-2').textContent = formatCurrency(memberData.calculated_balance);
+                        container.querySelector('.reconciliation-member-bank').textContent = formatCurrency(memberData.bank_balance);
+                        container.querySelector('.reconciliation-member-discrepancy').textContent = formatCurrency(memberData.discrepancy);
+                        container.querySelector('.reconciliation-member-discrepancy-percentage').textContent = `(${parseFloat(memberData.discrepancy_percentage).toFixed(2)}%)`;
+                    
+                        const discrepancy_val = parseFloat(memberData.discrepancy);
+                        const discrepancy_el = container.querySelector('.reconciliation-member-discrepancy');
+                        discrepancy_el.classList.toggle('text-green-600', discrepancy_val >= 0);
+                        discrepancy_el.classList.toggle('dark:text-green-500', discrepancy_val >= 0);
+                        discrepancy_el.classList.toggle('text-red-600', discrepancy_val < 0);
+                        discrepancy_el.classList.toggle('dark:text-red-500', discrepancy_val < 0);
+
+                        const warningContainer = container.querySelector('.reconciliation-member-warning-container');
+                        if(memberData.has_warning) {
+                             warningContainer.innerHTML = `
+                            <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-3 mt-4">
+                                <div class="flex items-center">
+                                    <span class="material-symbols-outlined text-yellow-500 mr-2 text-base">warning</span>
+                                    <p class="text-xs text-yellow-700 dark:text-yellow-400">
+                                        {% trans "Discrepancy exceeds 5% for this user" %}
+                                    </p>
+                                </div>
+                            </div>`;
+                        } else {
+                            warningContainer.innerHTML = '';
+                        }
+                    }
+                });
+            }
+        }
     });
 }
 </script>

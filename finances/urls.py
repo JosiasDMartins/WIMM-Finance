@@ -76,6 +76,7 @@ urlpatterns = [
     path('bank-reconciliation/', views.bank_reconciliation_view, name='bank_reconciliation'),
     path('api/bank-balance/save/', views.save_bank_balance_ajax, name='save_bank_balance_ajax'),
     path('api/bank-balance/delete/', views.delete_bank_balance_ajax, name='delete_bank_balance_ajax'),
+    path('api/reconciliation-summary/', views.get_bank_reconciliation_summary_ajax, name='get_reconciliation_summary_ajax'),
 
     # Updates and git updates
     path('check-updates/', views.check_for_updates, name='check_updates'),
@@ -104,5 +105,3 @@ urlpatterns = [
     path('password-reset/confirm/', views_password_reset.password_reset_confirm, name='password_reset_confirm'),
     path('password-reset/resend/', views_password_reset.password_reset_resend_code, name='password_reset_resend'),
 ]
-
-
