@@ -42,6 +42,7 @@ from .views_utils import (
     get_currency_symbol,
     get_decimal_separator,
     get_thousand_separator,
+    get_balance_summary,
     VERSION,
 )
 
@@ -131,8 +132,6 @@ def dashboard_view(request):
         )
     ).order_by('order', 'name')
     
-    budgeted_expense = Decimal(0.00)
-
     # Process accessible groups
     for group in accessible_expense_groups:
         group.total_estimated = Decimal(str(group.total_estimated.amount)) if hasattr(group.total_estimated, 'amount') else (group.total_estimated or Decimal('0.00'))
@@ -163,21 +162,6 @@ def dashboard_view(request):
         group.budget_warning = group.total_estimated > budgeted_amt
         group.total_estimated = group.total_estimated if group.total_estimated > budgeted_amt else budgeted_amt
 
-        is_child_own_group = False
-        if group.owner:
-            owner_member = FamilyMember.objects.filter(user=group.owner, family=family).first()
-            if owner_member and owner_member.role == 'CHILD':
-                is_child_own_group = True
-
-        # For CHILD users: only count their own groups in budgeted_expense
-        # For ADMIN/PARENT: count all non-child-owned groups
-        if member_role_for_period == 'CHILD':
-            # Child: only their own groups
-            budgeted_expense = group.total_estimated + budgeted_expense
-        elif not is_child_own_group:
-            # Admin/Parent: all groups except child-owned ones
-            budgeted_expense = group.total_estimated + budgeted_expense
-
     # Process display-only groups (only for ADMIN/PARENT, not for CHILD)
     for group in display_only_expense_groups:
         group.total_estimated = Decimal(str(group.total_estimated.amount)) if hasattr(group.total_estimated, 'amount') else (group.total_estimated or Decimal('0.00'))
@@ -194,160 +178,17 @@ def dashboard_view(request):
         group.budget_warning = group.total_estimated > budgeted_amt
         group.total_estimated = group.total_estimated if group.total_estimated > budgeted_amt else budgeted_amt
 
-        # Only add display-only groups to expense for ADMIN/PARENT
-        if member_role_for_period != 'CHILD':
-            budgeted_expense = group.total_estimated + budgeted_expense
-    
     expense_groups = list(accessible_expense_groups) + list(display_only_expense_groups)
 
-    # Income calculation
-    if member_role_for_period == 'CHILD':
-        # === CHILDREN VIEW ===
-        kids_groups = FlowGroup.objects.filter(
-            family=family,
-            period_start_date=start_date,
-            is_kids_group=True,
-            assigned_children=current_member
-        )
-        
-        kids_income_entries = []
-        budgeted_income = Decimal('0.00')
-        realized_income = Decimal('0.00')
-        
-        for kids_group in kids_groups:
-            budg_amt = Decimal(str(kids_group.budgeted_amount.amount)) if hasattr(kids_group.budgeted_amount, 'amount') else Decimal(str(kids_group.budgeted_amount))
-            
-            kids_income_entries.append({
-                'id': f'kids_{kids_group.id}',
-                'description': kids_group.name,
-                'amount': budg_amt.quantize(Decimal('0.01'), rounding=ROUND_DOWN),
-                'date': start_date,
-                'realized': kids_group.realized,
-                'is_kids_income': True,
-                'kids_group_id': kids_group.id,
-                'member': current_member,
-            })
-            budgeted_income += budg_amt
-            if kids_group.realized:
-                realized_income += budg_amt
-        
-        income_group = get_default_income_flow_group(family, request.user, start_date)
-        manual_income_transactions = Transaction.objects.filter(
-            flow_group=income_group,
-            date__range=(start_date, end_date),
-            member=current_member,
-            is_child_manual_income=True
-        ).select_related('member__user').order_by('-date', 'order')
-        
-        for trans in manual_income_transactions:
-            amt = Decimal(str(trans.amount.amount)) if hasattr(trans.amount, 'amount') else Decimal(str(trans.amount))
-            budgeted_income += amt
-            if trans.realized:
-                realized_income += amt
-        
-        recent_income_transactions = list(manual_income_transactions)
-        income_flow_group_id = income_group.id
-        context_kids_income = kids_income_entries
+    # Get all balance calculations from the centralized function
+    balance_data = get_balance_summary(family, current_member, family_members, start_date, end_date)
 
-        # Calculate realized expense excluding open credit card groups
-        realized_exp = Transaction.objects.filter(
-            flow_group__in=accessible_expense_groups,
-            date__range=(start_date, end_date),
-            realized=True,
-            is_child_expense=True
-        ).filter(
-            Q(flow_group__is_credit_card=False) | Q(flow_group__is_credit_card=True, flow_group__closed=True)
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-
-        realized_expense = Decimal(str(realized_exp.amount)) if hasattr(realized_exp, 'amount') else realized_exp
-        
-    else:
-        # === PARENTS/ADMINS VIEW ===
-        income_group = get_default_income_flow_group(family, request.user, start_date)
-        
-        recent_income_transactions = Transaction.objects.filter(
-            flow_group=income_group,
-            date__range=(start_date, end_date),
-            is_child_manual_income=False
-        ).select_related('member__user').order_by('-date', 'order')
-        
-        income_flow_group_id = income_group.id
-        
-        budg_inc = Transaction.objects.filter(
-            flow_group=income_group,
-            date__range=(start_date, end_date),
-            is_child_manual_income=False
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        
-        budgeted_income = Decimal(str(budg_inc.amount)) if hasattr(budg_inc, 'amount') else budg_inc
-        
-        real_inc = Transaction.objects.filter(
-            flow_group=income_group,
-            date__range=(start_date, end_date),
-            realized=True,
-            is_child_manual_income=False
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        
-        realized_income = Decimal(str(real_inc.amount)) if hasattr(real_inc, 'amount') else real_inc
-        
-        kids_realized_sum = FlowGroup.objects.filter(
-            family=family,
-            period_start_date=start_date,
-            is_kids_group=True,
-            realized=True
-        ).aggregate(total=Sum('budgeted_amount'))['total'] or Decimal('0.00')
-        
-        kids_groups_realized_budget = Decimal(str(kids_realized_sum.amount)) if hasattr(kids_realized_sum, 'amount') else kids_realized_sum
-            
-        children_manual_income = {}
-        for child in family_members:
-            if child.role == 'CHILD':
-                child_income = Transaction.objects.filter(
-                    flow_group=income_group,
-                    date__range=(start_date, end_date),
-                    member=child,
-                    is_child_manual_income=True
-                )
-                
-                if child_income.exists():
-                    tot = child_income.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-                    real_tot = child_income.filter(realized=True).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-                    
-                    tot = Decimal(str(tot.amount)) if hasattr(tot, 'amount') else tot
-                    real_tot = Decimal(str(real_tot.amount)) if hasattr(real_tot, 'amount') else real_tot
-                    
-                    children_manual_income[child.id] = {
-                        'member': child,
-                        'total': tot,
-                        'realized_total': real_tot,
-                        'transactions': list(child_income.values('description', 'amount', 'date', 'realized'))
-                    }
-        
-        context_kids_income = []
-        
-        # Calculate realized expense excluding open credit card groups
-        realized_exp_calc = Transaction.objects.filter(
-            flow_group__in=accessible_expense_groups,
-            date__range=(start_date, end_date),
-            realized=True,
-            is_child_expense=False
-        ).filter(
-            Q(flow_group__is_credit_card=False) | Q(flow_group__is_credit_card=True, flow_group__closed=True)
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-
-        realized_expense = Decimal(str(realized_exp_calc.amount)) if hasattr(realized_exp_calc, 'amount') else realized_exp_calc
-        realized_expense += kids_groups_realized_budget
-
+    summary_totals = balance_data['summary_totals']
+    recent_income_transactions = balance_data['recent_income_transactions']
+    income_flow_group_id = balance_data['income_flow_group_id']
+    context_kids_income = balance_data['kids_income_entries']
+    children_manual_income = balance_data['children_manual_income']
     
-    summary_totals = {
-        'total_budgeted_income': (budgeted_income).quantize(Decimal('0.01'), rounding=ROUND_DOWN),
-        'total_realized_income': (realized_income).quantize(Decimal('0.01'), rounding=ROUND_DOWN),
-        'total_budgeted_expense': (budgeted_expense).quantize(Decimal('0.01'), rounding=ROUND_DOWN),
-        'total_realized_expense': (realized_expense).quantize(Decimal('0.01'), rounding=ROUND_DOWN),
-        'estimated_result': (budgeted_income - budgeted_expense).quantize(Decimal('0.01'), rounding=ROUND_DOWN),
-        'realized_result': (realized_income - realized_expense).quantize(Decimal('0.01'), rounding=ROUND_DOWN),
-    }
-
     default_date = get_default_date_for_period(start_date, end_date)
     
     child_can_create_groups = False
@@ -702,11 +543,19 @@ def bank_reconciliation_view(request):
     member_role_for_period = get_member_role_for_period(current_member, start_date)
     mode = request.GET.get('mode', 'general')
     
+    # Get balance summary from the centralized function
+    balance_data = get_balance_summary(family, current_member, family_members, start_date, end_date)
+    
+    # Extract realized income and expenses from balance_data
+    total_income_calculated = balance_data['summary_totals']['total_realized_income']
+    total_expenses_calculated = balance_data['summary_totals']['total_realized_expense']
+
     bank_balances = BankBalance.objects.filter(
         family=family,
         period_start_date=start_date
     ).order_by('member', '-date')
     
+    # These transaction querysets are still needed for the detailed mode filtering by member.
     income_transactions = Transaction.objects.filter(
         flow_group__family=family,
         flow_group__period_start_date=start_date,
@@ -724,13 +573,8 @@ def bank_reconciliation_view(request):
     ).exclude(flow_group__is_investment=True)
     
     if mode == 'general':
-        tot_inc = income_transactions.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        tot_exp = expense_transactions.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        
-        total_income = Decimal(str(tot_inc.amount)) if hasattr(tot_inc, 'amount') else tot_inc
-        total_expenses = Decimal(str(tot_exp.amount)) if hasattr(tot_exp, 'amount') else tot_exp
-        
-        calculated_balance = total_income - total_expenses
+        # Use the calculated totals from get_balance_summary
+        calculated_balance = total_income_calculated - total_expenses_calculated
         
         tot_bank = bank_balances.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         total_bank_balance = Decimal(str(tot_bank.amount)) if hasattr(tot_bank, 'amount') else tot_bank
@@ -741,8 +585,8 @@ def bank_reconciliation_view(request):
         
         reconciliation_data = {
             'mode': 'general',
-            'total_income': total_income,
-            'total_expenses': total_expenses.quantize(Decimal('0.01'), rounding=ROUND_DOWN),
+            'total_income': total_income_calculated,
+            'total_expenses': total_expenses_calculated.quantize(Decimal('0.01'), rounding=ROUND_DOWN),
             'calculated_balance': calculated_balance.quantize(Decimal('0.01'), rounding=ROUND_DOWN),
             'total_bank_balance': total_bank_balance.quantize(Decimal('0.01'), rounding=ROUND_DOWN),
             'discrepancy': discrepancy.quantize(Decimal('0.01'), rounding=ROUND_DOWN),
