@@ -1250,11 +1250,12 @@
     }
 
     // Function to delete flow group
-    function deleteFlowGroup() {
-        if (!confirm('{% trans "WARNING: All transactions in this group for the current period will be permanently deleted. This action cannot be undone." %}\n\n{% trans "Are you sure you want to delete this Flow Group?" %}')) {
+    async function deleteFlowGroup() {
+        const confirmed = await confirm('{% trans "WARNING: All transactions in this group for the current period will be permanently deleted. This action cannot be undone." %}\n\n{% trans "Are you sure you want to delete this Flow Group?" %}');
+        if (!confirmed) {
             return;
         }
-        
+
         const flowGroupId = document.getElementById('flow-group-form').getAttribute('data-flow-group-id');
         
         fetch("{% url 'delete_flow_group' flow_group.id|default:0 %}", {
@@ -1981,9 +1982,12 @@
     }
     
     // Function to delete an item
-    function deleteItem(rowId) {
-        if (!confirm('{% trans "Are you sure you want to delete this item?" %}')) return;
-        
+    async function deleteItem(rowId) {
+        console.log('[deleteItem] Called with rowId:', rowId);
+        const confirmed = await confirm('{% trans "Are you sure you want to delete this item?" %}');
+        console.log('[deleteItem] Confirmed:', confirmed);
+        if (!confirmed) return;
+
         const row = document.getElementById(rowId);
         const transactionId = row.getAttribute('data-item-id');
         

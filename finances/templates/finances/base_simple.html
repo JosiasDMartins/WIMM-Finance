@@ -4,34 +4,42 @@
 <html lang="en">
 <head>
     <meta charset="utf-8"/>
+    <script>
+        // Set initial dark mode state to prevent FOUC
+        (function () {
+            const htmlElement = document.documentElement;
+            htmlElement.classList.remove('light');
+            const saved = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const initial = saved ? saved : (prefersDark ? 'dark' : 'light');
+            if (initial === 'dark') {
+                htmlElement.classList.add('dark');
+            }
+        })();
+    </script>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <title>{% block title %}{% trans "SweetMoney | Family Financial Flow" %}{% endblock title %}</title>
     
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <link href="{% static 'finances/css/tailwind.css' %}" rel="stylesheet"/>
+    <link href="{% static 'finances/css/fonts.css' %}" rel="stylesheet"/>
     <script>
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": "#13a4ec",
-                        "background-light": "#f6f7f8",
-                        "background-dark": "#101c22",
-                    },
-                    fontFamily: {
-                        "display": ["Manrope", "sans-serif"]
-                    },
-                    borderRadius: {
-                        "DEFAULT": "0.5rem",
-                        "lg": "0.75rem",
-                        "xl": "1rem",
-                        "full": "9999px"
-                    },
-                },
-            },
-        }
+        // Dark mode toggle functionality - deterministic inline display (avoids FOUC)
+        (function () {
+            const htmlElement = document.documentElement;
+            // remove legacy class if present
+            htmlElement.classList.remove('light');
+
+            // Read saved preference or use system preference as fallback
+            const saved = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const initial = saved ? saved : (prefersDark ? 'dark' : 'light');
+
+            if (initial === 'dark') {
+                htmlElement.classList.add('dark');
+            } else {
+                htmlElement.classList.remove('dark');
+            }
+        })();
     </script>
     {% block head_extra %}{% endblock head_extra %}
 </head>
@@ -40,6 +48,243 @@
         {% block content %}
         {% endblock content %}
     </main>
+    
+    <!-- Generic Alert/Confirm Modal -->
+    <div id="generic-modal" class="hidden fixed inset-0 z-[9999] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-80 transition-opacity"></div>
+
+        <!-- Modal panel -->
+        <div class="fixed inset-0 z-10 overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4 text-center sm:items-center sm:p-0">
+                <div class="relative transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+                    <!-- Icon -->
+                    <div class="sm:flex sm:items-start">
+                        <div id="modal-icon-container" class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full sm:mx-0 sm:h-10 sm:w-10">
+                            <!-- Icon will be injected by JavaScript -->
+                            <svg id="modal-icon" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                            </svg>
+                        </div>
+                        <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left flex-1">
+                            <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white" id="modal-title">
+                                {% trans "Notification" %}
+                            </h3>
+                            <div class="mt-2">
+                                <p class="text-sm text-gray-500 dark:text-gray-300" id="modal-message">
+                                    <!-- Message will be injected by JavaScript -->
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Buttons -->
+                    <div class="mt-5 sm:mt-4 grid gap-2 sm:flex sm:flex-row-reverse sm:gap-3" id="modal-buttons">
+                        <!-- Buttons will be injected by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Modal JavaScript -->
+    <script>
+        // Translation strings for modal
+        window.MODAL_I18N = {
+            notification: "{% trans 'Notification' %}",
+            warning: "{% trans 'Warning' %}",
+            error: "{% trans 'Error' %}",
+            success: "{% trans 'Success' %}",
+            confirm: "{% trans 'Confirm Action' %}",
+            ok: "{% trans 'OK' %}",
+            cancel: "{% trans 'Cancel' %}",
+            continue: "{% trans 'Continue' %}",
+            yes: "{% trans 'Yes' %}",
+            no: "{% trans 'No' %}",
+            close: "{% trans 'Close' %}"
+        };
+
+        // Generic Modal Manager
+        window.GenericModal = {
+            // Show alert modal (only OK button)
+            alert: function(message, title, onClose) {
+                return this.show({
+                    type: 'info',
+                    title: title || window.MODAL_I18N.notification,
+                    message: message,
+                    buttons: [
+                        {
+                            text: window.MODAL_I18N.ok,
+                            className: 'primary',
+                            callback: onClose
+                        }
+                    ]
+                });
+            },
+
+            // Show confirm modal (Yes/No or OK/Cancel)
+            confirm: function(message, title, onConfirm, onCancel) {
+                return this.show({
+                    type: 'warning',
+                    title: title || window.MODAL_I18N.confirm,
+                    message: message,
+                    buttons: [
+                        {
+                            text: window.MODAL_I18N.cancel,
+                            className: 'secondary',
+                            callback: onCancel
+                        },
+                        {
+                            text: window.MODAL_I18N.continue,
+                            className: 'danger',
+                            callback: onConfirm
+                        }
+                    ]
+                });
+            },
+
+            // Generic show method with full customization
+            show: function(options) {
+                const modal = document.getElementById('generic-modal');
+                const iconContainer = document.getElementById('modal-icon-container');
+                const icon = document.getElementById('modal-icon');
+                const titleEl = document.getElementById('modal-title');
+                const messageEl = document.getElementById('modal-message');
+                const buttonsContainer = document.getElementById('modal-buttons');
+
+                // Set type styling
+                const types = {
+                    info: {
+                        iconBg: 'bg-blue-100 dark:bg-blue-900/30',
+                        iconColor: 'text-blue-600 dark:text-blue-400',
+                        iconPath: 'M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z'
+                    },
+                    warning: {
+                        iconBg: 'bg-yellow-100 dark:bg-yellow-900/30',
+                        iconColor: 'text-yellow-600 dark:text-yellow-400',
+                        iconPath: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z'
+                    },
+                    error: {
+                        iconBg: 'bg-red-100 dark:bg-red-900/30',
+                        iconColor: 'text-red-600 dark:text-red-400',
+                        iconPath: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z'
+                    },
+                    success: {
+                        iconBg: 'bg-green-100 dark:bg-green-900/30',
+                        iconColor: 'text-green-600 dark:text-green-400',
+                        iconPath: 'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
+                    }
+                };
+
+                const typeStyle = types[options.type || 'info'];
+
+                // Set icon styling
+                iconContainer.className = `mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full sm:mx-0 sm:h-10 sm:w-10 ${typeStyle.iconBg}`;
+                icon.className = `h-6 w-6 ${typeStyle.iconColor}`;
+
+                // Update or create path element
+                let pathElement = icon.querySelector('path');
+                if (!pathElement) {
+                    pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    pathElement.setAttribute('stroke-linecap', 'round');
+                    pathElement.setAttribute('stroke-linejoin', 'round');
+                    icon.appendChild(pathElement);
+                }
+                pathElement.setAttribute('d', typeStyle.iconPath);
+
+                // Set title and message
+                titleEl.textContent = options.title || window.MODAL_I18N.notification;
+                messageEl.innerHTML = options.message || '';
+
+                // Build buttons
+                buttonsContainer.innerHTML = '';
+                (options.buttons || []).forEach(btn => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.textContent = btn.text;
+
+                    // Button styling based on className
+                    const buttonStyles = {
+                        primary: 'inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:w-auto',
+                        secondary: 'mt-3 inline-flex w-full justify-center rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-gray-200 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 sm:mt-0 sm:w-auto',
+                        danger: 'inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:w-auto',
+                        success: 'inline-flex w-full justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:w-auto'
+                    };
+
+                    button.className = buttonStyles[btn.className] || buttonStyles.primary;
+
+                    button.addEventListener('click', () => {
+                        this.hide();
+                        if (btn.callback && typeof btn.callback === 'function') {
+                            btn.callback();
+                        }
+                    });
+
+                    buttonsContainer.appendChild(button);
+                });
+
+                // Show modal
+                modal.classList.remove('hidden');
+
+                // Return promise for async/await usage
+                return new Promise((resolve) => {
+                    // Store resolve for later use if needed
+                    modal._resolve = resolve;
+                });
+            },
+
+            // Hide modal
+            hide: function() {
+                const modal = document.getElementById('generic-modal');
+                modal.classList.add('hidden');
+                if (modal._resolve) {
+                    modal._resolve();
+                    delete modal._resolve;
+                }
+            }
+        };
+
+        // Store original functions for fallback
+        window._originalAlert = window.alert;
+        window._originalConfirm = window.confirm;
+
+        // Override native alert
+        window.alert = function(message, title) {
+            console.log('[GenericModal] Alert called:', message);
+            GenericModal.alert(message, title);
+        };
+
+        // Override native confirm (returns Promise)
+        window.confirm = function(message, title) {
+            console.log('[GenericModal] Confirm called:', message);
+            return new Promise((resolve) => {
+                GenericModal.confirm(
+                    message,
+                    title || window.MODAL_I18N.confirm,
+                    () => {
+                        console.log('[GenericModal] Confirmed: true');
+                        resolve(true);
+                    },
+                    () => {
+                        console.log('[GenericModal] Confirmed: false');
+                        resolve(false);
+                    }
+                );
+            });
+        };
+
+        // Helper function for inline confirm usage (for onclick attributes)
+        window.confirmAction = async function(message, title, callback) {
+            const result = await window.confirm(message, title);
+            if (result && callback) {
+                callback();
+            }
+            return result;
+        };
+
+        // Log that GenericModal is loaded
+        console.log('[GenericModal] System loaded successfully');
+        console.log('[GenericModal] Available methods:', Object.keys(GenericModal));
+    </script>
     
     {% block scripts_extra %}{% endblock scripts_extra %}
 </body>
