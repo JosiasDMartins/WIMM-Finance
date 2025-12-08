@@ -474,11 +474,13 @@ def get_balance_summary(family, current_member, family_members, start_date, end_
         family, current_member, start_date, group_type_filter=FLOW_TYPE_EXPENSE
     )
 
+    # Sum ALL transactions for FlowGroups, regardless of transaction date
+    # The FlowGroup's period_start_date determines which period the transaction belongs to
     accessible_expense_groups_annotated = accessible_expense_groups.annotate(
-        total_estimated=Sum('transactions__amount', filter=Q(transactions__date__range=(start_date, end_date)))
+        total_estimated=Sum('transactions__amount')
     )
     display_only_expense_groups_annotated = display_only_expense_groups.annotate(
-        total_estimated=Sum('transactions__amount', filter=Q(transactions__date__range=(start_date, end_date)))
+        total_estimated=Sum('transactions__amount')
     )
 
     budgeted_expense = Decimal('0.00')

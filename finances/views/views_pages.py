@@ -79,15 +79,14 @@ def dashboard_view(request):
     
     # Annotate accessible groups
     # For credit card groups: only count realized if closed=True
+    # IMPORTANT: Sum ALL transactions regardless of date - they belong to FlowGroup's period via flow_group relationship
     accessible_expense_groups = accessible_expense_groups.annotate(
         total_estimated=Sum(
-            'transactions__amount',
-            filter=Q(transactions__date__range=(start_date, end_date))
+            'transactions__amount'
         ),
         total_spent=Sum(
             'transactions__amount',
             filter=Q(
-                transactions__date__range=(start_date, end_date),
                 transactions__realized=True
             ) & (
                 Q(is_credit_card=False) | Q(is_credit_card=True, closed=True)
@@ -97,7 +96,6 @@ def dashboard_view(request):
         credit_card_pending=Sum(
             'transactions__amount',
             filter=Q(
-                transactions__date__range=(start_date, end_date),
                 transactions__realized=True,
                 is_credit_card=True,
                 closed=False
@@ -106,15 +104,14 @@ def dashboard_view(request):
     ).order_by('order', 'name')
 
     # Annotate display-only groups
+    # IMPORTANT: Sum ALL transactions regardless of date - they belong to FlowGroup's period via flow_group relationship
     display_only_expense_groups = display_only_expense_groups.annotate(
         total_estimated=Sum(
-            'transactions__amount',
-            filter=Q(transactions__date__range=(start_date, end_date))
+            'transactions__amount'
         ),
         total_spent=Sum(
             'transactions__amount',
             filter=Q(
-                transactions__date__range=(start_date, end_date),
                 transactions__realized=True
             ) & (
                 Q(is_credit_card=False) | Q(is_credit_card=True, closed=True)
@@ -124,7 +121,6 @@ def dashboard_view(request):
         credit_card_pending=Sum(
             'transactions__amount',
             filter=Q(
-                transactions__date__range=(start_date, end_date),
                 transactions__realized=True,
                 is_credit_card=True,
                 closed=False
@@ -144,9 +140,9 @@ def dashboard_view(request):
         group.is_accessible = True
 
         if group.is_kids_group and member_role_for_period in ['ADMIN', 'PARENT']:
+            # Sum ALL transactions for this FlowGroup, regardless of date
             child_exp = Transaction.objects.filter(
-                flow_group=group,
-                date__range=(start_date, end_date)
+                flow_group=group
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
             group.child_expenses = Decimal(str(child_exp.amount)) if hasattr(child_exp, 'amount') else child_exp
@@ -311,6 +307,9 @@ def configuration_view(request):
             )
             currency_changed = old_config['base_currency'] != new_config['base_currency']
 
+            # Check if bank_reconciliation_tolerance changed
+            tolerance_changed = config.bank_reconciliation_tolerance != new_config.get('bank_reconciliation_tolerance')
+
             # Flag to track if we manually saved the config (to avoid double save)
             config_manually_saved = False
             impact = None
@@ -418,13 +417,28 @@ def configuration_view(request):
                     # No adjustment needed, just save
                     messages.info(request, _("Period configuration updated. Changes will apply to the current and future periods."))
 
+            # If only tolerance changed (no period or currency change), ensure it's saved
+            if tolerance_changed and not config_changed and not currency_changed:
+                if not config_manually_saved:
+                    form.save()
+                    config_manually_saved = True
+                    messages.success(request, _("Bank reconciliation tolerance updated successfully!"))
+
             if currency_changed:
                 new_currency = new_config['base_currency']
                 period = ensure_period_exists(family, start_date, end_date, config.period_type)
-                
+
                 if is_current_period:
                     # Período atual: Atualiza Config e Período
+                    # IMPORTANT: Save form first to preserve all fields including bank_reconciliation_tolerance
+                    if not config_manually_saved:
+                        form.save()
+                        config_manually_saved = True
+                        config.refresh_from_db()
+
+                    # Now update currency
                     config.base_currency = new_currency
+                    config.save()
                     period.currency = new_currency
                     period.save()
                     
@@ -556,19 +570,19 @@ def bank_reconciliation_view(request):
     ).order_by('member', '-date')
     
     # These transaction querysets are still needed for the detailed mode filtering by member.
+    # Sum ALL transactions for FlowGroups in this period, regardless of transaction date
+    # The FlowGroup's period_start_date determines which period the transaction belongs to
     income_transactions = Transaction.objects.filter(
         flow_group__family=family,
         flow_group__period_start_date=start_date,
         flow_group__group_type=FLOW_TYPE_INCOME,
-        date__range=(start_date, end_date),
         realized=True
     )
-    
+
     expense_transactions = Transaction.objects.filter(
         flow_group__family=family,
         flow_group__period_start_date=start_date,
         flow_group__group_type__in=[EXPENSE_MAIN, EXPENSE_SECONDARY],
-        date__range=(start_date, end_date),
         realized=True
     ).exclude(flow_group__is_investment=True)
     
@@ -792,11 +806,13 @@ def edit_flow_group_view(request, group_id):
         form = FlowGroupForm(instance=group, family=family, initial={'budgeted_amount': budget_initial})
 
     transactions = Transaction.objects.filter(flow_group=group).select_related('member__user').order_by('order', '-date')
-    
-    total_est = transactions.filter(date__range=(start_date, end_date)).aggregate(
+
+    # Sum ALL transactions for this FlowGroup, regardless of transaction date
+    # The FlowGroup's period determines which period the transaction belongs to
+    total_est = transactions.aggregate(
         total=Sum('amount')
     )['total'] or Decimal('0.00')
-    
+
     total_estimated = Decimal(str(total_est.amount)) if hasattr(total_est, 'amount') else total_est
     budg_amt_val = Decimal(str(group.budgeted_amount.amount)) if hasattr(group.budgeted_amount, 'amount') else Decimal(str(group.budgeted_amount))
     

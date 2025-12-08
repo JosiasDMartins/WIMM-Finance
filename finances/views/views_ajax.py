@@ -338,16 +338,28 @@ def toggle_credit_card_closed_ajax(request):
             return JsonResponse({'error': _('Can only toggle closed for Credit Card groups.')}, status=400)
 
         flow_group.closed = new_closed_status
-        flow_group.save()
 
         # When closing the bill (closed=True), mark all transactions as realized
+        # AND update budget to match actual total
         if new_closed_status:
             transactions_updated = Transaction.objects.filter(
                 flow_group=flow_group
             ).update(realized=True)
+
+            # Calculate total of all transactions in this group
+            from django.db.models import Sum
+            from moneyed import Money
+            total_actual = Transaction.objects.filter(
+                flow_group=flow_group
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+            # Update budgeted_amount to match actual realized total
+            currency = flow_group.budgeted_amount.currency.code
+            flow_group.budgeted_amount = Money(total_actual, currency)
         else:
             transactions_updated = 0
 
+        flow_group.save()
         budget_value = str(flow_group.budgeted_amount.amount)
 
         return JsonResponse({

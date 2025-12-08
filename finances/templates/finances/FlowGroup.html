@@ -710,6 +710,182 @@
         // The toggle will appear after the group is saved
     }
 
+    // Function to block/unblock all fields when bill is closed/opened
+    function blockAllFields(shouldBlock) {
+        console.log('[Block Fields] shouldBlock:', shouldBlock);
+
+        // Block/unblock budget input
+        const budgetInput = document.querySelector('input[name="budgeted_amount"]');
+        if (budgetInput) {
+            budgetInput.disabled = shouldBlock;
+            if (shouldBlock) {
+                budgetInput.style.backgroundColor = '#f3f4f6';
+                budgetInput.style.color = '#9ca3af';
+                budgetInput.style.cursor = 'not-allowed';
+            } else {
+                budgetInput.style.backgroundColor = '';
+                budgetInput.style.color = '';
+                budgetInput.style.cursor = '';
+            }
+        }
+
+        // Block/unblock group name input
+        const nameInput = document.querySelector('input[name="name"]');
+        if (nameInput) {
+            nameInput.disabled = shouldBlock;
+            if (shouldBlock) {
+                nameInput.style.backgroundColor = '#f3f4f6';
+                nameInput.style.color = '#9ca3af';
+                nameInput.style.cursor = 'not-allowed';
+            } else {
+                nameInput.style.backgroundColor = '';
+                nameInput.style.color = '';
+                nameInput.style.cursor = '';
+            }
+        }
+
+        // Block/unblock all expense item fields and buttons
+        const tbody = document.getElementById('expense-items-body');
+        if (tbody) {
+            const rows = tbody.querySelectorAll('tr[id^="item-"]');
+            console.log('[Block Fields] Found rows:', rows.length);
+
+            rows.forEach(row => {
+                const itemId = row.id.replace('item-', '');
+                if (itemId !== 'NEW' && itemId !== 'new-item-template') {
+                    console.log('[Block Fields] Processing row:', itemId);
+
+                    // Block ALL input fields (description, date, amount, member)
+                    const allInputs = row.querySelectorAll('input, select');
+                    allInputs.forEach(input => {
+                        input.disabled = shouldBlock;
+                        if (shouldBlock) {
+                            input.style.backgroundColor = '#f3f4f6';
+                            input.style.color = '#9ca3af';
+                            input.style.cursor = 'not-allowed';
+                            input.style.opacity = '0.6';
+                        } else {
+                            input.style.backgroundColor = '';
+                            input.style.color = '';
+                            input.style.cursor = '';
+                            input.style.opacity = '';
+                        }
+                    });
+
+                    // Block realized toggle button
+                    const realizedToggle = row.querySelector('.realized-toggle');
+                    if (realizedToggle) {
+                        if (shouldBlock) {
+                            realizedToggle.style.opacity = '0.4';
+                            realizedToggle.style.cursor = 'not-allowed';
+                            realizedToggle.style.pointerEvents = 'none';
+                        } else {
+                            realizedToggle.style.opacity = '';
+                            realizedToggle.style.cursor = 'pointer';
+                            realizedToggle.style.pointerEvents = '';
+                        }
+                    }
+
+                    // Block fixed toggle button (desktop)
+                    const fixedToggle = row.querySelector('.fixed-toggle-btn');
+                    if (fixedToggle) {
+                        fixedToggle.disabled = shouldBlock;
+                        if (shouldBlock) {
+                            fixedToggle.style.opacity = '0.4';
+                            fixedToggle.style.cursor = 'not-allowed';
+                            fixedToggle.style.pointerEvents = 'none';
+                        } else {
+                            fixedToggle.style.opacity = '';
+                            fixedToggle.style.cursor = '';
+                            fixedToggle.style.pointerEvents = '';
+                        }
+                    }
+
+                    // Block ALL action buttons (edit, delete, save, cancel)
+                    const actionButtons = row.querySelectorAll('button[onclick*="toggleEditMode"], button[onclick*="deleteItem"], button[onclick*="saveItem"]');
+                    actionButtons.forEach(btn => {
+                        btn.disabled = shouldBlock;
+                        if (shouldBlock) {
+                            btn.style.opacity = '0.3';
+                            btn.style.cursor = 'not-allowed';
+                            btn.style.pointerEvents = 'none';
+                        } else {
+                            btn.style.opacity = '';
+                            btn.style.cursor = '';
+                            btn.style.pointerEvents = '';
+                        }
+                    });
+
+                    // Block mobile action buttons
+                    const mobileActions = row.querySelectorAll('.mobile-action-btn');
+                    mobileActions.forEach(btn => {
+                        btn.disabled = shouldBlock;
+                        if (shouldBlock) {
+                            btn.style.opacity = '0.3';
+                            btn.style.cursor = 'not-allowed';
+                            btn.style.pointerEvents = 'none';
+                        } else {
+                            btn.style.opacity = '';
+                            btn.style.cursor = '';
+                            btn.style.pointerEvents = '';
+                        }
+                    });
+
+                    // Block mobile fixed button
+                    const mobileFixedBtn = row.querySelector('.mobile-fixed-btn');
+                    if (mobileFixedBtn) {
+                        mobileFixedBtn.disabled = shouldBlock;
+                        if (shouldBlock) {
+                            mobileFixedBtn.style.opacity = '0.3';
+                            mobileFixedBtn.style.cursor = 'not-allowed';
+                            mobileFixedBtn.style.pointerEvents = 'none';
+                        } else {
+                            mobileFixedBtn.style.opacity = '';
+                            mobileFixedBtn.style.cursor = '';
+                            mobileFixedBtn.style.pointerEvents = '';
+                        }
+                    }
+
+                    // Disable dragging
+                    if (shouldBlock) {
+                        row.setAttribute('draggable', 'false');
+                        row.style.cursor = 'default';
+                    } else {
+                        row.setAttribute('draggable', 'true');
+                        row.style.cursor = '';
+                    }
+                }
+            });
+
+            // Block "Add New Item" row template
+            const newItemTemplate = document.getElementById('new-item-template');
+            if (newItemTemplate) {
+                if (shouldBlock) {
+                    newItemTemplate.style.display = 'none';
+                } else {
+                    // Don't force show, let normal logic handle it
+                }
+            }
+        }
+
+        // Block the "+ Add New Item" button at the bottom
+        const addButtons = document.querySelectorAll('button[onclick*="showNewItemRow"], button[onclick*="addNewExpenseRow"]');
+        addButtons.forEach(btn => {
+            btn.disabled = shouldBlock;
+            if (shouldBlock) {
+                btn.style.opacity = '0.3';
+                btn.style.cursor = 'not-allowed';
+                btn.style.pointerEvents = 'none';
+            } else {
+                btn.style.opacity = '';
+                btn.style.cursor = '';
+                btn.style.pointerEvents = '';
+            }
+        });
+
+        console.log('[Block Fields] All fields', shouldBlock ? 'blocked' : 'unblocked');
+    }
+
     // Function to toggle Credit Card closed status (Parents/Admins only)
     function toggleCreditCardClosed(currentStatus) {
         const flowGroupId = document.getElementById('flow-group-form').getAttribute('data-flow-group-id');
@@ -802,6 +978,16 @@
                     } else {
                         console.error('[Credit Card Toggle] tbody not found!');
                     }
+
+                    // Update budget field with actual total from backend
+                    const budgetInput = document.querySelector('input[name="budgeted_amount"]');
+                    if (budgetInput && data.budget) {
+                        budgetInput.value = data.budget;
+                        console.log('[Credit Card Toggle] Updated budget to:', data.budget);
+                    }
+
+                    // Block all fields when bill is closed
+                    blockAllFields(true);
                 } else {
                     // Update desktop button
                     if (closedBtn) {
@@ -820,7 +1006,10 @@
                         closedBtnMobile.style.border = 'none';
                         iconContainer.style.backgroundColor = 'rgba(185, 28, 28, 0.5)';
                         closedBtnMobile.setAttribute('onclick', `toggleCreditCardClosed(false)`);
-                    }                    
+                    }
+
+                    // Unblock all fields when bill is reopened
+                    blockAllFields(false);
                 }
 
                 // Show success message
@@ -911,6 +1100,12 @@
         initializeDragAndDrop();
         // Initialize toggle for new item
         initializeNewItemToggle();
+
+        // Check if bill is closed and block fields accordingly
+        {% if flow_group.is_credit_card and flow_group.closed %}
+        blockAllFields(true);
+        console.log('[DOMContentLoaded] Bill is closed, fields blocked');
+        {% endif %}
 
         // Add money mask to all amount fields using event delegation
         // This ensures new dynamically added fields also get the mask
