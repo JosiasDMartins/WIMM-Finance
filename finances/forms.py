@@ -6,6 +6,7 @@ from .models import (
     Family, FamilyMember, FamilyConfiguration, FlowGroup, 
     Transaction, Investment, EXPENSE_MAIN
 )
+from django.utils.translation import gettext_lazy as _
 from django.forms import modelformset_factory
 from djmoney.forms.fields import MoneyField as MoneyFormField
 
@@ -349,21 +350,21 @@ class NewUserAndMemberForm(forms.Form):
     ROLES = FamilyMember.ROLES
     
     username = forms.CharField(
-        label='Username (User ID)',
+        label=_('Username (User ID)'),
         max_length=150,
         widget=forms.TextInput(attrs={'class': 'w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2', 'required': True})
     )
     email = forms.EmailField(
-        label='Email',
+        label=_('Email'),
         required=True,
         widget=forms.EmailInput(attrs={'class': 'w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2', 'required': True})
     )
     password = forms.CharField(
-        label='Password',
+        label=_('Password'),
         widget=forms.PasswordInput(attrs={'class': 'w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2', 'required': True})
     )
     role = forms.ChoiceField(
-        label='Role',
+        label=_('Role'),
         choices=ROLES,
         initial='PARENT',
         widget=forms.Select(attrs={'class': 'w-full border rounded-lg bg-background-light dark:bg-background-dark border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 p-2', 'required': True})

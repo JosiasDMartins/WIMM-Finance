@@ -555,7 +555,15 @@ def bank_reconciliation_view(request):
     start_date, end_date, _unused = get_current_period_dates(family, query_period)
 
     member_role_for_period = get_member_role_for_period(current_member, start_date)
-    mode = request.GET.get('mode', 'general')
+
+    # Get mode from query string or session
+    mode = request.GET.get('mode')
+    if mode:
+        # Save to session when explicitly set via query string
+        request.session['bank_reconciliation_mode'] = mode
+    else:
+        # Retrieve from session or default to 'general'
+        mode = request.session.get('bank_reconciliation_mode', 'general')
     
     # Get balance summary from the centralized function
     balance_data = get_balance_summary(family, current_member, family_members, start_date, end_date)
@@ -611,19 +619,42 @@ def bank_reconciliation_view(request):
         # Modo 'detailed'
         members_data = []
         for member in family_members:
-            mem_inc = income_transactions.filter(member=member).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-            mem_exp = expense_transactions.filter(member=member).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-            
-            member_income = Decimal(str(mem_inc.amount)) if hasattr(mem_inc, 'amount') else mem_inc
-            member_expenses = Decimal(str(mem_exp.amount)) if hasattr(mem_exp, 'amount') else mem_exp
+            # Ignorar usuários Admin e Child no modo detalhado
+            if member.role in ['ADMIN', 'CHILD']:
+                continue
+
+            mem_inc = income_transactions.filter(member=member).aggregate(total=Sum('amount'))['total']
+            mem_exp = expense_transactions.filter(member=member).aggregate(total=Sum('amount'))['total']
+
+            # Convert Money objects to Decimal
+            if mem_inc is None:
+                member_income = Decimal('0.00')
+            elif hasattr(mem_inc, 'amount'):
+                member_income = Decimal(str(mem_inc.amount))
+            else:
+                member_income = Decimal(str(mem_inc))
+
+            if mem_exp is None:
+                member_expenses = Decimal('0.00')
+            elif hasattr(mem_exp, 'amount'):
+                member_expenses = Decimal(str(mem_exp.amount))
+            else:
+                member_expenses = Decimal(str(mem_exp))
             
             member_calculated_balance = member_income - member_expenses
             
-            mem_bank = bank_balances.filter(member=member).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-            member_bank_balance = Decimal(str(mem_bank.amount)) if hasattr(mem_bank, 'amount') else mem_bank
+            mem_bank = bank_balances.filter(member=member).aggregate(total=Sum('amount'))['total']
+
+            # Convert Money object to Decimal
+            if mem_bank is None:
+                member_bank_balance = Decimal('0.00')
+            elif hasattr(mem_bank, 'amount'):
+                member_bank_balance = Decimal(str(mem_bank.amount))
+            else:
+                member_bank_balance = Decimal(str(mem_bank))
             
             member_discrepancy = member_bank_balance - member_calculated_balance
-            member_discrepancy_percentage = abs(member_discrepancy / member_calculated_balance * 100) if member_calculated_balance != 0 else 0
+            member_discrepancy_percentage = abs(member_discrepancy / member_calculated_balance * 100) if member_calculated_balance != 0 else Decimal('0.00')
             member_has_warning = member_discrepancy_percentage > tolerance
             
             members_data.append({
@@ -642,17 +673,21 @@ def bank_reconciliation_view(request):
             'members_data': members_data,
         }
 
+    # Filtrar apenas membros PARENT para o seletor de usuário
+    parent_members = family_members.filter(role='PARENT')
+
     context = {
         'start_date': start_date,
         'end_date': end_date,
         'bank_balances': bank_balances,
-        'family_members': family_members,
+        'family_members': parent_members,  # Apenas PARENTs para o seletor
         'member_role_for_period': member_role_for_period,
         'reconciliation_data': reconciliation_data,
         'mode': mode,
         'decimal_separator': get_decimal_separator(),
         'thousand_separator': get_thousand_separator(),
         'currency_symbol': get_currency_symbol(get_period_currency(family, start_date)),
+        'discrepancy_percentage_tolerance': tolerance,
     }
     context.update(get_base_template_context(family, query_period, start_date))
 

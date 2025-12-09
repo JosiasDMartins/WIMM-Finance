@@ -64,7 +64,9 @@
                         <td class="px-4 py-3">
                             <span class="cell-member-display text-sm text-gray-600 dark:text-gray-400" data-member-id="{{ balance.member.id|default_if_none:'' }}">{{ balance.member.user.username|default:"Family" }}</span>
                             <select class="cell-member-edit hidden w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:text-white">
+                                {% if mode != 'detailed' %}
                                 <option value="">{% trans "Family" %}</option>
+                                {% endif %}
                                 {% for member in family_members %}
                                 <option value="{{ member.id }}" {% if balance.member.id == member.id %}selected{% endif %}>{{ member.user.username }}</option>
                                 {% endfor %}
@@ -112,7 +114,6 @@
                         {% if mode == 'detailed' %}
                         <td class="px-4 py-3">
                             <select class="cell-member-edit w-full px-2 py-1 text-sm border rounded dark:bg-gray-700 dark:text-white">
-                                <option value="">{% trans "Family" %}</option>
                                 {% for member in family_members %}
                                 <option value="{{ member.id }}">{{ member.user.username }}</option>
                                 {% endfor %}
@@ -206,13 +207,13 @@
                         <div>
                             <h4 class="text-sm font-semibold text-yellow-800 dark:text-yellow-500">{% trans "Warning: Discrepancy Detected" %}</h4>
                             <p class="text-sm text-yellow-700 dark:text-yellow-400 mt-1">
-                                {% trans "The difference between your bank balance and calculated balance is greater than 5%. Please review your transactions." %}
+                                {% blocktrans %}The difference between your bank balance and calculated balance is greater than {{ discrepancy_percentage_tolerance }}%. Please review your transactions.{% endblocktrans %}
                             </p>
                         </div>
                     </div>
                 </div>
                 {% else %}
-                <div class="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4">
+                <div class="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4">  
                     <div class="flex items-center">
                         <span class="material-symbols-outlined text-green-500 mr-3">check_circle</span>
                         <div>
@@ -284,7 +285,7 @@
                     <div class="flex items-center">
                         <span class="material-symbols-outlined text-yellow-500 mr-2 text-base">warning</span>
                         <p class="text-xs text-yellow-700 dark:text-yellow-400">
-                            {% trans "Discrepancy exceeds 5% for this user" %}
+                            {% blocktrans %}Discrepancy exceeds {{ discrepancy_percentage_tolerance }}% for this user{% endblocktrans %}
                         </p>
                     </div>
                 </div>
@@ -481,7 +482,9 @@ function toggleEditBalance(rowId, edit) {
 
     if (edit) {
         const amountInput = row.querySelector('.cell-amount-edit');
-        const rawValue = amountInput.value.replace(',', '.');
+        // Remove thousand separators first, then replace decimal separator with dot
+        let rawValue = amountInput.value.replace(new RegExp('\\' + thousandSeparator, 'g'), '');
+        rawValue = rawValue.replace(decimalSeparator, '.');
         const num = parseFloat(rawValue);
         if (!isNaN(num)) {
             const cents = Math.round(num * 100);
@@ -632,7 +635,7 @@ function updateReconciliationSummary() {
                             <div>
                                 <h4 class="text-sm font-semibold text-yellow-800 dark:text-yellow-500">{% trans "Warning: Discrepancy Detected" %}</h4>
                                 <p class="text-sm text-yellow-700 dark:text-yellow-400 mt-1">
-                                    {% trans "The difference between your bank balance and calculated balance is greater than 5%. Please review your transactions." %}
+                                    {% blocktrans %}The difference between your bank balance and calculated balance is greater than {{ discrepancy_percentage_tolerance }}%. Please review your transactions.{% endblocktrans %}
                                 </p>
                             </div>
                         </div>
@@ -678,7 +681,7 @@ function updateReconciliationSummary() {
                                 <div class="flex items-center">
                                     <span class="material-symbols-outlined text-yellow-500 mr-2 text-base">warning</span>
                                     <p class="text-xs text-yellow-700 dark:text-yellow-400">
-                                        {% trans "Discrepancy exceeds 5% for this user" %}
+                                        {% blocktrans %}Discrepancy exceeds {{ discrepancy_percentage_tolerance }}% for this user{% endblocktrans %}
                                     </p>
                                 </div>
                             </div>`;
