@@ -556,14 +556,15 @@ def bank_reconciliation_view(request):
 
     member_role_for_period = get_member_role_for_period(current_member, start_date)
 
-    # Get mode from query string or session
+    # Get mode from query string or FamilyConfiguration (shared across all family members)
     mode = request.GET.get('mode')
     if mode:
-        # Save to session when explicitly set via query string
-        request.session['bank_reconciliation_mode'] = mode
+        # Save to FamilyConfiguration when explicitly set via query string
+        config.bank_reconciliation_mode = mode
+        config.save(update_fields=['bank_reconciliation_mode'])
     else:
-        # Retrieve from session or default to 'general'
-        mode = request.session.get('bank_reconciliation_mode', 'general')
+        # Retrieve from FamilyConfiguration
+        mode = config.bank_reconciliation_mode
     
     # Get balance summary from the centralized function
     balance_data = get_balance_summary(family, current_member, family_members, start_date, end_date)

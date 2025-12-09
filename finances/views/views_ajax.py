@@ -1174,12 +1174,14 @@ def toggle_transaction_fixed_ajax(request):
         return JsonResponse({'status': 'error', 'error': str(e)}, status=500)
 
 
-@login_required
 def health_check_api(request):
     """
     Simple health check endpoint for the updater to verify the server is running.
-    Returns 200 OK if the server is responsive and user is authenticated.
+    Returns 200 OK if the server is responsive.
     This is used after updates to check if the server has restarted successfully.
+
+    NOTE: This endpoint does NOT require authentication because it's used to verify
+    the server is back online after a restart, when the user's session may be invalid.
     """
     from ..models import SystemVersion
     from django.conf import settings

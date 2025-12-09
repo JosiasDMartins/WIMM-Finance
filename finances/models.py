@@ -161,6 +161,14 @@ class FamilyConfiguration(models.Model):
         help_text=_("Percentage tolerance for bank reconciliation discrepancy warnings (e.g., 5.00 for 5%)")
     )
 
+    # Bank reconciliation display mode (shared across all family members)
+    bank_reconciliation_mode = models.CharField(
+        max_length=10,
+        choices=[('general', 'General'), ('detailed', 'Detailed')],
+        default='general',
+        help_text=_("Display mode for bank reconciliation: general (family total) or detailed (per user)")
+    )
+
     def __str__(self):
         return f"Config for {self.family.name}"
 
