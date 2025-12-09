@@ -30,3 +30,11 @@ finances/tests_permissions.py
 _pycache_
 /finances/__pycache__
 *.pyc
+test_scripts/verify_migration.py
+test_scripts/test_income_sum2.py
+test_scripts/test_income_sum.py
+test_scripts/check_tolerance_field.py
+test_scripts/check_all_config_fields.py
+nul
+db/db.sqlite3-wal
+db/db.sqlite3-shm
