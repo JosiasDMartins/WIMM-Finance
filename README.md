@@ -54,6 +54,7 @@ pip install django-money==3.4.1
 pip install py-moneyed==3.0
 pip install requests
 pip install whitenoise
+pip install django-pwa
 ```
 
 Or install all at once:
