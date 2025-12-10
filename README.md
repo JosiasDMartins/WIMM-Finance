@@ -14,7 +14,8 @@ SweetMoney is a Django-based web application designed to help families manage th
 
 Now, you can try SweetMoney at our [Demo Server](https://demo.sweetmoney.ca):
 
-```demo.sweetmoney.ca```
+- **Address:** demo.sweetmoney.ca
+
 
 - Some functions are locked, like add/edit/delete users.
 - Database will be deleted and recreated every night
