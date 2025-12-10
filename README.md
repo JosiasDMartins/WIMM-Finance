@@ -6,16 +6,12 @@
 ---
 
 ## Overview
-
 SweetMoney is a Django-based web application designed to help families manage their finances collaboratively. The application organizes expenses, income, and investments into customizable flow groups, making it easy to track financial activity across different family members.
-
 
 ### DEMO Server
 
 Now, you can try SweetMoney at our [Demo Server](https://demo.sweetmoney.ca):
-
 - **Address:** demo.sweetmoney.ca
-
 
 - Some functions are locked, like add/edit/delete users.
 - Database will be deleted and recreated every night
@@ -26,7 +22,6 @@ Users:
 - **Parent**: Wilma
 - **Child**: Pebbles
 - **Password** for all: MySweetMoney
-
 
 ### Key Features
 
