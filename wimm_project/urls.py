@@ -27,6 +27,9 @@ urlpatterns = [
     # i18n language switching
     path('i18n/', include('django.conf.urls.i18n')),
 
+    # PWA (Progressive Web App) support - using custom views with dynamic versioning
+    # path('', include('pwa.urls')),  # Replaced with custom views in finances.urls
+
     #include WIMM routes
     path('', include('finances.urls')),
 

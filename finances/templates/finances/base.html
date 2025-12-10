@@ -20,13 +20,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes"/>
     <title>{% block title %}{% trans "SweetMoney | Family Financial Flow" %}{% endblock title %}</title>
 
+    <!-- PWA Meta Tags - Custom implementation with dynamic versioning -->
+    <meta name="application-name" content="SweetMoney">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="SweetMoney">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#10b981">
+    <link rel="manifest" href="{% url 'manifest_json' %}">
+
     <link rel="icon" type="image/x-icon" href="{% static 'finances/images/favicons/favicon.ico' %}">
     <link rel="icon" type="image/svg+xml" href="{% static 'finances/images/favicons/favicon.svg' %}">
     <link rel="icon" type="image/png" sizes="96x96" href="{% static 'finances/images/favicons/favicon-96x96.png' %}">
     <link rel="apple-touch-icon" sizes="180x180" href="{% static 'finances/images/favicons/apple-touch-icon.png' %}">
     <link rel="icon" type="image/png" sizes="192x192" href="{% static 'finances/images/favicons/android-chrome-192x192.png' %}">
     <link rel="icon" type="image/png" sizes="512x512" href="{% static 'finances/images/favicons/android-chrome-512x512.png' %}">
-    <link rel="manifest" href="{% static 'finances/images/favicons/site.webmanifest' %}">
 
     <link href="{% static 'finances/css/tailwind.css' %}" rel="stylesheet"/>
     <link href="{% static 'finances/css/fonts.css' %}" rel="stylesheet"/>
@@ -148,7 +156,7 @@
                     {% endif %}
                 </div>
 
-                <div class="mt-auto space-y-2">
+                <div class="mt-auto space-y-2 pb-0">
                     <div class="pt-4 border-t dark:border-gray-700">
                         <a href="{% url 'user_profile' %}{% if selected_period %}?period={{ selected_period }}{% endif %}" class="flex items-center px-4 py-2 text-gray-600 rounded-md dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
                             <div class="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-bold mr-3">
@@ -172,7 +180,20 @@
                         </form>
                     </div>
 
-                    <div class="px-4 py-2">
+                    <!-- PWA Install Button -->
+                    <div id="pwa-install-container" class="hidden px-4 py-2">
+                        <button id="pwa-install-btn"
+                                class="w-full bg-green-500 bg-opacity-80 hover:bg-opacity-100
+                                       text-white font-medium py-2 px-4 rounded-lg
+                                       flex items-center justify-center gap-2 transition-all
+                                       shadow-md hover:shadow-lg">
+                            <span class="material-symbols-outlined">install_mobile</span>
+                            <span>{% trans "Install App" %}</span>
+                        </button>
+                    </div>
+
+                    <!-- Version -->
+                    <div class="px-4 py-2 pb-0 text-center">
                         <span id="sidebar-version" class="text-xs text-gray-500 dark:text-gray-600">{% trans "Version" %} {{ db_version }}</span>
                         <div id="sidebar-update-indicator" class="hidden text-xs text-orange-500 dark:text-orange-400 mt-1">
                             ({% trans "Update Available" %})
@@ -1075,5 +1096,131 @@
         console.log('[GenericModal] System loaded successfully');
         console.log('[GenericModal] Available methods:', Object.keys(GenericModal));
     </script>
+
+    <!-- PWA Service Worker Registration & Version Management -->
+    <script>
+        const SERVER_VERSION = '{{ db_version }}';
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Check if running as installed PWA
+                const isInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+                // Register service worker
+                navigator.serviceWorker.register('{% url "service_worker" %}')
+                    .then((registration) => {
+                        console.log('[PWA] Service Worker registered successfully:', registration.scope);
+                        console.log('[PWA] Server version: ' + SERVER_VERSION);
+
+                        // Check for manifest version updates (for installed apps)
+                        if (isInstalled) {
+                            checkManifestVersion();
+                        }
+
+                        // Check for updates periodically
+                        setInterval(() => {
+                            registration.update();
+                            if (isInstalled) {
+                                checkManifestVersion();
+                            }
+                        }, 60000); // Check every minute
+                    })
+                    .catch((error) => {
+                        console.error('[PWA] Service Worker registration failed:', error);
+                    });
+
+                // Listen for service worker updates
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    console.log('[PWA] New service worker activated - reloading page');
+                    window.location.reload();
+                });
+            });
+        }
+
+        // Check manifest version and prompt for reinstall if needed
+        async function checkManifestVersion() {
+            try {
+                // Get cached installed version
+                const installedVersion = localStorage.getItem('pwa_installed_version');
+
+                if (!installedVersion) {
+                    // First time running, save current version
+                    localStorage.setItem('pwa_installed_version', SERVER_VERSION);
+                    console.log('[PWA] Saved installed version: ' + SERVER_VERSION);
+                    return;
+                }
+
+                // Compare versions
+                if (installedVersion !== SERVER_VERSION) {
+                    console.log('[PWA] Version mismatch! Installed: ' + installedVersion + ', Server: ' + SERVER_VERSION);
+
+                    // Show update notification
+                    showUpdateNotification(installedVersion, SERVER_VERSION);
+                }
+            } catch (error) {
+                console.error('[PWA] Error checking manifest version:', error);
+            }
+        }
+
+        function showUpdateNotification(oldVersion, newVersion) {
+            // Only show once per version
+            const notificationShown = sessionStorage.getItem('update_notification_' + newVersion);
+            if (notificationShown) {
+                return;
+            }
+
+            // Mark as shown
+            sessionStorage.setItem('update_notification_' + newVersion, 'true');
+
+            // Use existing modal system if available
+            if (typeof window.showModal === 'function') {
+                const title = '🎉 New Version Available!';
+                const content = `
+                    <div class="space-y-4">
+                        <p class="text-gray-700 dark:text-gray-300">
+                            SweetMoney has been updated from <strong>v${oldVersion}</strong> to <strong>v${newVersion}</strong>!
+                        </p>
+                        <p class="text-gray-700 dark:text-gray-300">
+                            To see the latest features and improvements, please reinstall the app:
+                        </p>
+                        <ol class="list-decimal list-inside space-y-2 text-gray-700 dark:text-gray-300 text-sm">
+                            <li>Uninstall the current app from your device</li>
+                            <li>Visit SweetMoney in your browser</li>
+                            <li>Click "Install App" to reinstall with the new version</li>
+                        </ol>
+                        <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                            <p class="text-xs text-blue-700 dark:text-blue-400">
+                                💡 <strong>Tip:</strong> Your data is safe on the server. Reinstalling won't affect your financial records.
+                            </p>
+                        </div>
+                        <button onclick="updateInstalledVersion('${newVersion}')"
+                                class="w-full mt-4 bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg">
+                            I'll Do It Later
+                        </button>
+                    </div>
+                `;
+                window.showModal(title, content);
+            } else {
+                // Fallback: console + alert
+                if (confirm(`New SweetMoney version available!\n\nInstalled: v${oldVersion}\nAvailable: v${newVersion}\n\nTo update, please reinstall the app.\n\nClick OK to dismiss this message.`)) {
+                    localStorage.setItem('pwa_installed_version', newVersion);
+                }
+            }
+        }
+
+        // Allow user to dismiss update notification
+        function updateInstalledVersion(version) {
+            localStorage.setItem('pwa_installed_version', version);
+            console.log('[PWA] User dismissed update notification for version ' + version);
+
+            // Close modal if closeModal function exists
+            if (typeof window.closeModal === 'function') {
+                window.closeModal();
+            }
+        }
+    </script>
+
+    <!-- PWA Install Manager -->
+    <script src="{% static 'finances/js/pwa-install.js' %}"></script>
 </body>
 </html>

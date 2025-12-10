@@ -39,6 +39,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.humanize',
 
+    # Third-party apps
+    'pwa',
+
     #My App
     'finances'
 ]
@@ -230,4 +233,47 @@ except ImportError:
         from .local_settings import *
     except ImportError:
         pass
+
+
+# =====================================================
+# Progressive Web App (PWA) Configuration
+# =====================================================
+
+PWA_APP_NAME = 'SweetMoney'
+PWA_APP_DESCRIPTION = 'Family-oriented personal finance management'
+PWA_APP_THEME_COLOR = '#10b981'  # Green - matches SweetMoney branding
+PWA_APP_BACKGROUND_COLOR = '#ffffff'
+PWA_APP_DISPLAY = 'standalone'  # Opens app without browser chrome
+PWA_APP_START_URL = '/'
+PWA_APP_SCOPE = '/'
+PWA_APP_ORIENTATION = 'any'
+PWA_APP_LANG = 'en-US'
+PWA_APP_DIR = 'ltr'
+
+# PWA Icons Configuration
+PWA_APP_ICONS = [
+    {
+        'src': '/static/finances/images/favicons/android-chrome-192x192.png',
+        'sizes': '192x192',
+        'type': 'image/png',
+        'purpose': 'any'
+    },
+    {
+        'src': '/static/finances/images/favicons/android-chrome-512x512.png',
+        'sizes': '512x512',
+        'type': 'image/png',
+        'purpose': 'any'
+    }
+]
+
+# PWA Icons for Apple/iOS
+PWA_APP_ICONS_APPLE = [
+    {
+        'src': '/static/finances/images/favicons/apple-touch-icon.png',
+        'sizes': '180x180'
+    }
+]
+
+# Service Worker Configuration - handled by custom views
+# PWA_SERVICE_WORKER_PATH is not needed as we use custom template-based service worker
 

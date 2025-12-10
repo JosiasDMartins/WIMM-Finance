@@ -37,6 +37,7 @@ Users:
 - **Bank Reconciliation**: Compare expected vs actual bank balances with tolerance settings
 - **Notifications System**: Get alerts for important financial events
 - **Dark Mode**: Full dark mode support for comfortable viewing
+- **Progressive Web App**: Install on mobile/desktop devices for app-like experience
 - **Auto-Updates**: Built-in system for applying updates (requires admin privileges)
 
 ## Development Setup
@@ -62,7 +63,7 @@ pip install whitenoise
 Or install all at once:
 
 ```bash
-pip install Django python-dateutil django-money==3.4.1 py-moneyed==3.0 requests whitenoise
+pip install Django python-dateutil django-money==3.4.1 py-moneyed==3.0 requests whitenoise django-pwa
 ```
 
 ### Running Locally

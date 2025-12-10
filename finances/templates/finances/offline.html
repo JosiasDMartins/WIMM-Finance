@@ -1,0 +1,108 @@
+{% load static %}
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>{% trans "Offline" %} - SweetMoney</title>
+    <link href="{% static 'finances/css/tailwind.css' %}" rel="stylesheet"/>
+</head>
+<body class="h-full bg-gradient-to-br from-green-50 to-emerald-100 dark:from-gray-900 dark:to-gray-800">
+    <div class="h-full flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 text-center">
+            <!-- Logo -->
+            <div class="mb-8 flex justify-center">
+                <img src="{% static 'finances/images/logo.png' %}"
+                     alt="SweetMoney Logo"
+                     class="h-24 w-auto opacity-80 dark:opacity-70">
+            </div>
+
+            <!-- Title with emoji -->
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                😴 {% trans "Server is Taking a Nap" %}
+            </h1>
+
+            <!-- Cute Message -->
+            <p class="text-gray-600 dark:text-gray-400 mb-6 leading-relaxed">
+                {% trans "Oops! Looks like the SweetMoney server is sleeping or your internet is playing hide and seek. Don't worry, we'll keep trying to wake it up!" %}
+            </p>
+
+            <!-- Status -->
+            <div id="connection-status" class="mb-6">
+                <div class="inline-flex items-center gap-2 px-4 py-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                    <span class="inline-block w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
+                    <span class="text-sm text-orange-700 dark:text-orange-400 font-medium">
+                        {% trans "Attempting to reconnect..." %}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Retry Button -->
+            <button onclick="retryConnection()"
+                    class="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700
+                           text-white font-semibold py-3 px-6 rounded-lg transition-all transform hover:scale-105
+                           shadow-md hover:shadow-lg">
+                {% trans "Try Again Now" %}
+            </button>
+
+            <!-- Help Text -->
+            <div class="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <p class="text-xs text-gray-600 dark:text-gray-400">
+                    💡 {% trans "Tip: Check if your internet is working or if the server is running." %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let retryCount = 0;
+        const maxRetries = 60; // Try for 10 minutes (60 retries x 10 seconds)
+
+        // Retry connection function
+        function retryConnection() {
+            retryCount = 0; // Reset counter on manual retry
+            checkConnection();
+        }
+
+        // Check connection
+        function checkConnection() {
+            fetch('/', { method: 'HEAD', cache: 'no-cache' })
+                .then(response => {
+                    if (response.ok) {
+                        console.log('[Offline] Server is back online, redirecting...');
+                        window.location.href = '/';
+                    }
+                })
+                .catch(error => {
+                    console.log('[Offline] Still offline, retry', retryCount, '/', maxRetries);
+                });
+        }
+
+        // Auto-retry every 10 seconds
+        const autoRetryInterval = setInterval(() => {
+            retryCount++;
+
+            if (retryCount >= maxRetries) {
+                clearInterval(autoRetryInterval);
+                const status = document.getElementById('connection-status');
+                if (status) {
+                    status.innerHTML = `
+                        <div class="inline-flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                            <span class="inline-block w-2 h-2 bg-red-500 rounded-full"></span>
+                            <span class="text-sm text-red-700 dark:text-red-400 font-medium">
+                                😢 Still can't connect. Try the button!
+                            </span>
+                        </div>
+                    `;
+                }
+                return;
+            }
+
+            checkConnection();
+        }, 10000); // Every 10 seconds
+
+        console.log('[Offline] Offline page loaded, will auto-retry every 10 seconds');
+    </script>
+</body>
+</html>

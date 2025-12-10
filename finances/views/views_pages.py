@@ -1169,3 +1169,12 @@ def mark_admin_warning_seen(request):
     request.session['admin_warning_seen'] = True
     from django.http import JsonResponse
     return JsonResponse({'status': 'ok'})
+
+
+def offline_view(request):
+    """
+    PWA offline page.
+    Displayed when the server is unreachable and service worker serves cached offline.html.
+    No authentication required as this is a fallback page.
+    """
+    return render(request, 'finances/offline.html')

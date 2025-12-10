@@ -7,7 +7,12 @@ from finances.views import views_password_reset
 urlpatterns = [
     # === SETUP (must be first) ===
     path('setup/', views.initial_setup_view, name='initial_setup'),
-    
+
+    # === PWA ===
+    path('offline/', views.offline_view, name='offline'),
+    path('manifest.json', views.manifest_json, name='manifest_json'),
+    path('serviceworker.js', views.service_worker, name='service_worker'),
+
     # === EXISTING ROUTES ===
     # General
     path('', views.dashboard_view, name='dashboard'),
