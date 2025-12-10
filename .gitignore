@@ -38,3 +38,6 @@ test_scripts/check_all_config_fields.py
 nul
 db/db.sqlite3-wal
 db/db.sqlite3-shm
+test_scripts/test_pwa_production.py
+test_scripts/test_pwa_update.py
+test_scripts/test_pwa_version.py

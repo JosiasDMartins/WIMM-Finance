@@ -55,6 +55,11 @@ class SetupRequiredMiddleware:
         if current_path == '/api/health-check/':
             return self.get_response(request)
 
+        # Always allow PWA files (must be accessible for browsers to detect installable PWA)
+        # These files must be publicly accessible without authentication
+        if current_path in ['/manifest.json', '/serviceworker.js', '/offline/']:
+            return self.get_response(request)
+
         # Always allow setup page itself and restore-backup API
         try:
             setup_url = reverse('initial_setup')
