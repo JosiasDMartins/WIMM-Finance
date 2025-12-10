@@ -699,26 +699,58 @@ class UpdateManager {
     }
 
     async waitForServerAndReload() {
-        const maxAttempts = 60; // Try for up to 60 seconds
+        const maxAttempts = 120; // Try for up to 2 minutes (doubled from 60s)
         const delayBetweenAttempts = 1000; // 1 second
+        let consecutiveSuccess = 0;
+        const requiredConsecutiveSuccess = 2; // Require 2 successful checks to ensure stability
+
+        console.log('[UpdateManager] Starting health check polling...');
 
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
-                // Try to fetch a lightweight endpoint
+                // Try to fetch a lightweight endpoint with timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
                 const response = await fetch('/api/health-check/', {
                     method: 'GET',
-                    cache: 'no-store'
+                    cache: 'no-store',
+                    signal: controller.signal,
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
                 });
 
+                clearTimeout(timeoutId);
+
                 if (response.ok) {
-                    console.log(`[UpdateManager] Server is back online after ${attempt} attempts`);
-                    // Server is back, reload the page
-                    location.reload();
-                    return;
+                    const data = await response.json();
+                    consecutiveSuccess++;
+                    console.log(`[UpdateManager] Server responded OK (${consecutiveSuccess}/${requiredConsecutiveSuccess}) - attempt ${attempt}/${maxAttempts}`, data);
+
+                    // Require multiple consecutive successful responses to ensure server is stable
+                    if (consecutiveSuccess >= requiredConsecutiveSuccess) {
+                        console.log(`[UpdateManager] Server is stable and ready after ${attempt} attempts`);
+                        // Wait 1 more second for good measure
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        // Server is back and stable, reload the page
+                        location.reload();
+                        return;
+                    }
+                } else {
+                    consecutiveSuccess = 0; // Reset counter on failure
+                    console.log(`[UpdateManager] Server responded with status ${response.status}, waiting... attempt ${attempt}/${maxAttempts}`);
                 }
             } catch (error) {
+                consecutiveSuccess = 0; // Reset counter on error
                 // Server not ready yet, continue waiting
-                console.log(`[UpdateManager] Waiting for server... attempt ${attempt}/${maxAttempts}`);
+                if (error.name === 'AbortError') {
+                    console.log(`[UpdateManager] Health check timeout, server still starting... attempt ${attempt}/${maxAttempts}`);
+                } else {
+                    console.log(`[UpdateManager] Waiting for server... attempt ${attempt}/${maxAttempts}`, error.message);
+                }
             }
 
             // Wait before next attempt

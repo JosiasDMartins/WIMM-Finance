@@ -45,19 +45,55 @@ def run():
         print("[Update v1.4.2] Step 1: Installing django-pwa package...")
 
         try:
+            # Determine correct pip command based on environment
+            # In Docker, use 'pip' directly; locally use sys.executable
+            pip_cmd = 'pip' if os.path.exists('/.dockerenv') else sys.executable
+
+            if pip_cmd == 'pip':
+                # Docker environment
+                install_cmd = ['pip', 'install', 'django-pwa']
+            else:
+                # Local development environment
+                install_cmd = [pip_cmd, '-m', 'pip', 'install', 'django-pwa']
+
+            print(f"[Update v1.4.2] Using pip command: {' '.join(install_cmd)}")
+
             # Install django-pwa
-            subprocess.check_call([
-                sys.executable, '-m', 'pip', 'install', 'django-pwa', '--quiet'
-            ])
+            result = subprocess.run(
+                install_cmd,
+                capture_output=True,
+                text=True,
+                timeout=120  # 2 minute timeout
+            )
+
+            if result.returncode != 0:
+                raise subprocess.CalledProcessError(
+                    result.returncode,
+                    install_cmd,
+                    result.stdout,
+                    result.stderr
+                )
+
             results['installed_packages'].append('django-pwa')
             print("[Update v1.4.2] [OK] django-pwa installed successfully")
+            print(f"[Update v1.4.2] Output: {result.stdout.strip()}")
+
         except subprocess.CalledProcessError as e:
-            error_msg = f"Failed to install django-pwa: {str(e)}"
+            error_msg = f"Failed to install django-pwa: {e.stderr if hasattr(e, 'stderr') else str(e)}"
             print(f"[ERROR] {error_msg}", file=sys.stderr)
             results['errors'].append(error_msg)
             return {
                 'success': False,
                 'message': 'PWA package installation failed',
+                'details': results
+            }
+        except subprocess.TimeoutExpired:
+            error_msg = "Package installation timed out after 2 minutes"
+            print(f"[ERROR] {error_msg}", file=sys.stderr)
+            results['errors'].append(error_msg)
+            return {
+                'success': False,
+                'message': 'PWA package installation timed out',
                 'details': results
             }
 
