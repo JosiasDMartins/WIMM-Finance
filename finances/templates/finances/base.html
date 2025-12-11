@@ -1222,5 +1222,66 @@
 
     <!-- PWA Install Manager -->
     <script src="{% static 'finances/js/pwa-install.js' %}"></script>
+
+    <!-- WebSocket Real-time Updates -->
+    {% if user.is_authenticated %}
+    <script src="{% static 'finances/js/websocket_manager.js' %}"></script>
+    <script>
+        // Initialize WebSocket connection on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            wsManager.connect();
+
+            // Show connection status indicator (optional)
+            wsManager.onConnectionStatus(function(status) {
+                const indicator = document.getElementById('ws-status-indicator');
+                if (indicator) {
+                    indicator.className = 'ws-' + status;
+                    indicator.title = 'WebSocket: ' + status;
+                }
+            });
+
+            // Register message handlers for real-time updates
+            wsManager.registerHandler('transaction_created', function(data) {
+                console.log('[WebSocket] New transaction created:', data);
+                // TODO: Update UI when transaction is created
+            });
+
+            wsManager.registerHandler('transaction_updated', function(data) {
+                console.log('[WebSocket] Transaction updated:', data);
+                // TODO: Update UI when transaction is updated
+            });
+
+            wsManager.registerHandler('transaction_deleted', function(data) {
+                console.log('[WebSocket] Transaction deleted:', data);
+                // TODO: Update UI when transaction is deleted
+            });
+
+            wsManager.registerHandler('flowgroup_updated', function(data) {
+                console.log('[WebSocket] FlowGroup updated:', data);
+                // TODO: Update UI when FlowGroup is updated
+            });
+
+            wsManager.registerHandler('flowgroup_deleted', function(data) {
+                console.log('[WebSocket] FlowGroup deleted:', data);
+                // TODO: Update UI when FlowGroup is deleted
+            });
+
+            wsManager.registerHandler('bank_balance_updated', function(data) {
+                console.log('[WebSocket] Bank balance updated:', data);
+                // TODO: Update UI when bank balance is updated
+            });
+
+            wsManager.registerHandler('bank_balance_deleted', function(data) {
+                console.log('[WebSocket] Bank balance deleted:', data);
+                // TODO: Update UI when bank balance is deleted
+            });
+
+            wsManager.registerHandler('notification', function(data) {
+                console.log('[WebSocket] Notification received:', data);
+                // TODO: Show notification to user
+            });
+        });
+    </script>
+    {% endif %}
 </body>
 </html>

@@ -31,6 +31,7 @@ SECRET_KEY = 'django-insecure-@+@#^v(s25&0t6yvx5)tm$3!ug(f*thk==-_b4v=v7pieqk0z_
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',  # Must be first for async support
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -40,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.humanize',
 
     # Third-party apps
+    'channels',
     'pwa',
 
     #My App
@@ -85,6 +87,9 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'wimm_project.wsgi.application'
+
+# ASGI Application for WebSocket support
+ASGI_APPLICATION = 'wimm_project.asgi.application'
 
 
 # Database
@@ -277,3 +282,39 @@ PWA_APP_ICONS_APPLE = [
 # Service Worker Configuration - handled by custom views
 # PWA_SERVICE_WORKER_PATH is not needed as we use custom template-based service worker
 
+
+# =====================================================
+# Django Channels Configuration for Real-time Updates
+# =====================================================
+
+# Channel Layers Configuration for Redis
+# Build Redis URL with optional password
+redis_password = os.environ.get('REDIS_PASSWORD', None)
+redis_host = os.environ.get('REDIS_HOST', '127.0.0.1')
+redis_port = os.environ.get('REDIS_PORT', '6379')
+
+if redis_password:
+    # Format: redis://:password@host:port
+    redis_url = f"redis://:{redis_password}@{redis_host}:{redis_port}"
+else:
+    # Format: redis://host:port
+    redis_url = f"redis://{redis_host}:{redis_port}"
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [redis_url],
+            "capacity": 1500,  # Max messages per channel
+            "expiry": 10,  # Message expiry in seconds
+        },
+    },
+}
+
+# Development fallback - use InMemoryChannelLayer when Redis not available
+if DEBUG and os.environ.get('USE_REDIS_MOCK') == 'true':
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer'
+        }
+    }

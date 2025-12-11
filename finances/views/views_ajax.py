@@ -16,13 +16,14 @@ from ..notification_utils import create_new_transaction_notification
 # Importações relativas do app (.. sobe um nível, de /views/ para /finances/)
 from ..models import Transaction, FlowGroup, FamilyMember, BankBalance, FLOW_TYPE_INCOME
 from ..utils import (
-    current_period_has_data, 
+    current_period_has_data,
     copy_previous_period_data,
     get_current_period_dates,
     ensure_period_exists,
     get_period_currency,
     get_available_periods
 )
+from ..websocket_utils import WebSocketBroadcaster
 
 # Importações de utils locais (mesmo pacote /views/)
 from .views_utils import (
@@ -184,6 +185,21 @@ def save_flow_item_ajax(request):
         print(f"[DEBUG] Transaction saved with ID: {transaction.id}")
         print(f"[DEBUG] After save - transaction.amount.amount: {transaction.amount.amount}")
 
+        # Real-time WebSocket broadcast
+        try:
+            if is_new:
+                WebSocketBroadcaster.broadcast_transaction_created(
+                    transaction=transaction,
+                    actor_user=request.user
+                )
+            else:
+                WebSocketBroadcaster.broadcast_transaction_updated(
+                    transaction=transaction,
+                    actor_user=request.user
+                )
+        except Exception as e:
+            print(f"[WebSocket] Broadcast error: {e}")
+
         # Criar notificação SEMPRE (para novas transações e edições)
         print(f"[DEBUG] Attempting to create notification for transaction {transaction.id}")
         print(f"[DEBUG] Current member: {current_member.user.username} (ID: {current_member.id})")
@@ -253,11 +269,24 @@ def delete_flow_item_ajax(request):
             return JsonResponse({'error': _('Missing transaction_id.')}, status=400)
 
         transaction = get_object_or_404(Transaction, id=transaction_id, flow_group__family=family)
-        
+
         if not can_access_flow_group(transaction.flow_group, current_member):
             return HttpResponseForbidden(_("You don't have permission to delete from this group."))
-        
+
+        # Store family_id before deleting
+        family_id = transaction.flow_group.family.id
+
         transaction.delete()
+
+        # Real-time WebSocket broadcast
+        try:
+            WebSocketBroadcaster.broadcast_transaction_deleted(
+                transaction_id=transaction_id,
+                family_id=family_id,
+                actor_user=request.user
+            )
+        except Exception as e:
+            print(f"[WebSocket] Broadcast error: {e}")
 
         return JsonResponse({'status': 'success', 'transaction_id': transaction_id})
 
@@ -295,6 +324,15 @@ def toggle_kids_group_realized_ajax(request):
 
         flow_group.realized = new_realized_status
         flow_group.save()
+
+        # Real-time WebSocket broadcast
+        try:
+            WebSocketBroadcaster.broadcast_flowgroup_updated(
+                flowgroup=flow_group,
+                actor_user=request.user
+            )
+        except Exception as e:
+            print(f"[WebSocket] Broadcast error: {e}")
 
         budget_value = str(flow_group.budgeted_amount.amount)
 
@@ -470,10 +508,24 @@ def delete_flow_group_view(request, group_id):
         
         if flow_group.owner != request.user and current_member.role != 'ADMIN':
             return JsonResponse({'error': _('Permission denied.')}, status=403)
-        
+
         group_name = flow_group.name
+        group_id_str = str(flow_group.id)
+        family_id = flow_group.family.id
+
         flow_group.delete()
-        
+
+        # Real-time WebSocket broadcast
+        try:
+            WebSocketBroadcaster.broadcast_to_family(
+                family_id=family_id,
+                message_type='flowgroup_deleted',
+                data={'id': group_id_str, 'name': group_name},
+                actor_user=request.user
+            )
+        except Exception as e:
+            print(f"[WebSocket] Broadcast error: {e}")
+
         return JsonResponse({
             'status': 'success',
             'message': _("Flow Group '%(name)s' and all its data have been deleted.") % {'name': group_name}
@@ -598,7 +650,9 @@ def save_bank_balance_ajax(request):
 
         currency = get_period_currency(family, period_start_date)
         money_amount = Money(amount, currency)
-        
+
+        is_new = not (balance_id and balance_id != 'new')
+
         if balance_id and balance_id != 'new':
             bank_balance = BankBalance.objects.get(id=balance_id, family=family)
             bank_balance.description = description
@@ -615,7 +669,16 @@ def save_bank_balance_ajax(request):
                 date=date,
                 period_start_date=period_start_date
             )
-        
+
+        # Real-time WebSocket broadcast
+        try:
+            WebSocketBroadcaster.broadcast_bank_balance_updated(
+                bank_balance=bank_balance,
+                actor_user=request.user
+            )
+        except Exception as e:
+            print(f"[WebSocket] Broadcast error: {e}")
+
         amount_value = str(bank_balance.amount.amount)
         
         return JsonResponse({
@@ -645,7 +708,20 @@ def delete_bank_balance_ajax(request):
             return JsonResponse({'status': 'error', 'error': _('User not in family')}, status=403)
 
         bank_balance = BankBalance.objects.get(id=balance_id, family=family)
+        family_id = bank_balance.family.id
+
         bank_balance.delete()
+
+        # Real-time WebSocket broadcast
+        try:
+            WebSocketBroadcaster.broadcast_to_family(
+                family_id=family_id,
+                message_type='bank_balance_deleted',
+                data={'id': balance_id},
+                actor_user=request.user
+            )
+        except Exception as e:
+            print(f"[WebSocket] Broadcast error: {e}")
 
         return JsonResponse({'status': 'success'})
 
