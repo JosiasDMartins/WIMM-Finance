@@ -18,26 +18,12 @@ def get_notifications_ajax(request):
     """
     debug_enabled = getattr(settings, 'DEBUG', False)
 
-    if debug_enabled:
-        print(f"[DEBUG NOTIF API] ========================================")
-        print(f"[DEBUG NOTIF API] get_notifications_ajax called by user: {request.user.username}")
 
     try:
         member = FamilyMember.objects.filter(user=request.user).first()
         if not member:
-            if debug_enabled:
-                print(f"[ERROR NOTIF API] Member not found for user: {request.user.username}")
-            return JsonResponse({'success': False, 'error': _('Member not found')}, status=404)
 
-        if debug_enabled:
-            print(f"[DEBUG NOTIF API] Member found: {member.user.username} (ID: {member.id})")
-
-        # Check and create new notifications (overdue, overbudget)
-        if debug_enabled:
-            print(f"[DEBUG NOTIF API] Checking for new overdue/overbudget notifications...")
-        new_notifs = check_and_create_notifications(member.family, member)
-        if debug_enabled:
-            print(f"[DEBUG NOTIF API] Created: {new_notifs}")
+#        new_notifs = check_and_create_notifications(member.family, member)
 
         # Search for unrecognized notifications - NO TYPE FILTER
         notifications = Notification.objects.filter(
@@ -45,23 +31,9 @@ def get_notifications_ajax(request):
             is_acknowledged=False
         ).select_related('transaction', 'flow_group').order_by('-created_at')[:99]
 
-        if debug_enabled:
-            print(f"[DEBUG NOTIF API] Total unacknowledged notifications: {notifications.count()}")
-
-            # Detailed log by type
-            notif_types = {}
-            for notif in notifications:
-                notif_type = notif.notification_type
-                if notif_type not in notif_types:
-                    notif_types[notif_type] = 0
-                notif_types[notif_type] += 1
-
-            print(f"[DEBUG NOTIF API] Notifications by type: {notif_types}")
 
         notifications_data = []
         for notif in notifications:
-            if debug_enabled:
-                print(f"[DEBUG NOTIF API]   - ID: {notif.id}, Type: {notif.notification_type}, Message: {notif.message}")
             notifications_data.append({
                 'id': notif.id,
                 'type': notif.notification_type,
@@ -69,10 +41,6 @@ def get_notifications_ajax(request):
                 'target_url': notif.target_url,
                 'created_at': notif.created_at.strftime('%Y-%m-%d %H:%M'),
             })
-
-        if debug_enabled:
-            print(f"[DEBUG NOTIF API] Returning {len(notifications_data)} notifications")
-            print(f"[DEBUG NOTIF API] ========================================")
 
         return JsonResponse({
             'success': True,
