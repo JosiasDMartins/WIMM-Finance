@@ -16,8 +16,8 @@ def is_running_in_docker():
 
 def create_reload_flag():
     """
-    Create a flag file to signal Gunicorn reload.
-    The update_monitor daemon will detect this and send SIGHUP to Gunicorn.
+    Create a flag file to signal Daphne reload.
+    The update_monitor daemon will detect this and send SIGHUP to Daphne.
     """
     if not is_running_in_docker():
         return False

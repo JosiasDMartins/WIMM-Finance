@@ -18,7 +18,19 @@ class WebSocketManager {
     connect() {
         // Determine protocol (ws:// or wss://)
         const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-        const wsUrl = wsProtocol + window.location.host + '/ws/updates/';
+
+        // Extract hostname without port
+        const hostname = window.location.hostname;
+
+        // Build WebSocket URL
+        let wsUrl;
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            // Development: connect directly to Daphne port
+            wsUrl = wsProtocol + hostname + ':8000/ws/updates/';
+        } else {
+            // Production: use same host (requires reverse proxy configuration)
+            wsUrl = wsProtocol + window.location.host + '/ws/updates/';
+        }
 
         console.log('[WebSocket] Connecting to:', wsUrl);
 

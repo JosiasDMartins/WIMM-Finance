@@ -42,3 +42,4 @@ test_scripts/test_pwa_production.py
 test_scripts/test_pwa_update.py
 test_scripts/test_pwa_version.py
 test_scripts/diagnose_pwa.py
+docker_build/build_scripts/.env.example

@@ -1242,6 +1242,8 @@
             // Store current user ID for comparison in RealtimeUI
             document.body.dataset.userId = "{{ user.id }}";
 
+            // Create WebSocket manager instance
+            const wsManager = new WebSocketManager();
             wsManager.connect();
 
             // Show connection status indicator (optional)
