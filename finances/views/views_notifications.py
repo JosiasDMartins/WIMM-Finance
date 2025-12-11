@@ -22,7 +22,10 @@ def get_notifications_ajax(request):
     try:
         member = FamilyMember.objects.filter(user=request.user).first()
         if not member:
+            return JsonResponse({'success': False, 'error': _('Member not found')}, status=404)
 
+
+        # Check and create new notifications (overdue, overbudget)
 #        new_notifs = check_and_create_notifications(member.family, member)
 
         # Search for unrecognized notifications - NO TYPE FILTER
@@ -31,7 +34,7 @@ def get_notifications_ajax(request):
             is_acknowledged=False
         ).select_related('transaction', 'flow_group').order_by('-created_at')[:99]
 
-
+ 
         notifications_data = []
         for notif in notifications:
             notifications_data.append({
@@ -42,6 +45,7 @@ def get_notifications_ajax(request):
                 'created_at': notif.created_at.strftime('%Y-%m-%d %H:%M'),
             })
 
+ 
         return JsonResponse({
             'success': True,
             'count': len(notifications_data),
