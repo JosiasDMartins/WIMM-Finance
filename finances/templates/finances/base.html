@@ -1226,9 +1226,22 @@
     <!-- WebSocket Real-time Updates -->
     {% if user.is_authenticated %}
     <script src="{% static 'finances/js/websocket_manager.js' %}"></script>
+
+    <!-- Real-time UI Updates Handler -->
+    <script>
+        // Expose locale settings for realtime_ui.js
+        window.decimalSeparator = "{{ decimal_separator }}";
+        window.thousandSeparator = "{{ thousand_separator }}";
+        window.currencySymbol = "{{ currency_symbol }}";
+    </script>
+    <script src="{% static 'finances/js/realtime_ui.js' %}"></script>
+
     <script>
         // Initialize WebSocket connection on page load
         document.addEventListener('DOMContentLoaded', function() {
+            // Store current user ID for comparison in RealtimeUI
+            document.body.dataset.userId = "{{ user.id }}";
+
             wsManager.connect();
 
             // Show connection status indicator (optional)
@@ -1242,43 +1255,35 @@
 
             // Register message handlers for real-time updates
             wsManager.registerHandler('transaction_created', function(data) {
-                console.log('[WebSocket] New transaction created:', data);
-                // TODO: Update UI when transaction is created
+                window.RealtimeUI.handleTransactionCreated(data);
             });
 
             wsManager.registerHandler('transaction_updated', function(data) {
-                console.log('[WebSocket] Transaction updated:', data);
-                // TODO: Update UI when transaction is updated
+                window.RealtimeUI.handleTransactionUpdated(data);
             });
 
             wsManager.registerHandler('transaction_deleted', function(data) {
-                console.log('[WebSocket] Transaction deleted:', data);
-                // TODO: Update UI when transaction is deleted
+                window.RealtimeUI.handleTransactionDeleted(data);
             });
 
             wsManager.registerHandler('flowgroup_updated', function(data) {
-                console.log('[WebSocket] FlowGroup updated:', data);
-                // TODO: Update UI when FlowGroup is updated
+                window.RealtimeUI.handleFlowGroupUpdated(data);
             });
 
             wsManager.registerHandler('flowgroup_deleted', function(data) {
-                console.log('[WebSocket] FlowGroup deleted:', data);
-                // TODO: Update UI when FlowGroup is deleted
+                window.RealtimeUI.handleFlowGroupDeleted(data);
             });
 
             wsManager.registerHandler('bank_balance_updated', function(data) {
-                console.log('[WebSocket] Bank balance updated:', data);
-                // TODO: Update UI when bank balance is updated
+                window.RealtimeUI.handleBankBalanceUpdated(data);
             });
 
             wsManager.registerHandler('bank_balance_deleted', function(data) {
-                console.log('[WebSocket] Bank balance deleted:', data);
-                // TODO: Update UI when bank balance is deleted
+                window.RealtimeUI.handleBankBalanceDeleted(data);
             });
 
             wsManager.registerHandler('notification', function(data) {
-                console.log('[WebSocket] Notification received:', data);
-                // TODO: Show notification to user
+                window.RealtimeUI.handleNotification(data);
             });
         });
     </script>

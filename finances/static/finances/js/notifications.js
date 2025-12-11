@@ -320,15 +320,12 @@
         });
     }
 
-    // Start polling for new notifications
+    // Start polling for new notifications (DEPRECATED - now using WebSocket)
     function startPolling() {
-        console.log('[NOTIF JS] Starting polling (interval:', POLL_INTERVAL / 1000, 'seconds)');
-
-        // Initial update
+        console.log('[NOTIF JS] POLLING DISABLED - Using WebSocket for real-time updates');
+        // Polling is no longer used - WebSocket handles real-time notification updates
+        // Initial badge update only
         updateBadgeOnly();
-
-        // Set interval
-        pollTimer = setInterval(updateBadgeOnly, POLL_INTERVAL);
     }
 
     // Stop polling (for cleanup if needed)
@@ -338,6 +335,24 @@
             clearInterval(pollTimer);
             pollTimer = null;
         }
+    }
+
+    // Handle notification received via WebSocket
+    function handleWebSocketNotification(data) {
+        console.log('[NOTIF JS] WebSocket notification received:', data);
+
+        // Increment last notification count
+        lastNotificationCount += 1;
+
+        // Update badge
+        updateBadge(lastNotificationCount);
+
+        // If dropdown is open, reload notifications
+        if (isDropdownOpen) {
+            loadNotifications();
+        }
+
+        console.log('[NOTIF JS] Notification handled - new count:', lastNotificationCount);
     }
 
     // Initialize
@@ -355,14 +370,20 @@
             acknowledgeAllBtn.addEventListener('click', acknowledgeAllNotifications);
         }
 
-        // Start polling
+        // Start polling (only does initial badge update now)
         startPolling();
 
-        // Expose stop function for debugging
+        // Listen for WebSocket notifications
+        document.addEventListener('realtime:notification', function(event) {
+            handleWebSocketNotification(event.detail.data);
+        });
+
+        // Expose functions for debugging
         window.stopNotificationPolling = stopPolling;
         window.forceNotificationLoad = loadNotifications;
+        window.handleWebSocketNotification = handleWebSocketNotification;
 
-        console.log('[NOTIF JS] Notification system initialized successfully');
+        console.log('[NOTIF JS] Notification system initialized successfully (WebSocket mode)');
         console.log('[NOTIF JS] ========================================');
     }
 
