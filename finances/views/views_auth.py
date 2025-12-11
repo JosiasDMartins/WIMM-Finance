@@ -154,9 +154,9 @@ def user_profile_view(request):
     if request.method == 'POST':
         action = request.POST.get('action')
 
-        # Block all profile editing in demo mode
+        # Block all profile editing in demo mode (except language change)
         from django.conf import settings
-        if getattr(settings, 'DEMO_MODE', False):
+        if getattr(settings, 'DEMO_MODE', False) and action != 'change_language':
             messages.error(request, _('Profile editing is disabled in demo mode.'))
             redirect_url = f"?period={query_period}" if query_period else ""
             return redirect(f"/profile/{redirect_url}")
