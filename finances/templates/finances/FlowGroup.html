@@ -3050,4 +3050,398 @@
     }
 </style>
 
+<script>
+/**
+ * Real-time Updates for FlowGroup Page (Concurrent Editors)
+ * Handles WebSocket broadcasts to update the page when other users make changes
+ */
+(function() {
+    'use strict';
+
+    // FlowGroup Real-time Updates Namespace
+    window.FlowGroupRealtime = {
+        /**
+         * Add new transaction to the list
+         */
+        addTransaction: function(transactionData) {
+            console.log('[FlowGroup RT] Adding new transaction:', transactionData);
+
+            // Check if transaction belongs to this FlowGroup
+            const currentFlowGroupId = document.getElementById('flow-group-form')?.getAttribute('data-flow-group-id');
+            if (!currentFlowGroupId || transactionData.flow_group.id != currentFlowGroupId) {
+                console.log('[FlowGroup RT] Transaction not for this FlowGroup, skipping');
+                return;
+            }
+
+            const tbody = document.getElementById('items-tbody');
+            if (!tbody) {
+                console.warn('[FlowGroup RT] Items tbody not found');
+                return;
+            }
+
+            // Check if transaction already exists (avoid duplicates)
+            const existingRow = document.getElementById(`item-${transactionData.id}`);
+            if (existingRow) {
+                console.log('[FlowGroup RT] Transaction already exists, updating instead');
+                this.updateTransaction(transactionData);
+                return;
+            }
+
+            // Reload the page to show new transaction (simpler approach)
+            // In a more complex implementation, we would create the row dynamically
+            console.log('[FlowGroup RT] New transaction added by another user, reloading...');
+            location.reload();
+        },
+
+        /**
+         * Update existing transaction
+         */
+        updateTransaction: function(transactionData) {
+            console.log('[FlowGroup RT] Updating transaction:', transactionData);
+
+            // Check if transaction belongs to this FlowGroup
+            const currentFlowGroupId = document.getElementById('flow-group-form')?.getAttribute('data-flow-group-id');
+            if (!currentFlowGroupId || transactionData.flow_group.id != currentFlowGroupId) {
+                return;
+            }
+
+            const row = document.getElementById(`item-${transactionData.id}`);
+            if (!row) {
+                console.warn('[FlowGroup RT] Transaction row not found');
+                return;
+            }
+
+            try {
+                // Update description display
+                const descDisplay = row.querySelector('.cell-description-display');
+                if (descDisplay) {
+                    descDisplay.textContent = transactionData.description;
+                }
+
+                // Update amount display
+                const amountDisplay = row.querySelector('.cell-budget-display');
+                if (amountDisplay && transactionData.currency_symbol) {
+                    const formattedAmount = window.RealtimeUI.utils.formatCurrency(transactionData.amount);
+                    amountDisplay.textContent = formattedAmount;
+                }
+
+                // Update date display
+                if (transactionData.date) {
+                    const dateDisplay = row.querySelector('.cell-date-display');
+                    if (dateDisplay) {
+                        const dateObj = new Date(transactionData.date);
+                        const day = String(dateObj.getDate()).padStart(2, '0');
+                        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                        dateDisplay.textContent = `${day}/${month}`;
+                    }
+                }
+
+                // Update member display
+                if (transactionData.member !== undefined) {
+                    const memberDisplay = row.querySelector('.cell-member-display');
+                    if (memberDisplay) {
+                        memberDisplay.textContent = transactionData.member || '-';
+                        if (transactionData.member_id) {
+                            memberDisplay.setAttribute('data-member-id', transactionData.member_id);
+                        }
+                    }
+                }
+
+                // Update data attributes
+                row.setAttribute('data-amount', transactionData.amount);
+                row.setAttribute('data-realized', transactionData.realized ? 'true' : 'false');
+                row.setAttribute('data-is-fixed', transactionData.is_fixed ? 'true' : 'false');
+
+                // Update realized toggle
+                const toggleBtn = row.querySelector('.realized-toggle');
+                if (toggleBtn) {
+                    const toggleCircle = toggleBtn.querySelector('span');
+                    if (transactionData.realized) {
+                        toggleBtn.classList.remove('bg-gray-300', 'dark:bg-gray-600');
+                        toggleBtn.classList.add('bg-green-500');
+                        if (toggleCircle) toggleCircle.classList.add('translate-x-4');
+                    } else {
+                        toggleBtn.classList.remove('bg-green-500');
+                        toggleBtn.classList.add('bg-gray-300', 'dark:bg-gray-600');
+                        if (toggleCircle) toggleCircle.classList.remove('translate-x-4');
+                    }
+                }
+
+                // Update fixed toggle
+                const fixedToggleBtn = row.querySelector('.fixed-toggle');
+                if (fixedToggleBtn) {
+                    const fixedCircle = fixedToggleBtn.querySelector('span');
+                    if (transactionData.is_fixed) {
+                        fixedToggleBtn.classList.remove('bg-gray-300', 'dark:bg-gray-600');
+                        fixedToggleBtn.classList.add('bg-blue-500');
+                        if (fixedCircle) fixedCircle.classList.add('translate-x-4');
+                    } else {
+                        fixedToggleBtn.classList.remove('bg-blue-500');
+                        fixedToggleBtn.classList.add('bg-gray-300', 'dark:bg-gray-600');
+                        if (fixedCircle) fixedCircle.classList.remove('translate-x-4');
+                    }
+                }
+
+                // Update row classes for realized status
+                if (transactionData.realized) {
+                    row.classList.remove('row-not-realized');
+                    row.classList.add('row-realized');
+                } else {
+                    row.classList.remove('row-realized');
+                    row.classList.add('row-not-realized');
+                }
+
+                // Highlight the updated row
+                if (window.RealtimeUI && window.RealtimeUI.utils && window.RealtimeUI.utils.highlightElement) {
+                    window.RealtimeUI.utils.highlightElement(row, 2000);
+                }
+            } catch (error) {
+                console.error('[FlowGroup RT] Error updating transaction:', error);
+            }
+        },
+
+        /**
+         * Remove transaction from the list
+         */
+        removeTransaction: function(transactionId) {
+            console.log('[FlowGroup RT] Removing transaction:', transactionId);
+
+            const row = document.getElementById(`item-${transactionId}`);
+            if (!row) {
+                console.warn('[FlowGroup RT] Transaction row not found');
+                return;
+            }
+
+            // Fade out animation
+            row.style.transition = 'opacity 0.3s ease';
+            row.style.opacity = '0';
+
+            setTimeout(() => {
+                if (row.parentNode) {
+                    row.parentNode.removeChild(row);
+                    console.log('[FlowGroup RT] Transaction removed successfully');
+                }
+            }, 300);
+        },
+
+        /**
+         * Update FlowGroup details (name, budget, checkboxes, etc.)
+         */
+        updateFlowGroup: function(flowgroupData) {
+            console.log('[FlowGroup RT] Updating FlowGroup:', flowgroupData);
+
+            // Check if this is the current FlowGroup
+            const currentFlowGroupId = document.getElementById('flow-group-form')?.getAttribute('data-flow-group-id');
+            if (!currentFlowGroupId || flowgroupData.id != currentFlowGroupId) {
+                return;
+            }
+
+            try {
+                // Update name in title
+                const titleElement = document.querySelector('h1.text-2xl');
+                if (titleElement && flowgroupData.name) {
+                    const backArrow = titleElement.querySelector('a');
+                    if (backArrow) {
+                        const textNode = titleElement.childNodes[titleElement.childNodes.length - 1];
+                        if (textNode) {
+                            textNode.textContent = ' ' + flowgroupData.name;
+                        }
+                    }
+                }
+
+                // Update name input
+                const nameInput = document.getElementById('id_name');
+                if (nameInput && flowgroupData.name) {
+                    nameInput.value = flowgroupData.name;
+                }
+
+                // Update budgeted_amount input
+                const budgetInput = document.getElementById('id_budgeted_amount');
+                if (budgetInput && flowgroupData.budgeted_amount) {
+                    budgetInput.value = flowgroupData.budgeted_amount;
+                }
+
+                // Update checkboxes
+                const isSharedCheckbox = document.getElementById('id_is_shared');
+                if (isSharedCheckbox) {
+                    isSharedCheckbox.checked = flowgroupData.is_shared;
+                }
+
+                const isKidsGroupCheckbox = document.getElementById('id_is_kids_group');
+                if (isKidsGroupCheckbox) {
+                    isKidsGroupCheckbox.checked = flowgroupData.is_kids_group;
+                }
+
+                const isInvestmentCheckbox = document.getElementById('id_is_investment');
+                if (isInvestmentCheckbox) {
+                    isInvestmentCheckbox.checked = flowgroupData.is_investment;
+                }
+
+                const isCreditCardCheckbox = document.getElementById('id_is_credit_card');
+                if (isCreditCardCheckbox) {
+                    isCreditCardCheckbox.checked = flowgroupData.is_credit_card;
+                }
+
+                // Update assigned members multi-select
+                if (flowgroupData.assigned_members) {
+                    const membersSelect = document.getElementById('id_assigned_members');
+                    if (membersSelect) {
+                        Array.from(membersSelect.options).forEach(option => {
+                            option.selected = flowgroupData.assigned_members.includes(parseInt(option.value));
+                        });
+                    }
+                }
+
+                // Update assigned children multi-select
+                if (flowgroupData.assigned_children) {
+                    const childrenSelect = document.getElementById('id_assigned_children');
+                    if (childrenSelect) {
+                        Array.from(childrenSelect.options).forEach(option => {
+                            option.selected = flowgroupData.assigned_children.includes(parseInt(option.value));
+                        });
+                    }
+                }
+
+                // Update recurring toggle button (desktop)
+                const recurringBtn = document.querySelector('.recurring-toggle-btn');
+                if (recurringBtn) {
+                    const icon = recurringBtn.querySelector('span.material-symbols-outlined');
+                    const text = recurringBtn.querySelector('span:not(.material-symbols-outlined)');
+                    if (flowgroupData.is_recurring) {
+                        recurringBtn.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
+                        recurringBtn.classList.add('bg-blue-500', 'text-white');
+                        if (icon) icon.textContent = 'check_circle';
+                        if (text) text.textContent = '{% trans "Recurring" %}';
+                    } else {
+                        recurringBtn.classList.remove('bg-blue-500', 'text-white');
+                        recurringBtn.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
+                        if (icon) icon.textContent = 'cancel';
+                        if (text) text.textContent = '{% trans "Not Recurring" %}';
+                    }
+                }
+
+                // Update kids realized toggle button
+                if (flowgroupData.is_kids_group) {
+                    const kidsRealizedBtn = document.querySelector('[onclick*="toggleKidsGroupRealized"]');
+                    if (kidsRealizedBtn) {
+                        const icon = kidsRealizedBtn.querySelector('span.material-symbols-outlined');
+                        const text = kidsRealizedBtn.querySelector('span:not(.material-symbols-outlined)');
+                        if (flowgroupData.realized) {
+                            kidsRealizedBtn.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
+                            kidsRealizedBtn.classList.add('bg-green-500', 'text-white');
+                            kidsRealizedBtn.setAttribute('onclick', 'toggleKidsGroupRealized(true)');
+                            if (icon) icon.textContent = 'check_circle';
+                            if (text) text.textContent = '{% trans "Realized" %}';
+                        } else {
+                            kidsRealizedBtn.classList.remove('bg-green-500', 'text-white');
+                            kidsRealizedBtn.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
+                            kidsRealizedBtn.setAttribute('onclick', 'toggleKidsGroupRealized(false)');
+                            if (icon) icon.textContent = 'cancel';
+                            if (text) text.textContent = '{% trans "Not Realized" %}';
+                        }
+                    }
+                }
+
+                // Update credit card closed toggle button
+                if (flowgroupData.is_credit_card) {
+                    const closedBtn = document.querySelector('[onclick*="toggleCreditCardClosed"]');
+                    if (closedBtn) {
+                        const icon = closedBtn.querySelector('span.material-symbols-outlined');
+                        const text = closedBtn.querySelector('span:not(.material-symbols-outlined)');
+                        if (flowgroupData.closed) {
+                            closedBtn.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
+                            closedBtn.classList.add('bg-green-500', 'text-white');
+                            closedBtn.setAttribute('onclick', 'toggleCreditCardClosed(true)');
+                            if (icon) icon.textContent = 'check_circle';
+                            if (text) text.textContent = '{% trans "Bill Closed" %}';
+                        } else {
+                            closedBtn.classList.remove('bg-green-500', 'text-white');
+                            closedBtn.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
+                            closedBtn.setAttribute('onclick', 'toggleCreditCardClosed(false)');
+                            if (icon) icon.textContent = 'cancel';
+                            if (text) text.textContent = '{% trans "Bill Open" %}';
+                        }
+                    }
+                }
+
+                // Update totals display
+                const estimatedDisplay = document.getElementById('total-estimated');
+                if (estimatedDisplay && flowgroupData.total_estimated) {
+                    const formattedEstimated = window.RealtimeUI.utils.formatCurrency(flowgroupData.total_estimated);
+                    estimatedDisplay.textContent = formattedEstimated;
+                }
+
+                const realizedDisplay = document.getElementById('total-realized');
+                if (realizedDisplay && flowgroupData.total_realized) {
+                    const formattedRealized = window.RealtimeUI.utils.formatCurrency(flowgroupData.total_realized);
+                    realizedDisplay.textContent = formattedRealized;
+                }
+
+                console.log('[FlowGroup RT] FlowGroup updated successfully');
+            } catch (error) {
+                console.error('[FlowGroup RT] Error updating FlowGroup:', error);
+            }
+        },
+
+        /**
+         * Handle FlowGroup deletion
+         */
+        handleFlowGroupDeleted: function(flowgroupId, flowgroupName) {
+            console.log('[FlowGroup RT] FlowGroup deleted:', flowgroupId);
+
+            // Check if this is the current FlowGroup
+            const currentFlowGroupId = document.getElementById('flow-group-form')?.getAttribute('data-flow-group-id');
+            if (!currentFlowGroupId || flowgroupId != currentFlowGroupId) {
+                return;
+            }
+
+            // Show modal informing user that FlowGroup was deleted
+            const modalHtml = `
+                <div id="flowgroup-deleted-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+                        <div class="mt-3 text-center">
+                            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30">
+                                <span class="material-symbols-outlined text-red-600 dark:text-red-400">delete</span>
+                            </div>
+                            <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white mt-5">
+                                {% trans "FlowGroup Deleted" %}
+                            </h3>
+                            <div class="mt-2 px-7 py-3">
+                                <p class="text-sm text-gray-500 dark:text-gray-400">
+                                    {% trans "This FlowGroup was deleted by another user." %}
+                                </p>
+                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 mt-2">${flowgroupName || ''}</p>
+                            </div>
+                            <div class="items-center px-4 py-3">
+                                <button id="flowgroup-deleted-ok-btn"
+                                        class="px-4 py-2 bg-primary text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-primary/80 focus:outline-none focus:ring-2 focus:ring-primary">
+                                    {% trans "OK" %}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            // Add click handler to OK button
+            document.getElementById('flowgroup-deleted-ok-btn').addEventListener('click', function() {
+                // Redirect to dashboard
+                window.location.href = "{% url 'dashboard' %}";
+            });
+        }
+    };
+
+    // Listen for FlowGroup deletion events
+    document.addEventListener('realtime:flowgroup:deleted', function(event) {
+        if (window.FlowGroupRealtime && window.FlowGroupRealtime.handleFlowGroupDeleted) {
+            window.FlowGroupRealtime.handleFlowGroupDeleted(event.detail.data.id, event.detail.data.name);
+        }
+    });
+
+    console.log('[FlowGroup RT] Real-time updates initialized');
+})();
+</script>
+
 {% endblock content %}

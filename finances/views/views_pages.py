@@ -744,7 +744,29 @@ def create_flow_group_view(request):
                 flow_group.is_shared = True
             
             flow_group.save()
-            
+
+            # Real-time WebSocket broadcast for FlowGroup creation
+            try:
+                from ..websocket_utils import WebSocketBroadcaster
+                WebSocketBroadcaster.broadcast_to_family(
+                    family_id=family.id,
+                    message_type='flowgroup_created',
+                    data={
+                        'id': flow_group.id,
+                        'name': flow_group.name,
+                        'budgeted_amount': str(flow_group.budgeted_amount.amount) if flow_group.budgeted_amount else '0.00',
+                        'currency': flow_group.budgeted_amount.currency.code if flow_group.budgeted_amount else '',
+                        'order': flow_group.order,
+                        'is_shared': flow_group.is_shared,
+                        'is_kids_group': flow_group.is_kids_group,
+                        'is_investment': flow_group.is_investment,
+                        'is_credit_card': flow_group.is_credit_card,
+                    },
+                    actor_user=request.user
+                )
+            except Exception as e:
+                print(f"[WebSocket] Broadcast error on FlowGroup creation: {e}")
+
             config = getattr(family, 'configuration', None)
             if config:
                 ensure_period_exists(family, start_date, end_date, config.period_type)
@@ -830,9 +852,19 @@ def edit_flow_group_view(request, group_id):
             
             if flow_group.is_kids_group:
                 flow_group.is_shared = True
-            
+
             flow_group.save()
             form.save_m2m()
+
+            # Real-time WebSocket broadcast for FlowGroup update
+            try:
+                from ..websocket_utils import WebSocketBroadcaster
+                WebSocketBroadcaster.broadcast_flowgroup_updated(
+                    flowgroup=flow_group,
+                    actor_user=request.user
+                )
+            except Exception as e:
+                print(f"[WebSocket] Broadcast error on FlowGroup update: {e}")
 
             messages.success(request, _("Flow Group '%(name)s' updated.") % {'name': group.name})
             redirect_url = f"?period={query_period}" if query_period else ""

@@ -249,30 +249,30 @@
     // FLOWGROUP HANDLERS
     // ==============================================
 
+    window.RealtimeUI.handleFlowGroupCreated = function(data) {
+        console.log('[RealtimeUI] FlowGroup created:', data);
+
+        // Trigger custom event
+        triggerCustomEvent('realtime:flowgroup:created', data);
+
+        // Try page-specific handler (dashboard)
+        if (typeof window.DashboardRealtime !== 'undefined' && window.DashboardRealtime.addFlowGroup) {
+            window.DashboardRealtime.addFlowGroup(data.data);
+        }
+    };
+
     window.RealtimeUI.handleFlowGroupUpdated = function(data) {
         console.log('[RealtimeUI] FlowGroup updated:', data);
 
         // Trigger custom event
         triggerCustomEvent('realtime:flowgroup:updated', data);
 
-        // Find and update flowgroup card/element
-        const element = document.querySelector(`[data-flowgroup-id="${data.data.id}"]`);
-        if (element) {
-            // Update name
-            const nameEl = element.querySelector('[data-field="name"]');
-            if (nameEl) nameEl.textContent = data.data.name;
-
-            // Update budgeted amount
-            const budgetEl = element.querySelector('[data-field="budgeted_amount"]');
-            if (budgetEl && data.data.budgeted_amount) {
-                budgetEl.textContent = formatCurrency(data.data.budgeted_amount);
-            }
-
-            // Highlight update
-            highlightElement(element);
+        // Try page-specific handler (dashboard)
+        if (typeof window.DashboardRealtime !== 'undefined' && window.DashboardRealtime.updateFlowGroup) {
+            window.DashboardRealtime.updateFlowGroup(data.data);
         }
 
-        // Try page-specific handler
+        // Try page-specific handler (flowgroup edit page)
         if (typeof window.FlowGroupRealtime !== 'undefined' && window.FlowGroupRealtime.updateFlowGroup) {
             window.FlowGroupRealtime.updateFlowGroup(data.data);
         }
@@ -284,15 +284,21 @@
         // Trigger custom event
         triggerCustomEvent('realtime:flowgroup:deleted', data);
 
-        // Find and remove flowgroup card with animation
-        const element = document.querySelector(`[data-flowgroup-id="${data.data.id}"]`);
-        if (element) {
-            element.classList.add('opacity-0', 'scale-95', 'transition-all', 'duration-300');
-            setTimeout(function() {
-                if (element.parentNode) {
-                    element.parentNode.removeChild(element);
-                }
-            }, 300);
+        // Try page-specific handler (dashboard)
+        if (typeof window.DashboardRealtime !== 'undefined' && window.DashboardRealtime.removeFlowGroup) {
+            window.DashboardRealtime.removeFlowGroup(data.data.id);
+        }
+    };
+
+    window.RealtimeUI.handleFlowGroupReordered = function(data) {
+        console.log('[RealtimeUI] FlowGroup reordered:', data);
+
+        // Trigger custom event
+        triggerCustomEvent('realtime:flowgroup:reordered', data);
+
+        // Try page-specific handler (dashboard)
+        if (typeof window.DashboardRealtime !== 'undefined' && window.DashboardRealtime.reorderFlowGroups) {
+            window.DashboardRealtime.reorderFlowGroups(data.data.groups);
         }
     };
 

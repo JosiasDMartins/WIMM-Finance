@@ -197,6 +197,12 @@ def save_flow_item_ajax(request):
                     transaction=transaction,
                     actor_user=request.user
                 )
+
+            # Also broadcast FlowGroup update to update Dashboard totals
+            WebSocketBroadcaster.broadcast_flowgroup_updated(
+                flowgroup=flow_group,
+                actor_user=request.user
+            )
         except Exception as e:
             print(f"[WebSocket] Broadcast error: {e}")
             import traceback
@@ -275,8 +281,9 @@ def delete_flow_item_ajax(request):
         if not can_access_flow_group(transaction.flow_group, current_member):
             return HttpResponseForbidden(_("You don't have permission to delete from this group."))
 
-        # Store family_id before deleting
+        # Store data before deleting
         family_id = transaction.flow_group.family.id
+        flow_group = transaction.flow_group
 
         transaction.delete()
 
@@ -285,6 +292,12 @@ def delete_flow_item_ajax(request):
             WebSocketBroadcaster.broadcast_transaction_deleted(
                 transaction_id=transaction_id,
                 family_id=family_id,
+                actor_user=request.user
+            )
+
+            # Also broadcast FlowGroup update to update Dashboard totals
+            WebSocketBroadcaster.broadcast_flowgroup_updated(
+                flowgroup=flow_group,
                 actor_user=request.user
             )
         except Exception as e:
@@ -402,6 +415,15 @@ def toggle_credit_card_closed_ajax(request):
         flow_group.save()
         budget_value = str(flow_group.budgeted_amount.amount)
 
+        # Real-time WebSocket broadcast
+        try:
+            WebSocketBroadcaster.broadcast_flowgroup_updated(
+                flowgroup=flow_group,
+                actor_user=request.user
+            )
+        except Exception as e:
+            print(f"[WebSocket] Broadcast error: {e}")
+
         return JsonResponse({
             'status': 'success',
             'flow_group_id': flow_group.id,
@@ -436,15 +458,26 @@ def reorder_flow_groups_ajax(request):
         for group_data in groups_data:
             group_id = group_data.get('id')
             new_order = group_data.get('order')
-            
+
             if group_id and new_order is not None:
                 flow_group = FlowGroup.objects.filter(id=group_id, family=family).first()
-                
+
                 if flow_group:
                     if can_access_flow_group(flow_group, current_member):
                         flow_group.order = new_order
                         flow_group.save(update_fields=['order'])
-        
+
+        # Real-time WebSocket broadcast for reorder
+        try:
+            WebSocketBroadcaster.broadcast_to_family(
+                family_id=family.id,
+                message_type='flowgroup_reordered',
+                data={'groups': groups_data},
+                actor_user=request.user
+            )
+        except Exception as e:
+            print(f"[WebSocket] Broadcast error on FlowGroup reorder: {e}")
+
         return JsonResponse({'status': 'success'})
         
     except Exception as e:
@@ -1186,6 +1219,15 @@ def toggle_flowgroup_recurring_ajax(request):
         flow_group.is_recurring = not flow_group.is_recurring
         flow_group.save()
 
+        # Real-time WebSocket broadcast
+        try:
+            WebSocketBroadcaster.broadcast_flowgroup_updated(
+                flowgroup=flow_group,
+                actor_user=request.user
+            )
+        except Exception as e:
+            print(f"[WebSocket] Broadcast error: {e}")
+
         return JsonResponse({
             'status': 'success',
             'is_recurring': flow_group.is_recurring,
@@ -1239,6 +1281,21 @@ def toggle_transaction_fixed_ajax(request):
             flow_group.is_recurring = True
             flow_group.save()
             flow_group_updated = True
+
+        # Real-time WebSocket broadcast
+        try:
+            WebSocketBroadcaster.broadcast_transaction_updated(
+                transaction=transaction,
+                actor_user=request.user
+            )
+
+            # Also broadcast FlowGroup update
+            WebSocketBroadcaster.broadcast_flowgroup_updated(
+                flowgroup=flow_group,
+                actor_user=request.user
+            )
+        except Exception as e:
+            print(f"[WebSocket] Broadcast error: {e}")
 
         return JsonResponse({
             'status': 'success',

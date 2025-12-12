@@ -1268,12 +1268,20 @@
                 window.RealtimeUI.handleTransactionDeleted(data);
             });
 
+            wsManager.registerHandler('flowgroup_created', function(data) {
+                window.RealtimeUI.handleFlowGroupCreated(data);
+            });
+
             wsManager.registerHandler('flowgroup_updated', function(data) {
                 window.RealtimeUI.handleFlowGroupUpdated(data);
             });
 
             wsManager.registerHandler('flowgroup_deleted', function(data) {
                 window.RealtimeUI.handleFlowGroupDeleted(data);
+            });
+
+            wsManager.registerHandler('flowgroup_reordered', function(data) {
+                window.RealtimeUI.handleFlowGroupReordered(data);
             });
 
             wsManager.registerHandler('bank_balance_updated', function(data) {

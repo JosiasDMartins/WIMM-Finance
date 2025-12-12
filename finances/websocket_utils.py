@@ -87,6 +87,7 @@ class WebSocketBroadcaster:
                     'type': transaction.flow_group.group_type,
                 },
                 'member': transaction.member.user.username if transaction.member else None,
+                'member_id': transaction.member.id if transaction.member else None,
             },
             actor_user=actor_user
         )
@@ -120,6 +121,7 @@ class WebSocketBroadcaster:
                     'type': transaction.flow_group.group_type,
                 },
                 'member': transaction.member.user.username if transaction.member else None,
+                'member_id': transaction.member.id if transaction.member else None,
             },
             actor_user=actor_user
         )
@@ -139,13 +141,43 @@ class WebSocketBroadcaster:
     @staticmethod
     def broadcast_flowgroup_updated(flowgroup, actor_user):
         """Broadcast FlowGroup update"""
+        from decimal import Decimal
+        from django.db.models import Sum, Q
+
+        # Calculate totals for this FlowGroup
+        estimated_total = Decimal('0.00')
+        realized_total = Decimal('0.00')
+
+        transactions = flowgroup.transactions.all()
+        for transaction in transactions:
+            amount = transaction.amount.amount
+            estimated_total += amount
+            if transaction.realized:
+                realized_total += amount
+
+        # Prepare assigned members and children lists
+        assigned_members = list(flowgroup.assigned_members.values_list('id', flat=True))
+        assigned_children = list(flowgroup.assigned_children.values_list('id', flat=True))
+
         WebSocketBroadcaster.broadcast_to_family(
             family_id=flowgroup.family.id,
             message_type='flowgroup_updated',
             data={
                 'id': flowgroup.id,
                 'name': flowgroup.name,
-                'budgeted_amount': str(flowgroup.budgeted_amount) if flowgroup.budgeted_amount else None,
+                'budgeted_amount': str(flowgroup.budgeted_amount.amount) if flowgroup.budgeted_amount else '0.00',
+                'currency': flowgroup.budgeted_amount.currency.code if flowgroup.budgeted_amount else '',
+                'total_estimated': str(estimated_total),
+                'total_realized': str(realized_total),
+                'is_shared': flowgroup.is_shared,
+                'is_kids_group': flowgroup.is_kids_group,
+                'is_investment': flowgroup.is_investment,
+                'is_credit_card': flowgroup.is_credit_card,
+                'is_recurring': flowgroup.is_recurring,
+                'realized': flowgroup.realized,  # For kids groups
+                'closed': flowgroup.closed if hasattr(flowgroup, 'closed') else False,  # For credit cards
+                'assigned_members': assigned_members,
+                'assigned_children': assigned_children,
             },
             actor_user=actor_user
         )
@@ -158,8 +190,11 @@ class WebSocketBroadcaster:
             message_type='bank_balance_updated',
             data={
                 'id': bank_balance.id,
-                'bank_name': bank_balance.bank_name,
-                'balance': str(bank_balance.balance),
+                'description': bank_balance.description,
+                'amount': str(bank_balance.amount.amount),
+                'date': bank_balance.date.strftime('%Y-%m-%d'),
+                'member_id': bank_balance.member.id if bank_balance.member else None,
+                'member_name': bank_balance.member.user.username if bank_balance.member else 'Family',
             },
             actor_user=actor_user
         )

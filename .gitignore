@@ -44,3 +44,4 @@ test_scripts/test_pwa_version.py
 test_scripts/diagnose_pwa.py
 docker_build/build_scripts/.env.example
 /docker_build
+docker_build/build_scripts/supervisord.conf

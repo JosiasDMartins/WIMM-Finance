@@ -2717,6 +2717,256 @@
             tr.querySelector('.cell-description-display').textContent = data.description;
 
             return tr;
+        },
+
+        /**
+         * Add new FlowGroup to the Expense Groups table
+         */
+        addFlowGroup: function(flowgroupData) {
+            console.log('[Dashboard RT] Adding new FlowGroup:', flowgroupData);
+
+            const tbody = document.getElementById('expense-groups-tbody');
+            if (!tbody) {
+                console.warn('[Dashboard RT] Expense groups tbody not found');
+                return;
+            }
+
+            // Check if FlowGroup already exists (avoid duplicates)
+            const existingRow = tbody.querySelector(`tr[data-group-id="${flowgroupData.id}"]`);
+            if (existingRow) {
+                console.log('[Dashboard RT] FlowGroup already exists, updating instead');
+                this.updateFlowGroup(flowgroupData);
+                return;
+            }
+
+            // Create new row (simplified version - real implementation would match template exactly)
+            const newRow = document.createElement('tr');
+            newRow.dataset.groupId = flowgroupData.id;
+            newRow.dataset.order = flowgroupData.order || 0;
+            newRow.dataset.accessible = 'true';
+            newRow.className = 'draggable-row cursor-default hover:bg-gray-50 dark:hover:bg-gray-700/30 group-row-clickable';
+            newRow.draggable = true;
+
+            const currencySymbol = window.currencySymbol || 'R$';
+            const estimatedFormatted = window.RealtimeUI.utils.formatCurrency(flowgroupData.budgeted_amount || '0.00');
+            const realizedFormatted = window.RealtimeUI.utils.formatCurrency('0.00');
+
+            newRow.innerHTML = `
+                <td class="px-2 py-4 text-center drag-handle-cell">
+                    <span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle cursor-grab active:cursor-grabbing">drag_indicator</span>
+                </td>
+                <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white">
+                    <div class="flex flex-col gap-1">
+                        <div class="flex items-center gap-2">
+                            <span>${flowgroupData.name}</span>
+                        </div>
+                    </div>
+                </td>
+                <td class="py-4 px-4 text-sm text-gray-500 dark:text-gray-400 text-right group-estimated" data-value="0.00">
+                    ${estimatedFormatted}
+                </td>
+                <td class="py-4 px-4 text-sm text-red-600 dark:text-red-500 text-right group-realized" data-value="0.00">
+                    ${realizedFormatted}
+                </td>
+            `;
+
+            // Insert at the end (before "empty" message row if exists)
+            const emptyRow = tbody.querySelector('tr td[colspan]');
+            if (emptyRow) {
+                emptyRow.parentElement.remove();
+            }
+            tbody.appendChild(newRow);
+
+            // Add highlight animation
+            if (window.RealtimeUI && window.RealtimeUI.utils && window.RealtimeUI.utils.highlightElement) {
+                window.RealtimeUI.utils.highlightElement(newRow, 2000);
+            }
+
+            // Update balance sheet
+            if (typeof updateBalanceSheet === 'function') {
+                updateBalanceSheet();
+            }
+
+            // Update pie chart
+            if (typeof updatePieChart === 'function') {
+                updatePieChart();
+            }
+
+            console.log('[Dashboard RT] FlowGroup added successfully');
+        },
+
+        /**
+         * Update existing FlowGroup in the Expense Groups table
+         */
+        updateFlowGroup: function(flowgroupData) {
+            console.log('[Dashboard RT] Updating FlowGroup:', flowgroupData);
+
+            const row = document.querySelector(`tr[data-group-id="${flowgroupData.id}"]`);
+            if (!row) {
+                console.warn('[Dashboard RT] FlowGroup row not found');
+                return;
+            }
+
+            try {
+                // Update name (2nd column)
+                const nameCell = row.querySelector('td:nth-child(2) span');
+                if (nameCell) {
+                    nameCell.textContent = flowgroupData.name;
+                }
+
+                // Check for budget warning
+                const budgetedAmount = parseFloat(flowgroupData.budgeted_amount) || 0;
+                const totalEstimated = parseFloat(flowgroupData.total_estimated) || 0;
+                const hasBudgetWarning = totalEstimated > budgetedAmount;
+
+                // Update estimated (3rd column) with budget warning logic
+                const estimatedCell = row.querySelector('.group-estimated');
+                if (estimatedCell) {
+                    const formattedEstimated = window.RealtimeUI.utils.formatCurrency(flowgroupData.total_estimated || '0.00');
+                    estimatedCell.textContent = formattedEstimated;
+                    estimatedCell.dataset.value = flowgroupData.total_estimated || '0.00';
+
+                    // Update CSS classes for budget warning
+                    estimatedCell.classList.remove('text-gray-500', 'dark:text-gray-400', 'text-yellow-600', 'dark:text-yellow-500', 'font-semibold');
+                    if (hasBudgetWarning) {
+                        estimatedCell.classList.add('text-yellow-600', 'dark:text-yellow-500', 'font-semibold');
+                    } else {
+                        estimatedCell.classList.add('text-gray-500', 'dark:text-gray-400');
+                    }
+                }
+
+                // Update or add budget warning message
+                const nameContainer = row.querySelector('td:nth-child(2) .flex.flex-col');
+                if (nameContainer) {
+                    // Remove existing warning if present
+                    const existingWarning = nameContainer.querySelector('.text-xs.text-yellow-600');
+                    if (existingWarning) {
+                        existingWarning.remove();
+                    }
+
+                    // Add warning if over budget
+                    if (hasBudgetWarning) {
+                        const warningDiv = document.createElement('div');
+                        warningDiv.className = 'text-xs text-yellow-600 dark:text-yellow-400 font-medium';
+                        warningDiv.textContent = '{% trans "⚠ Over budget" %}';
+                        nameContainer.appendChild(warningDiv);
+                    }
+                }
+
+                // Update realized (4th column)
+                const realizedCell = row.querySelector('.group-realized');
+                if (realizedCell) {
+                    const formattedRealized = window.RealtimeUI.utils.formatCurrency(flowgroupData.total_realized || '0.00');
+                    realizedCell.textContent = formattedRealized;
+                    realizedCell.dataset.value = flowgroupData.total_realized || '0.00';
+                }
+
+                // Highlight the updated row
+                if (window.RealtimeUI && window.RealtimeUI.utils && window.RealtimeUI.utils.highlightElement) {
+                    window.RealtimeUI.utils.highlightElement(row, 2000);
+                }
+
+                // Update balance sheet
+                if (typeof updateBalanceSheet === 'function') {
+                    updateBalanceSheet();
+                }
+
+                // Update pie chart
+                if (typeof updatePieChart === 'function') {
+                    updatePieChart();
+                }
+            } catch (error) {
+                console.error('[Dashboard RT] Error updating FlowGroup:', error);
+            }
+        },
+
+        /**
+         * Remove FlowGroup from the Expense Groups table
+         */
+        removeFlowGroup: function(flowgroupId) {
+            console.log('[Dashboard RT] Removing FlowGroup:', flowgroupId);
+
+            const row = document.querySelector(`tr[data-group-id="${flowgroupId}"]`);
+            if (!row) {
+                console.warn('[Dashboard RT] FlowGroup row not found');
+                return;
+            }
+
+            // Fade out animation
+            row.style.transition = 'opacity 0.3s ease';
+            row.style.opacity = '0';
+
+            setTimeout(() => {
+                if (row.parentNode) {
+                    row.parentNode.removeChild(row);
+
+                    // Check if table is now empty, add "No groups" message
+                    const tbody = document.getElementById('expense-groups-tbody');
+                    if (tbody && tbody.children.length === 0) {
+                        const emptyRow = document.createElement('tr');
+                        const emptyCell = document.createElement('td');
+                        emptyCell.setAttribute('colspan', '4');
+                        emptyCell.className = 'py-4 px-4 text-center text-gray-500';
+                        emptyCell.textContent = '{% trans "No expense groups defined. Click \"Add Group\" to start." %}';
+                        emptyRow.appendChild(emptyCell);
+                        tbody.appendChild(emptyRow);
+                    }
+
+                    // Update balance sheet
+                    if (typeof updateBalanceSheet === 'function') {
+                        updateBalanceSheet();
+                    }
+
+                    // Update pie chart
+                    if (typeof updatePieChart === 'function') {
+                        updatePieChart();
+                    }
+
+                    console.log('[Dashboard RT] FlowGroup removed successfully');
+                }
+            }, 300);
+        },
+
+        /**
+         * Reorder FlowGroups in the table
+         */
+        reorderFlowGroups: function(groupsData) {
+            console.log('[Dashboard RT] Reordering FlowGroups:', groupsData);
+
+            const tbody = document.getElementById('expense-groups-tbody');
+            if (!tbody) {
+                console.warn('[Dashboard RT] Expense groups tbody not found');
+                return;
+            }
+
+            // Create a map of group_id -> order
+            const orderMap = {};
+            groupsData.forEach(function(group) {
+                orderMap[group.id] = group.order;
+            });
+
+            // Update data-order attributes
+            const rows = Array.from(tbody.querySelectorAll('tr[data-group-id]'));
+            rows.forEach(function(row) {
+                const groupId = row.dataset.groupId;
+                if (orderMap[groupId]) {
+                    row.dataset.order = orderMap[groupId];
+                }
+            });
+
+            // Sort rows by order
+            rows.sort(function(a, b) {
+                const orderA = parseInt(a.dataset.order) || 0;
+                const orderB = parseInt(b.dataset.order) || 0;
+                return orderA - orderB;
+            });
+
+            // Re-append rows in new order
+            rows.forEach(function(row) {
+                tbody.appendChild(row);
+            });
+
+            console.log('[Dashboard RT] FlowGroups reordered successfully');
         }
     };
 

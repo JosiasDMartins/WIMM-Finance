@@ -694,5 +694,107 @@ function updateReconciliationSummary() {
         }
     });
 }
+
+// ==============================================
+// REAL-TIME SYNCHRONIZATION
+// ==============================================
+
+/**
+ * Bank Reconciliation Real-time Update Handlers
+ * Handles WebSocket messages for bank balance changes
+ */
+window.BankReconciliationRealtime = {
+
+    /**
+     * Handle bank balance created/updated from another user
+     */
+    updateBalance: function(balanceData) {
+        console.log('[BankRecon RT] Updating balance:', balanceData);
+
+        // Check if we're on the bank reconciliation page
+        if (!document.getElementById('bank-balance-tbody')) {
+            return;
+        }
+
+        const row = document.querySelector(`tr[data-balance-id="${balanceData.id}"]`);
+
+        if (row) {
+            // Update existing row using the data format expected by updateRow()
+            const data = {
+                description: balanceData.description,
+                amount: balanceData.amount,
+                date: balanceData.date,
+                member_id: balanceData.member_id,
+                member_name: balanceData.member_name
+            };
+
+            updateRow(row, data);
+
+            // Highlight the updated row
+            if (window.RealtimeUI && window.RealtimeUI.utils && window.RealtimeUI.utils.highlightElement) {
+                window.RealtimeUI.utils.highlightElement(row, 2000);
+            }
+        } else {
+            // New balance created by another user - reload page to show it
+            console.log('[BankRecon RT] New balance detected, reloading page');
+            location.reload();
+        }
+
+        // Update reconciliation totals
+        if (typeof updateReconciliationSummary === 'function') {
+            updateReconciliationSummary();
+        }
+    },
+
+    /**
+     * Handle bank balance deleted by another user
+     */
+    deleteBalance: function(balanceId) {
+        console.log('[BankRecon RT] Deleting balance:', balanceId);
+
+        const row = document.querySelector(`tr[data-balance-id="${balanceId}"]`);
+        if (row) {
+            // Fade out animation
+            row.style.transition = 'opacity 0.3s ease';
+            row.style.opacity = '0';
+
+            setTimeout(() => {
+                if (row.parentNode) {
+                    row.parentNode.removeChild(row);
+
+                    // Check if table is empty
+                    const tbody = document.getElementById('bank-balance-tbody');
+                    const dataRows = tbody.querySelectorAll('tr[data-balance-id]:not(#new-balance-template)');
+                    if (dataRows.length === 0) {
+                        const emptyRow = document.getElementById('balance-empty-row');
+                        if (emptyRow) {
+                            emptyRow.style.display = '';
+                        }
+                    }
+                }
+            }, 300);
+        }
+
+        // Update reconciliation totals
+        if (typeof updateReconciliationSummary === 'function') {
+            updateReconciliationSummary();
+        }
+    }
+};
+
+// Listen for real-time bank balance events
+document.addEventListener('realtime:bankbalance:updated', function(event) {
+    if (window.BankReconciliationRealtime && window.BankReconciliationRealtime.updateBalance) {
+        window.BankReconciliationRealtime.updateBalance(event.detail.data);
+    }
+});
+
+document.addEventListener('realtime:bankbalance:deleted', function(event) {
+    if (window.BankReconciliationRealtime && window.BankReconciliationRealtime.deleteBalance) {
+        window.BankReconciliationRealtime.deleteBalance(event.detail.data.id);
+    }
+});
+
+console.log('[BankReconciliationRealtime] Loaded successfully');
 </script>
 {% endblock %}
