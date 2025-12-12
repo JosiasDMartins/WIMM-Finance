@@ -597,8 +597,12 @@ def get_balance_summary(family, current_member, family_members, start_date, end_
                     'transactions': list(child_income.values('description', 'amount', 'date', 'realized'))
                 }
 
+        # Calculate realized expense from both accessible and display-only groups
+        # Users should see realized expenses from all groups, even those they cannot edit
+        all_expense_groups = list(accessible_expense_groups) + list(display_only_expense_groups)
+
         realized_exp_calc = Transaction.objects.filter(
-            flow_group__in=accessible_expense_groups, date__range=(start_date, end_date),
+            flow_group__in=all_expense_groups, date__range=(start_date, end_date),
             realized=True, is_child_expense=False
         ).filter(
             Q(flow_group__is_credit_card=False) | Q(flow_group__is_credit_card=True, flow_group__closed=True)

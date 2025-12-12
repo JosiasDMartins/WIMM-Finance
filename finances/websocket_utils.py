@@ -55,21 +55,36 @@ class WebSocketBroadcaster:
         except Exception as e:
             # Log error but don't crash the request
             print(f"[WebSocket] Broadcast error: {e}")
+            import traceback
+            traceback.print_exc()
 
     @staticmethod
     def broadcast_transaction_created(transaction, actor_user):
         """Broadcast transaction creation"""
+        from .views.views_utils import get_currency_symbol
+
+        # Extract numeric amount and currency code
+        amount_value = str(transaction.amount.amount)
+        currency_code = transaction.amount.currency.code
+        currency_symbol = get_currency_symbol(currency_code)
+
         WebSocketBroadcaster.broadcast_to_family(
             family_id=transaction.flow_group.family.id,
             message_type='transaction_created',
             data={
                 'id': transaction.id,
                 'description': transaction.description,
-                'amount': str(transaction.amount),
+                'amount': amount_value,
+                'currency': currency_code,
+                'currency_symbol': currency_symbol,
                 'date': transaction.date.isoformat(),
+                'realized': transaction.realized,
+                'is_income': transaction.flow_group.group_type == 'INCOME',
+                'is_fixed': getattr(transaction, 'is_fixed', False),
                 'flow_group': {
                     'id': transaction.flow_group.id,
                     'name': transaction.flow_group.name,
+                    'type': transaction.flow_group.group_type,
                 },
                 'member': transaction.member.user.username if transaction.member else None,
             },
@@ -79,17 +94,30 @@ class WebSocketBroadcaster:
     @staticmethod
     def broadcast_transaction_updated(transaction, actor_user):
         """Broadcast transaction update"""
+        from .views.views_utils import get_currency_symbol
+
+        # Extract numeric amount and currency code
+        amount_value = str(transaction.amount.amount)
+        currency_code = transaction.amount.currency.code
+        currency_symbol = get_currency_symbol(currency_code)
+
         WebSocketBroadcaster.broadcast_to_family(
             family_id=transaction.flow_group.family.id,
             message_type='transaction_updated',
             data={
                 'id': transaction.id,
                 'description': transaction.description,
-                'amount': str(transaction.amount),
+                'amount': amount_value,
+                'currency': currency_code,
+                'currency_symbol': currency_symbol,
                 'date': transaction.date.isoformat(),
+                'realized': transaction.realized,
+                'is_income': transaction.flow_group.group_type == 'INCOME',
+                'is_fixed': getattr(transaction, 'is_fixed', False),
                 'flow_group': {
                     'id': transaction.flow_group.id,
                     'name': transaction.flow_group.name,
+                    'type': transaction.flow_group.group_type,
                 },
                 'member': transaction.member.user.username if transaction.member else None,
             },

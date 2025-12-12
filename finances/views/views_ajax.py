@@ -199,6 +199,8 @@ def save_flow_item_ajax(request):
                 )
         except Exception as e:
             print(f"[WebSocket] Broadcast error: {e}")
+            import traceback
+            traceback.print_exc()
 
         # Criar notificação SEMPRE (para novas transações e edições)
         print(f"[DEBUG] Attempting to create notification for transaction {transaction.id}")

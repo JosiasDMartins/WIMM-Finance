@@ -173,15 +173,6 @@
     window.RealtimeUI.handleTransactionCreated = function(data) {
         console.log('[RealtimeUI] Transaction created:', data);
 
-        // Show toast if action by another user
-        if (data.actor && data.actor.id !== currentUserId) {
-            showRealtimeToast(
-                `New transaction: ${data.data.description}`,
-                'info',
-                data.actor
-            );
-        }
-
         // Trigger custom event for page-specific handlers
         triggerCustomEvent('realtime:transaction:created', data);
 
@@ -198,15 +189,6 @@
 
     window.RealtimeUI.handleTransactionUpdated = function(data) {
         console.log('[RealtimeUI] Transaction updated:', data);
-
-        // Show toast if action by another user
-        if (data.actor && data.actor.id !== currentUserId) {
-            showRealtimeToast(
-                `Transaction updated: ${data.data.description}`,
-                'info',
-                data.actor
-            );
-        }
 
         // Trigger custom event
         triggerCustomEvent('realtime:transaction:updated', data);
@@ -243,15 +225,6 @@
     window.RealtimeUI.handleTransactionDeleted = function(data) {
         console.log('[RealtimeUI] Transaction deleted:', data);
 
-        // Show toast if action by another user
-        if (data.actor && data.actor.id !== currentUserId) {
-            showRealtimeToast(
-                'Transaction deleted',
-                'info',
-                data.actor
-            );
-        }
-
         // Trigger custom event
         triggerCustomEvent('realtime:transaction:deleted', data);
 
@@ -278,15 +251,6 @@
 
     window.RealtimeUI.handleFlowGroupUpdated = function(data) {
         console.log('[RealtimeUI] FlowGroup updated:', data);
-
-        // Show toast if action by another user
-        if (data.actor && data.actor.id !== currentUserId) {
-            showRealtimeToast(
-                `Budget updated: ${data.data.name}`,
-                'info',
-                data.actor
-            );
-        }
 
         // Trigger custom event
         triggerCustomEvent('realtime:flowgroup:updated', data);
@@ -317,15 +281,6 @@
     window.RealtimeUI.handleFlowGroupDeleted = function(data) {
         console.log('[RealtimeUI] FlowGroup deleted:', data);
 
-        // Show toast if action by another user
-        if (data.actor && data.actor.id !== currentUserId) {
-            showRealtimeToast(
-                `Budget deleted: ${data.data.name}`,
-                'warning',
-                data.actor
-            );
-        }
-
         // Trigger custom event
         triggerCustomEvent('realtime:flowgroup:deleted', data);
 
@@ -347,15 +302,6 @@
 
     window.RealtimeUI.handleBankBalanceUpdated = function(data) {
         console.log('[RealtimeUI] Bank balance updated:', data);
-
-        // Show toast if action by another user
-        if (data.actor && data.actor.id !== currentUserId) {
-            showRealtimeToast(
-                `Bank balance updated: ${data.data.bank_name}`,
-                'info',
-                data.actor
-            );
-        }
 
         // Trigger custom event
         triggerCustomEvent('realtime:bankbalance:updated', data);
@@ -384,15 +330,6 @@
     window.RealtimeUI.handleBankBalanceDeleted = function(data) {
         console.log('[RealtimeUI] Bank balance deleted:', data);
 
-        // Show toast if action by another user
-        if (data.actor && data.actor.id !== currentUserId) {
-            showRealtimeToast(
-                'Bank account deleted',
-                'info',
-                data.actor
-            );
-        }
-
         // Trigger custom event
         triggerCustomEvent('realtime:bankbalance:deleted', data);
 
@@ -415,14 +352,7 @@
     window.RealtimeUI.handleNotification = function(data) {
         console.log('[RealtimeUI] Notification received:', data);
 
-        // Show notification toast
-        showRealtimeToast(
-            data.data.message,
-            data.data.level || 'info',
-            data.actor
-        );
-
-        // Trigger custom event
+        // Trigger custom event for notification system to handle
         triggerCustomEvent('realtime:notification', data);
     };
 

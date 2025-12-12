@@ -293,28 +293,51 @@ redis_password = os.environ.get('REDIS_PASSWORD', None)
 redis_host = os.environ.get('REDIS_HOST', '127.0.0.1')
 redis_port = os.environ.get('REDIS_PORT', '6379')
 
-if redis_password:
-    # Format: redis://:password@host:port
-    redis_url = f"redis://:{redis_password}@{redis_host}:{redis_port}"
+# Check if we should use InMemoryChannelLayer (development without Redis)
+use_in_memory = os.environ.get('USE_REDIS_MOCK', '').lower() == 'true'
+
+# Auto-detect Redis availability in development
+if DEBUG and not use_in_memory:
+    import socket
+    try:
+        # Try to connect to Redis to check if it's available
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        sock.connect((redis_host, int(redis_port)))
+        sock.close()
+        redis_available = True
+    except (socket.error, socket.timeout, ValueError):
+        redis_available = False
+        print(f"[Django Channels] Redis not available at {redis_host}:{redis_port}, using InMemoryChannelLayer")
 else:
-    # Format: redis://host:port
-    redis_url = f"redis://{redis_host}:{redis_port}"
+    redis_available = not use_in_memory
 
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [redis_url],
-            "capacity": 1500,  # Max messages per channel
-            "expiry": 10,  # Message expiry in seconds
+# Configure channel layer based on Redis availability
+if redis_available:
+    # Use Redis for production or when Redis is available in development
+    if redis_password:
+        # Format: redis://:password@host:port
+        redis_url = f"redis://:{redis_password}@{redis_host}:{redis_port}"
+    else:
+        # Format: redis://host:port
+        redis_url = f"redis://{redis_host}:{redis_port}"
+
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                "hosts": [redis_url],
+                "capacity": 1500,  # Max messages per channel
+                "expiry": 10,  # Message expiry in seconds
+            },
         },
-    },
-}
-
-# Development fallback - use InMemoryChannelLayer when Redis not available
-if DEBUG and os.environ.get('USE_REDIS_MOCK') == 'true':
+    }
+    print(f"[Django Channels] Using Redis channel layer at {redis_host}:{redis_port}")
+else:
+    # Use in-memory layer for development when Redis is not available
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels.layers.InMemoryChannelLayer'
         }
     }
+    print("[Django Channels] Using InMemoryChannelLayer (development mode without Redis)")

@@ -984,10 +984,23 @@
                 // Update toggle visual state
                 const toggleBtn = row.querySelector('.income-realized-toggle');
                 const toggleCircle = toggleBtn.querySelector('span');
-                const amountCell = row.querySelector('.cell-amount-display').parentElement;
-                
-                // Update data attribute
+                const amountDisplay = row.querySelector('.cell-amount-display');
+                const amountCell = amountDisplay.parentElement;
+
+                // Update data attributes
                 row.setAttribute('data-realized', data.realized ? 'true' : 'false');
+                row.setAttribute('data-amount', data.amount);
+
+                // Update amount display with currency symbol
+                if (data.amount && data.currency_symbol) {
+                    amountDisplay.textContent = data.currency_symbol + ' ' + formatCurrency(data.amount);
+                }
+
+                // Update amount input field
+                const amountInput = row.querySelector('input[data-field="amount"]');
+                if (amountInput && data.amount) {
+                    amountInput.value = formatAmountForInput(data.amount);
+                }
 
                 if (data.realized) {
                     toggleBtn.classList.remove('bg-gray-300', 'dark:bg-gray-600');
@@ -2417,5 +2430,298 @@
         }
     }
 </style>
+
+<script>
+/**
+ * Real-time Updates for Dashboard
+ * Handles WebSocket broadcasts to update the income transactions list
+ */
+(function() {
+    'use strict';
+
+    // Dashboard Real-time Updates Namespace
+    window.DashboardRealtime = {
+        /**
+         * Add new transaction to the list
+         */
+        addTransaction: function(transactionData) {
+            console.log('[Dashboard RT] Adding new transaction:', transactionData);
+
+            // Check if transaction is income type (since dashboard shows income)
+            if (!transactionData.is_income) {
+                console.log('[Dashboard RT] Transaction is not income, skipping');
+                return;
+            }
+
+            const tbody = document.getElementById('income-items-body');
+            if (!tbody) {
+                console.warn('[Dashboard RT] Income tbody not found');
+                return;
+            }
+
+            // Check if transaction already exists (avoid duplicates)
+            const existingRow = document.getElementById(`income-item-${transactionData.id}`);
+            if (existingRow) {
+                console.log('[Dashboard RT] Transaction already exists, updating instead');
+                this.updateTransaction(transactionData);
+                return;
+            }
+
+            // Create new row
+            const newRow = this._createTransactionRow(transactionData);
+
+            // Insert at the beginning of tbody
+            tbody.insertBefore(newRow, tbody.firstChild);
+
+            // Add fade-in animation
+            setTimeout(() => {
+                newRow.style.transition = 'background-color 0.5s ease';
+                newRow.style.backgroundColor = '';
+            }, 100);
+
+            console.log('[Dashboard RT] Transaction added successfully');
+        },
+
+        /**
+         * Update existing transaction
+         */
+        updateTransaction: function(transactionData) {
+            const row = document.getElementById(`income-item-${transactionData.id}`);
+            if (!row) {
+                return;
+            }
+
+            try {
+                // Update description
+                const descDisplay = row.querySelector('.cell-description-display');
+                if (descDisplay) {
+                    descDisplay.textContent = transactionData.description;
+                }
+                const descInput = row.querySelector('input[data-field="description"]');
+                if (descInput) {
+                    descInput.value = transactionData.description;
+                }
+
+                // Update date
+                if (transactionData.date) {
+                    const dateDisplay = row.querySelector('.cell-date-display');
+                    if (dateDisplay) {
+                        const dateObj = new Date(transactionData.date);
+                        const day = String(dateObj.getDate()).padStart(2, '0');
+                        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                        dateDisplay.textContent = `${day}/${month}`;
+                    }
+                    const dateInput = row.querySelector('input[data-field="date"]');
+                    if (dateInput) {
+                        dateInput.value = transactionData.date;
+                    }
+                    row.dataset.date = transactionData.date;
+                }
+
+                // Update amount
+                if (transactionData.amount) {
+                    const amountDisplay = row.querySelector('.cell-amount-display');
+                    if (amountDisplay) {
+                        const formattedAmount = window.RealtimeUI.utils.formatCurrency(transactionData.amount);
+                        amountDisplay.textContent = formattedAmount;
+                    }
+                    const amountInput = row.querySelector('input[data-field="amount"]');
+                    if (amountInput && typeof formatAmountForInput === 'function') {
+                        amountInput.value = formatAmountForInput(transactionData.amount);
+                    } else if (amountInput) {
+                        amountInput.value = transactionData.amount;
+                    }
+                    row.dataset.amount = transactionData.amount;
+                }
+
+                // Update is_fixed
+                if (typeof transactionData.is_fixed !== 'undefined') {
+                    row.dataset.isFixed = transactionData.is_fixed ? 'true' : 'false';
+                }
+
+                // Update realized status
+                if (typeof transactionData.realized !== 'undefined') {
+                    row.dataset.realized = transactionData.realized ? 'true' : 'false';
+
+                    // Update row background class
+                    if (transactionData.realized) {
+                        row.classList.remove('row-not-realized-income');
+                        row.classList.add('row-realized-income');
+                    } else {
+                        row.classList.remove('row-realized-income');
+                        row.classList.add('row-not-realized-income');
+                    }
+
+                    // Update toggle button
+                    const toggleBtn = row.querySelector('.income-realized-toggle');
+                    if (toggleBtn) {
+                        if (transactionData.realized) {
+                            toggleBtn.classList.add('bg-green-500');
+                            toggleBtn.classList.remove('bg-gray-300', 'dark:bg-gray-600');
+                        } else {
+                            toggleBtn.classList.remove('bg-green-500');
+                            toggleBtn.classList.add('bg-gray-300', 'dark:bg-gray-600');
+                        }
+
+                        const toggleSpan = toggleBtn.querySelector('span');
+                        if (toggleSpan) {
+                            if (transactionData.realized) {
+                                toggleSpan.classList.add('translate-x-4');
+                            } else {
+                                toggleSpan.classList.remove('translate-x-4');
+                            }
+                        }
+                    }
+
+                    // Update amount cell color (4th column)
+                    const amountCell = row.querySelector('td:nth-child(4)');
+                    if (amountCell) {
+                        if (transactionData.realized) {
+                            amountCell.classList.add('text-green-600', 'dark:text-green-500');
+                            amountCell.classList.remove('text-gray-400', 'dark:text-gray-500');
+                        } else {
+                            amountCell.classList.remove('text-green-600', 'dark:text-green-500');
+                            amountCell.classList.add('text-gray-400', 'dark:text-gray-500');
+                        }
+                    }
+                }
+
+                // Highlight the updated row to show it changed
+                if (window.RealtimeUI && window.RealtimeUI.utils && window.RealtimeUI.utils.highlightElement) {
+                    window.RealtimeUI.utils.highlightElement(row, 2000);
+                } else {
+                    row.style.backgroundColor = 'rgba(250, 204, 21, 0.3)';
+                    setTimeout(() => {
+                        row.style.backgroundColor = '';
+                    }, 2000);
+                }
+
+                // Update balance sheet, key metrics, and charts
+                if (typeof updateBalanceSheet === 'function') {
+                    updateBalanceSheet();
+                }
+            } catch (error) {
+                console.error('[Dashboard RT] Error updating transaction:', error);
+            }
+        },
+
+        /**
+         * Remove transaction from the list
+         */
+        removeTransaction: function(transactionId) {
+            console.log('[Dashboard RT] Removing transaction:', transactionId);
+
+            const row = document.getElementById(`income-item-${transactionId}`);
+            if (!row) {
+                console.warn('[Dashboard RT] Transaction row not found');
+                return;
+            }
+
+            // Fade out animation
+            row.style.transition = 'opacity 0.3s ease';
+            row.style.opacity = '0';
+
+            setTimeout(() => {
+                if (row.parentNode) {
+                    row.parentNode.removeChild(row);
+                    console.log('[Dashboard RT] Transaction removed successfully');
+                }
+            }, 300);
+        },
+
+        /**
+         * Create a new transaction row element
+         * @private
+         */
+        _createTransactionRow: function(data) {
+            const tr = document.createElement('tr');
+            tr.id = `income-item-${data.id}`;
+            tr.dataset.itemId = data.id;
+            tr.dataset.mode = 'display';
+            tr.dataset.realized = data.realized ? 'true' : 'false';
+            tr.dataset.isFixed = data.is_fixed ? 'true' : 'false';
+            tr.dataset.date = data.date;
+            tr.dataset.amount = data.amount;
+            tr.className = `swipeable-row-income ${data.realized ? 'row-realized-income' : 'row-not-realized-income'} hover:bg-slate-50 dark:hover:bg-gray-700/50`;
+            tr.style.backgroundColor = 'rgba(34, 197, 94, 0.1)'; // Initial highlight
+
+            // Format date for display
+            let dateDisplay = '';
+            if (data.date) {
+                const dateObj = new Date(data.date);
+                const day = String(dateObj.getDate()).padStart(2, '0');
+                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                dateDisplay = `${day}/${month}`;
+            }
+
+            // Format amount
+            const formattedAmount = window.RealtimeUI.utils.formatCurrency(data.amount);
+
+            tr.innerHTML = `
+                <td class="px-2 py-4 text-center drag-handle-cell-income" data-row-id="income-item-${data.id}">
+                    <span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle-income cursor-grab active:cursor-grabbing">drag_indicator</span>
+                    <button type="button" onclick="saveItem('income-item-${data.id}')" class="edit-save-icon-income" style="display: none;">
+                        <span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span>
+                    </button>
+                </td>
+
+                <td class="py-3 px-3 text-sm text-[#0d171b] dark:text-white">
+                    <div class="cell-description-display"></div>
+                    <div class="cell-description-edit hidden">
+                        <input type="text" data-field="description" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs p-1" value="${data.description}">
+                    </div>
+                </td>
+
+                <td class="py-3 px-2 text-xs text-gray-500 dark:text-gray-400 text-center">
+                    <div class="cell-date-display">${dateDisplay}</div>
+                    <div class="cell-date-edit hidden">
+                        <input type="date" data-field="date" class="w-full border-b border-primary dark:text-white dark:bg-gray-800 bg-transparent focus:outline-none focus:ring-0 text-xs p-1 date-input-field-income" value="${data.date}">
+                    </div>
+                </td>
+
+                <td class="py-3 px-3 text-sm text-right ${data.realized ? 'text-green-600 dark:text-green-500' : 'text-gray-400 dark:text-gray-500'} amount-cell-with-actions">
+                    <div class="cell-amount-display">${formattedAmount}</div>
+                    <div class="cell-amount-edit hidden">
+                        <input type="text" inputmode="decimal" data-field="amount" class="w-20 border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs text-right p-1" value="${data.amount}">
+                    </div>
+
+                    <div class="mobile-actions-btns-income">
+                        <button type="button" onclick="toggleEditMode('income-item-${data.id}', true)" class="mobile-action-btn-income edit-btn-income">
+                            <span class="material-symbols-outlined">edit</span>
+                        </button>
+                        <button type="button" onclick="deleteItem('income-item-${data.id}')" class="mobile-action-btn-income delete-btn-income">
+                            <span class="material-symbols-outlined">delete</span>
+                        </button>
+                    </div>
+                </td>
+
+                <td class="py-3 px-2 text-center mobile-hide-column">
+                    <button type="button" onclick="toggleIncomeRealized('income-item-${data.id}')" class="income-realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-pointer ${data.realized ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}">
+                        <span class="absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full ${data.realized ? 'translate-x-4' : ''}"></span>
+                    </button>
+                </td>
+
+                <td class="px-2 py-3 text-center whitespace-nowrap mobile-hide-column">
+                    <div class="actions-display flex justify-center gap-1">
+                        <button type="button" onclick="toggleEditMode('income-item-${data.id}', true)" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
+                        <button type="button" onclick="deleteItem('income-item-${data.id}')" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
+                    </div>
+                    <div class="actions-edit hidden flex justify-center gap-1">
+                        <button type="button" onclick="saveItem('income-item-${data.id}')" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
+                        <button type="button" onclick="toggleEditMode('income-item-${data.id}', false)" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
+                    </div>
+                </td>
+            `;
+
+            // Set description using textContent for security
+            tr.querySelector('.cell-description-display').textContent = data.description;
+
+            return tr;
+        }
+    };
+
+    console.log('[Dashboard RT] Real-time updates initialized');
+})();
+</script>
 
 {% endblock content %}
