@@ -220,6 +220,15 @@
         if (typeof window.DashboardRealtime !== 'undefined' && window.DashboardRealtime.updateTransaction) {
             window.DashboardRealtime.updateTransaction(data.data);
         }
+
+        // Try FlowGroup page handler
+        console.log('[RealtimeUI] Checking for FlowGroup handler...', typeof window.FlowGroupRealtime);
+        if (typeof window.FlowGroupRealtime !== 'undefined' && window.FlowGroupRealtime.updateTransaction) {
+            console.log('[RealtimeUI] Calling FlowGroupRealtime.updateTransaction()');
+            window.FlowGroupRealtime.updateTransaction(data.data);
+        } else {
+            console.log('[RealtimeUI] FlowGroupRealtime not available');
+        }
     };
 
     window.RealtimeUI.handleTransactionDeleted = function(data) {
@@ -242,6 +251,11 @@
         // Try page-specific handlers
         if (typeof window.DashboardRealtime !== 'undefined' && window.DashboardRealtime.removeTransaction) {
             window.DashboardRealtime.removeTransaction(data.data.id);
+        }
+
+        // Try FlowGroup page handler
+        if (typeof window.FlowGroupRealtime !== 'undefined' && window.FlowGroupRealtime.removeTransaction) {
+            window.FlowGroupRealtime.removeTransaction(data.data.id);
         }
     };
 
@@ -348,6 +362,22 @@
                     element.parentNode.removeChild(element);
                 }
             }, 300);
+        }
+    };
+
+    // ==============================================
+    // RECONCILIATION MODE HANDLER
+    // ==============================================
+
+    window.RealtimeUI.handleReconciliationModeChanged = function(data) {
+        console.log('[RealtimeUI] Reconciliation mode changed:', data);
+
+        // Trigger custom event
+        triggerCustomEvent('realtime:reconciliation:mode_changed', data);
+
+        // Try BankReconciliationRealtime handler
+        if (typeof window.BankReconciliationRealtime !== 'undefined' && window.BankReconciliationRealtime.handleModeChange) {
+            window.BankReconciliationRealtime.handleModeChange(data.data);
         }
     };
 

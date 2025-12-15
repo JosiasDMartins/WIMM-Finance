@@ -1234,7 +1234,7 @@
         window.thousandSeparator = "{{ thousand_separator }}";
         window.currencySymbol = "{{ currency_symbol }}";
     </script>
-    <script src="{% static 'finances/js/realtime_ui.js' %}"></script>
+    <script src="{% static 'finances/js/realtime_ui.js' %}?v=20251215-003"></script>
 
     <script>
         // Initialize WebSocket connection on page load
@@ -1290,6 +1290,10 @@
 
             wsManager.registerHandler('bank_balance_deleted', function(data) {
                 window.RealtimeUI.handleBankBalanceDeleted(data);
+            });
+
+            wsManager.registerHandler('reconciliation_mode_changed', function(data) {
+                window.RealtimeUI.handleReconciliationModeChanged(data);
             });
 
             wsManager.registerHandler('notification', function(data) {

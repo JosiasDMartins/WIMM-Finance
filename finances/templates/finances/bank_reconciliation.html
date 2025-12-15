@@ -22,7 +22,7 @@
                 <span class="mr-3 text-sm text-gray-700 dark:text-gray-300">{% trans "General" %}</span>
                 <div class="relative">
                     <input type="checkbox" id="mode-toggle" class="sr-only" {% if mode == 'detailed' %}checked{% endif %}
-                           onchange="window.location.href='?period={{ selected_period }}&mode=' + (this.checked ? 'detailed' : 'general')">
+                           onchange="toggleReconciliationMode(this.checked)">
                     <div class="block bg-gray-300 dark:bg-gray-600 w-14 h-8 rounded-full"></div>
                     <div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
                 </div>
@@ -779,6 +779,71 @@ window.BankReconciliationRealtime = {
         if (typeof updateReconciliationSummary === 'function') {
             updateReconciliationSummary();
         }
+    }
+};
+
+// Function to toggle reconciliation mode via AJAX
+function toggleReconciliationMode(isDetailed) {
+    const mode = isDetailed ? 'detailed' : 'general';
+    console.log('[BankReconciliation] Toggling mode to:', mode);
+
+    fetch("{% url 'toggle_reconciliation_mode_ajax' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ mode: mode })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            console.log('[BankReconciliation] Mode changed successfully to:', data.mode);
+            // Reload page to apply new mode
+            const urlParams = new URLSearchParams(window.location.search);
+            urlParams.set('mode', data.mode);
+            window.location.search = urlParams.toString();
+        } else {
+            console.error('[BankReconciliation] Error changing mode:', data.error);
+            // Revert toggle on error
+            const toggle = document.getElementById('mode-toggle');
+            if (toggle) {
+                toggle.checked = !isDetailed;
+            }
+        }
+    })
+    .catch(error => {
+        console.error('[BankReconciliation] Fetch error:', error);
+        // Revert toggle on error
+        const toggle = document.getElementById('mode-toggle');
+        if (toggle) {
+            toggle.checked = !isDetailed;
+        }
+    });
+}
+
+// Add handleModeChange to BankReconciliationRealtime namespace
+window.BankReconciliationRealtime.handleModeChange = function(data) {
+    console.log('[BankReconciliationRealtime] Mode change received:', data);
+
+    const mode = data.mode;
+    const toggle = document.getElementById('mode-toggle');
+
+    if (!toggle) {
+        console.warn('[BankReconciliationRealtime] Mode toggle not found');
+        return;
+    }
+
+    // Update toggle state
+    const shouldBeChecked = (mode === 'detailed');
+    if (toggle.checked !== shouldBeChecked) {
+        toggle.checked = shouldBeChecked;
+
+        // Reload page to apply new mode
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.set('mode', mode);
+        window.location.search = urlParams.toString();
     }
 };
 

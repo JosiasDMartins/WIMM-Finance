@@ -3073,7 +3073,7 @@
                 return;
             }
 
-            const tbody = document.getElementById('items-tbody');
+            const tbody = document.getElementById('expense-items-body');
             if (!tbody) {
                 console.warn('[FlowGroup RT] Items tbody not found');
                 return;
@@ -3107,10 +3107,11 @@
 
             const row = document.getElementById(`item-${transactionData.id}`);
             if (!row) {
-                console.warn('[FlowGroup RT] Transaction row not found');
+                console.warn('[FlowGroup RT] Transaction row not found:', `item-${transactionData.id}`);
                 return;
             }
 
+            console.log('[FlowGroup RT] Updating row elements...');
             try {
                 // Update description display
                 const descDisplay = row.querySelector('.cell-description-display');
@@ -3127,12 +3128,15 @@
 
                 // Update date display
                 if (transactionData.date) {
-                    const dateDisplay = row.querySelector('.cell-date-display');
-                    if (dateDisplay) {
+                    const dateFull = row.querySelector('.date-full');
+                    const dateShort = row.querySelector('.date-short');
+                    if (dateFull && dateShort) {
                         const dateObj = new Date(transactionData.date);
-                        const day = String(dateObj.getDate()).padStart(2, '0');
+                        const year = dateObj.getFullYear();
                         const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-                        dateDisplay.textContent = `${day}/${month}`;
+                        const day = String(dateObj.getDate()).padStart(2, '0');
+                        dateFull.textContent = `${year}-${month}-${day}`;
+                        dateShort.textContent = `${day}/${month}`;
                     }
                 }
 
@@ -3167,18 +3171,15 @@
                     }
                 }
 
-                // Update fixed toggle
-                const fixedToggleBtn = row.querySelector('.fixed-toggle');
+                // Update fixed toggle button
+                const fixedToggleBtn = row.querySelector('.fixed-toggle-btn');
                 if (fixedToggleBtn) {
-                    const fixedCircle = fixedToggleBtn.querySelector('span');
                     if (transactionData.is_fixed) {
-                        fixedToggleBtn.classList.remove('bg-gray-300', 'dark:bg-gray-600');
-                        fixedToggleBtn.classList.add('bg-blue-500');
-                        if (fixedCircle) fixedCircle.classList.add('translate-x-4');
+                        fixedToggleBtn.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-400', 'dark:text-gray-500', 'hover:bg-blue-200', 'dark:hover:bg-blue-900/30');
+                        fixedToggleBtn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
                     } else {
-                        fixedToggleBtn.classList.remove('bg-blue-500');
-                        fixedToggleBtn.classList.add('bg-gray-300', 'dark:bg-gray-600');
-                        if (fixedCircle) fixedCircle.classList.remove('translate-x-4');
+                        fixedToggleBtn.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+                        fixedToggleBtn.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-400', 'dark:text-gray-500', 'hover:bg-blue-200', 'dark:hover:bg-blue-900/30');
                     }
                 }
 
@@ -3195,6 +3196,8 @@
                 if (window.RealtimeUI && window.RealtimeUI.utils && window.RealtimeUI.utils.highlightElement) {
                     window.RealtimeUI.utils.highlightElement(row, 2000);
                 }
+
+                console.log('[FlowGroup RT] Transaction updated successfully:', transactionData.id);
             } catch (error) {
                 console.error('[FlowGroup RT] Error updating transaction:', error);
             }
@@ -3280,6 +3283,16 @@
                 const isCreditCardCheckbox = document.getElementById('id_is_credit_card');
                 if (isCreditCardCheckbox) {
                     isCreditCardCheckbox.checked = flowgroupData.is_credit_card;
+
+                    // Show/hide credit card closed button based on checkbox
+                    const closedBtnContainer = document.querySelector('[onclick*="toggleCreditCardClosed"]')?.closest('.flex, .inline-flex');
+                    if (closedBtnContainer) {
+                        if (flowgroupData.is_credit_card) {
+                            closedBtnContainer.style.display = '';
+                        } else {
+                            closedBtnContainer.style.display = 'none';
+                        }
+                    }
                 }
 
                 // Update assigned members multi-select
@@ -3441,6 +3454,8 @@
     });
 
     console.log('[FlowGroup RT] Real-time updates initialized');
+    console.log('[FlowGroup RT] window.FlowGroupRealtime =', window.FlowGroupRealtime);
+    console.log('[FlowGroup RT] window.FlowGroupRealtime.updateTransaction =', window.FlowGroupRealtime.updateTransaction);
 })();
 </script>
 

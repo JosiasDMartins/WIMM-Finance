@@ -284,6 +284,7 @@ def delete_flow_item_ajax(request):
         # Store data before deleting
         family_id = transaction.flow_group.family.id
         flow_group = transaction.flow_group
+        is_investment = transaction.flow_group.is_investment
 
         transaction.delete()
 
@@ -292,6 +293,7 @@ def delete_flow_item_ajax(request):
             WebSocketBroadcaster.broadcast_transaction_deleted(
                 transaction_id=transaction_id,
                 family_id=family_id,
+                is_investment=is_investment,
                 actor_user=request.user
             )
 
@@ -1438,6 +1440,94 @@ def get_bank_reconciliation_summary_ajax(request):
         return JsonResponse({
             'status': 'success',
             'reconciliation_data': reconciliation_data
+        })
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def toggle_reconciliation_mode_ajax(request):
+    """AJAX: Toggle bank reconciliation mode between 'general' and 'detailed'."""
+    if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return HttpResponseBadRequest(_("Not an AJAX request."))
+
+    family, current_member, _unused = get_family_context(request.user)
+    if not family:
+        return HttpResponseForbidden(_("User is not associated with a family."))
+
+    try:
+        data = json.loads(request.body)
+        mode = data.get('mode')
+
+        if mode not in ['general', 'detailed']:
+            return JsonResponse({
+                'status': 'error',
+                'error': _('Invalid mode. Must be "general" or "detailed".')
+            }, status=400)
+
+        # Update configuration
+        config = family.configuration
+        config.bank_reconciliation_mode = mode
+        config.save(update_fields=['bank_reconciliation_mode'])
+
+        # Broadcast to all family members
+        WebSocketBroadcaster.broadcast_to_family(
+            family_id=family.id,
+            message_type='reconciliation_mode_changed',
+            data={'mode': mode},
+            actor_user=request.user
+        )
+
+        return JsonResponse({
+            'status': 'success',
+            'mode': mode
+        })
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'error': str(e)}, status=500)
+
+
+@login_required
+def get_investment_balance_ajax(request):
+    """AJAX: Get current investment balance for real-time updates."""
+    if not request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return HttpResponseBadRequest(_("Not an AJAX request."))
+
+    family, current_member, _unused = get_family_context(request.user)
+    if not family:
+        return HttpResponseForbidden(_("User is not associated with a family."))
+
+    # Block Child users
+    if current_member.role == 'CHILD':
+        return HttpResponseForbidden(_("Child users cannot access investments."))
+
+    try:
+        from datetime import date
+        from decimal import Decimal, ROUND_DOWN
+
+        # Get current period
+        query_period = request.GET.get('period')
+        start_date, end_date, _unused = get_current_period_dates(family, query_period)
+
+        # Calculate from year start to current period end
+        year_start = date(end_date.year, 1, 1)
+
+        investment_balance = Transaction.objects.filter(
+            flow_group__family=family,
+            flow_group__is_investment=True,
+            date__range=(year_start, end_date),
+            realized=True
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        # Convert Money to Decimal
+        available_balance = Decimal(str(investment_balance.amount)) if hasattr(investment_balance, 'amount') else investment_balance
+        available_balance = available_balance.quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+
+        return JsonResponse({
+            'status': 'success',
+            'available_balance': str(available_balance)
         })
 
     except Exception as e:

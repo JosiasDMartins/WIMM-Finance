@@ -462,6 +462,22 @@
         return formattedInteger + decimalSeparator + decimalPart;
     }
 
+    // Function to parse localized currency string back to number
+    function parseCurrency(text) {
+        if (!text) return 0;
+
+        // Remove currency symbol and whitespace
+        let cleanText = text.replace(/[^\d.,\-]/g, '');
+
+        // Replace thousand separator with empty string
+        // Replace decimal separator with dot for parseFloat
+        cleanText = cleanText.replace(new RegExp('\\' + thousandSeparator, 'g'), '');
+        cleanText = cleanText.replace(new RegExp('\\' + decimalSeparator, 'g'), '.');
+
+        const num = parseFloat(cleanText);
+        return isNaN(num) ? 0 : num;
+    }
+
     // === CHARTS INITIALIZATION ===
     
     // Chart.js default colors
@@ -710,12 +726,9 @@
             return;
         }
 
-        // Remove all non-numeric characters except decimal point and minus sign
-        const realizedIncomeText = incomeElem.textContent.replace(/[^\d.-]/g, '');
-        const realizedExpenseText = expenseElem.textContent.replace(/[^\d.-]/g, '');
-
-        const realizedIncome = parseFloat(realizedIncomeText) || 0;
-        const realizedExpense = parseFloat(realizedExpenseText) || 0;
+        // Parse localized currency values
+        const realizedIncome = parseCurrency(incomeElem.textContent);
+        const realizedExpense = parseCurrency(expenseElem.textContent);
 
         const commitment = realizedIncome > 0 ? (realizedExpense / realizedIncome * 100) : 0;
         const commitmentElem = document.getElementById('metric-commitment');
@@ -2822,9 +2835,11 @@
                 // Update estimated (3rd column) with budget warning logic
                 const estimatedCell = row.querySelector('.group-estimated');
                 if (estimatedCell) {
-                    const formattedEstimated = window.RealtimeUI.utils.formatCurrency(flowgroupData.total_estimated || '0.00');
+                    // Show budgeted_amount normally, or total_estimated if over budget
+                    const displayValue = hasBudgetWarning ? flowgroupData.total_estimated : flowgroupData.budgeted_amount;
+                    const formattedEstimated = window.RealtimeUI.utils.formatCurrency(displayValue || '0.00');
                     estimatedCell.textContent = formattedEstimated;
-                    estimatedCell.dataset.value = flowgroupData.total_estimated || '0.00';
+                    estimatedCell.dataset.value = displayValue || '0.00';
 
                     // Update CSS classes for budget warning
                     estimatedCell.classList.remove('text-gray-500', 'dark:text-gray-400', 'text-yellow-600', 'dark:text-yellow-500', 'font-semibold');

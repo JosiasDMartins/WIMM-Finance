@@ -80,6 +80,7 @@ class WebSocketBroadcaster:
                 'date': transaction.date.isoformat(),
                 'realized': transaction.realized,
                 'is_income': transaction.flow_group.group_type == 'INCOME',
+                'is_investment': transaction.flow_group.is_investment,
                 'is_fixed': getattr(transaction, 'is_fixed', False),
                 'flow_group': {
                     'id': transaction.flow_group.id,
@@ -114,6 +115,7 @@ class WebSocketBroadcaster:
                 'date': transaction.date.isoformat(),
                 'realized': transaction.realized,
                 'is_income': transaction.flow_group.group_type == 'INCOME',
+                'is_investment': transaction.flow_group.is_investment,
                 'is_fixed': getattr(transaction, 'is_fixed', False),
                 'flow_group': {
                     'id': transaction.flow_group.id,
@@ -127,13 +129,14 @@ class WebSocketBroadcaster:
         )
 
     @staticmethod
-    def broadcast_transaction_deleted(transaction_id, family_id, actor_user):
+    def broadcast_transaction_deleted(transaction_id, family_id, is_investment=False, actor_user=None):
         """Broadcast transaction deletion"""
         WebSocketBroadcaster.broadcast_to_family(
             family_id=family_id,
             message_type='transaction_deleted',
             data={
                 'id': transaction_id,
+                'is_investment': is_investment,
             },
             actor_user=actor_user
         )
@@ -219,4 +222,65 @@ class WebSocketBroadcaster:
                 'level': level
             },
             actor_user=None
+        )
+
+    @staticmethod
+    def broadcast_configuration_updated(family_configuration, actor_user):
+        """Broadcast family configuration update"""
+        WebSocketBroadcaster.broadcast_to_family(
+            family_id=family_configuration.family.id,
+            message_type='configuration_updated',
+            data={
+                'base_currency': family_configuration.base_currency,
+                'period_type': family_configuration.period_type,
+                'starting_day': family_configuration.starting_day,
+                'base_date': family_configuration.base_date.strftime('%Y-%m-%d') if family_configuration.base_date else None,
+                'bank_reconciliation_tolerance': str(family_configuration.bank_reconciliation_tolerance),
+            },
+            actor_user=actor_user
+        )
+
+    @staticmethod
+    def broadcast_member_added(member, actor_user):
+        """Broadcast new family member addition"""
+        WebSocketBroadcaster.broadcast_to_family(
+            family_id=member.family.id,
+            message_type='member_added',
+            data={
+                'id': member.id,
+                'username': member.user.username,
+                'email': member.user.email or '',
+                'role': member.role,
+                'role_display': member.get_role_display(),
+            },
+            actor_user=actor_user
+        )
+
+    @staticmethod
+    def broadcast_member_updated(member, actor_user):
+        """Broadcast family member update"""
+        WebSocketBroadcaster.broadcast_to_family(
+            family_id=member.family.id,
+            message_type='member_updated',
+            data={
+                'id': member.id,
+                'username': member.user.username,
+                'email': member.user.email or '',
+                'role': member.role,
+                'role_display': member.get_role_display(),
+            },
+            actor_user=actor_user
+        )
+
+    @staticmethod
+    def broadcast_member_removed(member_id, family_id, username, actor_user):
+        """Broadcast family member removal"""
+        WebSocketBroadcaster.broadcast_to_family(
+            family_id=family_id,
+            message_type='member_removed',
+            data={
+                'id': member_id,
+                'username': username,
+            },
+            actor_user=actor_user
         )

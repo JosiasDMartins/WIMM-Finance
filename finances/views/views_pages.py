@@ -486,6 +486,17 @@ def configuration_view(request):
             if not config_manually_saved:
                 form.save()
 
+            # Broadcast configuration update to all family members
+            try:
+                from ..websocket_utils import WebSocketBroadcaster
+                config.refresh_from_db()
+                WebSocketBroadcaster.broadcast_configuration_updated(
+                    family_configuration=config,
+                    actor_user=request.user
+                )
+            except Exception as e:
+                print(f"[WebSocket] Error broadcasting configuration update: {e}")
+
             # Only show generic success message if we didn't already show a specific one
             if not (config_changed and impact.get('requires_close')):
                 messages.success(request, _("Configuration updated successfully!"))
@@ -969,12 +980,22 @@ def add_member_view(request):
                 password=form.cleaned_data['password']
             )
 
-            FamilyMember.objects.create(
+            new_member = FamilyMember.objects.create(
                 user=new_user,
                 family=family,
                 role=target_role
             )
             messages.success(request, _("Member '%(username)s' added successfully!") % {'username': new_user.username})
+
+            # Broadcast member addition to all family members
+            try:
+                from ..websocket_utils import WebSocketBroadcaster
+                WebSocketBroadcaster.broadcast_member_added(
+                    member=new_member,
+                    actor_user=request.user
+                )
+            except Exception as e:
+                print(f"[WebSocket] Error broadcasting member addition: {e}")
 
         except Exception as e:
             messages.error(request, _("Error creating member: %(error)s") % {'error': str(e)})
@@ -1042,6 +1063,17 @@ def edit_member_view(request, member_id):
                     else:
                         messages.success(request, _('Member information updated successfully.'))
 
+                    # Broadcast member update to all family members
+                    try:
+                        from ..websocket_utils import WebSocketBroadcaster
+                        member.refresh_from_db()
+                        WebSocketBroadcaster.broadcast_member_updated(
+                            member=member,
+                            actor_user=request.user
+                        )
+                    except Exception as e:
+                        print(f"[WebSocket] Error broadcasting member update: {e}")
+
         elif action == 'change_password':
             # Block password changes in demo mode
             from django.conf import settings
@@ -1104,9 +1136,24 @@ def remove_member_view(request, member_id):
         return redirect(redirect_url)
 
     username = member_to_remove.user.username
+    family_id = member_to_remove.family.id
+    member_id_to_remove = member_to_remove.id
+
     member_to_remove.delete()
 
     messages.success(request, _('Member %(username)s has been removed from the family.') % {'username': username})
+
+    # Broadcast member removal to all family members
+    try:
+        from ..websocket_utils import WebSocketBroadcaster
+        WebSocketBroadcaster.broadcast_member_removed(
+            member_id=member_id_to_remove,
+            family_id=family_id,
+            username=username,
+            actor_user=request.user
+        )
+    except Exception as e:
+        print(f"[WebSocket] Error broadcasting member removal: {e}")
 
     query_period = request.GET.get('period')
     redirect_url = f"/settings/?period={query_period}" if query_period else "/settings/"

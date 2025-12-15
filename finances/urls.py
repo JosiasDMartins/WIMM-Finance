@@ -30,8 +30,9 @@ urlpatterns = [
     path('members/remove/<int:member_id>/', views.remove_member_view, name='member_remove'), 
     
     # Investments
-    path('investments/', views.investments_view, name='investments'), 
-    path('investments/add/', views.investment_add_view, name='investment_add'),    
+    path('investments/', views.investments_view, name='investments'),
+    path('investments/add/', views.investment_add_view, name='investment_add'),
+    path('api/investments/balance/', views.get_investment_balance_ajax, name='get_investment_balance_ajax'),
 
     # Flow Group
     path('flow-group/new/', views.create_flow_group_view, name='add_flow_group'), 
@@ -82,6 +83,7 @@ urlpatterns = [
     path('api/bank-balance/save/', views.save_bank_balance_ajax, name='save_bank_balance_ajax'),
     path('api/bank-balance/delete/', views.delete_bank_balance_ajax, name='delete_bank_balance_ajax'),
     path('api/reconciliation-summary/', views.get_bank_reconciliation_summary_ajax, name='get_reconciliation_summary_ajax'),
+    path('api/reconciliation/toggle-mode/', views.toggle_reconciliation_mode_ajax, name='toggle_reconciliation_mode_ajax'),
 
     # Updates and git updates
     path('check-updates/', views.check_for_updates, name='check_updates'),
