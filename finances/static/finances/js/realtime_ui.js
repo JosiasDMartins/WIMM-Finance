@@ -382,6 +382,62 @@
     };
 
     // ==============================================
+    // CONFIGURATION HANDLER
+    // ==============================================
+
+    window.RealtimeUI.handleConfigurationUpdated = function(data) {
+        console.log('[RealtimeUI] Configuration updated:', data);
+
+        // Trigger custom event
+        triggerCustomEvent('realtime:configuration:updated', data);
+
+        // Try ConfigurationRealtime handler
+        if (typeof window.ConfigurationRealtime !== 'undefined' && window.ConfigurationRealtime.updateConfiguration) {
+            window.ConfigurationRealtime.updateConfiguration(data.data);
+        }
+    };
+
+    // ==============================================
+    // MEMBER HANDLERS
+    // ==============================================
+
+    window.RealtimeUI.handleMemberAdded = function(data) {
+        console.log('[RealtimeUI] Member added:', data);
+
+        // Trigger custom event
+        triggerCustomEvent('realtime:member:added', data);
+
+        // Try MembersRealtime handler
+        if (typeof window.MembersRealtime !== 'undefined' && window.MembersRealtime.addMember) {
+            window.MembersRealtime.addMember(data.data);
+        }
+    };
+
+    window.RealtimeUI.handleMemberUpdated = function(data) {
+        console.log('[RealtimeUI] Member updated:', data);
+
+        // Trigger custom event
+        triggerCustomEvent('realtime:member:updated', data);
+
+        // Try MembersRealtime handler
+        if (typeof window.MembersRealtime !== 'undefined' && window.MembersRealtime.updateMember) {
+            window.MembersRealtime.updateMember(data.data);
+        }
+    };
+
+    window.RealtimeUI.handleMemberRemoved = function(data) {
+        console.log('[RealtimeUI] Member removed:', data);
+
+        // Trigger custom event
+        triggerCustomEvent('realtime:member:removed', data);
+
+        // Try MembersRealtime handler
+        if (typeof window.MembersRealtime !== 'undefined' && window.MembersRealtime.removeMember) {
+            window.MembersRealtime.removeMember(data.data);
+        }
+    };
+
+    // ==============================================
     // NOTIFICATION HANDLER
     // ==============================================
 

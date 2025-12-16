@@ -8,7 +8,7 @@
         <h1 class="text-[#0d171b] dark:text-white text-2xl font-bold tracking-[-0.015em] mb-8">{% trans "Application Settings" %}</h1>
 
         <!-- Navigation Tabs -->
-        <div x-data="{ activeTab: 'configuration' }" class="mb-6">
+        <div x-data="{ activeTab: '{{ tab|default:"configuration" }}' }" class="mb-6">
             <div class="border-b border-gray-200 dark:border-gray-700">
                 <nav class="-mb-px flex space-x-8">
                     <button @click="activeTab = 'configuration'"
@@ -141,7 +141,7 @@
             </div>
 
             <!-- Members Tab -->
-            <div x-show="activeTab === 'members'" class="mt-6" x-cloak x-data="{ editMemberId: null, editUsername: '', editEmail: '', editRole: '', showPasswordModal: false, passwordMemberId: null }">
+            <div x-show="activeTab === 'members'" class="mt-6" x-cloak x-data="{ editMemberId: null, editUsername: '', editEmail: '', editRole: '', showPasswordModal: false, passwordMemberId: null, showDeleteModal: false, deleteMemberId: null, deleteMemberUsername: '' }">
                 {% if is_admin or is_parent %}
                 <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-10 border border-primary/20">
                     <h2 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">{% trans "Add New Member" %}</h2>
@@ -158,7 +158,7 @@
                         </div>
                     {% endif %}
 
-                    <form method="POST" action="{% url 'member_add' %}{% if selected_period %}?period={{ selected_period }}{% endif %}">
+                    <form id="add-member-form" method="POST" action="{% url 'member_add' %}{% if selected_period %}?period={{ selected_period }}{% endif %}">
                         {% csrf_token %}
                         <div class="grid grid-cols-1 gap-4 md:gap-6 md:grid-cols-5 items-end">
 
@@ -231,7 +231,7 @@
                         </thead>
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                             {% for item in members_with_permissions %}
-                            <tr class="hover:bg-slate-50 dark:hover:bg-gray-700/50">
+                            <tr class="hover:bg-slate-50 dark:hover:bg-gray-700/50" data-member-id="{{ item.member.id }}">
                                 <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white">{{ item.member.user.username }}</td>
                                 <td class="px-6 py-4 text-sm text-gray-500">{{ item.member.user.email|default:"-" }}</td>
                                 <td class="px-6 py-4 text-sm text-gray-500">
@@ -258,15 +258,12 @@
                                         {% endif %}
 
                                         {% if item.can_delete %}
-                                        <form method="POST" action="{% url 'member_remove' member_id=item.member.id %}{% if selected_period %}?period={{ selected_period }}{% endif %}" style="display: inline;">
-                                            {% csrf_token %}
-                                            <button type="submit"
-                                                    onclick="return confirm('{% trans "Are you sure you want to remove" %} {{ item.member.user.username }} {% trans "from the family?" %}')"
-                                                    class="p-1 text-slate-500 hover:text-red-500"
-                                                    title="{% trans 'Remove' %}">
-                                                <span class="material-symbols-outlined text-lg">delete</span>
-                                            </button>
-                                        </form>
+                                        <button type="button"
+                                                @click="showDeleteModal = true; deleteMemberId = {{ item.member.id }}; deleteMemberUsername = '{{ item.member.user.username }}'"
+                                                class="p-1 text-slate-500 hover:text-red-500"
+                                                title="{% trans 'Remove' %}">
+                                            <span class="material-symbols-outlined text-lg">delete</span>
+                                        </button>
                                         {% endif %}
 
                                         {% if not item.can_edit and not item.can_change_password and not item.can_delete %}
@@ -380,6 +377,48 @@
                                     </button>
                                     <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">
                                         {% trans "Change Password" %}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delete Confirmation Modal -->
+                <div x-show="showDeleteModal"
+                     x-transition:enter="transition ease-out duration-300"
+                     x-transition:enter-start="opacity-0"
+                     x-transition:enter-end="opacity-100"
+                     x-transition:leave="transition ease-in duration-200"
+                     x-transition:leave-start="opacity-100"
+                     x-transition:leave-end="opacity-0"
+                     class="fixed inset-0 z-50 overflow-y-auto"
+                     style="display: none;">
+                    <div class="flex items-center justify-center min-h-screen px-4">
+                        <div class="fixed inset-0 bg-black opacity-50" @click="showDeleteModal = false"></div>
+
+                        <div class="relative bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 z-10">
+                            <div class="flex items-center gap-3 mb-4">
+                                <span class="material-symbols-outlined text-red-500 text-3xl">warning</span>
+                                <h3 class="text-xl font-bold text-[#0d171b] dark:text-white">{% trans "Confirm Removal" %}</h3>
+                            </div>
+
+                            <p class="text-gray-600 dark:text-gray-300 mb-6">
+                                {% trans "Are you sure you want to remove" %} <strong x-text="deleteMemberUsername"></strong> {% trans "from the family?" %}
+                            </p>
+
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                                {% trans "This action cannot be undone. The user account and all associated data will be permanently deleted." %}
+                            </p>
+
+                            <form method="POST" :action="`/members/remove/${deleteMemberId}/{% if selected_period %}?period={{ selected_period }}&tab=members{% else %}?tab=members{% endif %}`">
+                                {% csrf_token %}
+                                <div class="flex justify-end space-x-3">
+                                    <button type="button" @click="showDeleteModal = false; deleteMemberId = null" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                        {% trans "Cancel" %}
+                                    </button>
+                                    <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                                        {% trans "Remove Member" %}
                                     </button>
                                 </div>
                             </form>
@@ -784,6 +823,272 @@ document.addEventListener('DOMContentLoaded', function() {
         return cookieValue;
     }
 });
+
+// ============================================
+// REAL-TIME SYNCHRONIZATION
+// ============================================
+
+// Configuration Real-time Updates
+window.ConfigurationRealtime = {
+    updateConfiguration: function(configData) {
+        console.log('[ConfigurationRT] Updating configuration:', configData);
+
+        // Update Base Currency
+        const currencySelect = document.getElementById('id_base_currency');
+        if (currencySelect && configData.base_currency) {
+            currencySelect.value = configData.base_currency;
+            console.log('[ConfigurationRT] Updated base_currency to:', configData.base_currency);
+        }
+
+        // Update Period Type
+        if (configData.period_type) {
+            const periodTypeRadio = document.querySelector(`input[name="period_type"][value="${configData.period_type}"]`);
+            if (periodTypeRadio) {
+                periodTypeRadio.checked = true;
+                console.log('[ConfigurationRT] Updated period_type to:', configData.period_type);
+
+                // Toggle field visibility based on period type
+                const startingDayField = document.getElementById('starting-day-field');
+                const baseDateField = document.getElementById('base-date-field');
+
+                if (configData.period_type === 'M') {
+                    // Monthly - show starting day, hide base date
+                    if (startingDayField) startingDayField.style.display = 'block';
+                    if (baseDateField) baseDateField.style.display = 'none';
+                } else {
+                    // Bi-weekly or Weekly - hide starting day, show base date
+                    if (startingDayField) startingDayField.style.display = 'none';
+                    if (baseDateField) baseDateField.style.display = 'block';
+                }
+            }
+        }
+
+        // Update Starting Day
+        const startingDayInput = document.getElementById('id_starting_day');
+        if (startingDayInput && configData.starting_day) {
+            startingDayInput.value = configData.starting_day;
+            console.log('[ConfigurationRT] Updated starting_day to:', configData.starting_day);
+        }
+
+        // Update Base Date
+        const baseDateInput = document.getElementById('id_base_date');
+        if (baseDateInput && configData.base_date) {
+            baseDateInput.value = configData.base_date;
+            console.log('[ConfigurationRT] Updated base_date to:', configData.base_date);
+        }
+
+        // Update Bank Reconciliation Tolerance
+        const toleranceInput = document.getElementById('id_bank_reconciliation_tolerance');
+        if (toleranceInput && configData.bank_reconciliation_tolerance) {
+            toleranceInput.value = configData.bank_reconciliation_tolerance;
+            console.log('[ConfigurationRT] Updated bank_reconciliation_tolerance to:', configData.bank_reconciliation_tolerance);
+        }
+    }
+};
+
+// Members Real-time Updates
+window.MembersRealtime = {
+    addMember: function(memberData) {
+        console.log('[MembersRT] Adding member:', memberData);
+
+        const tbody = document.querySelector('table tbody');
+        if (!tbody) {
+            console.warn('[MembersRT] Members table tbody not found');
+            return;
+        }
+
+        // Check if member already exists in table (prevent duplicates)
+        const existingRow = tbody.querySelector(`tr[data-member-id="${memberData.id}"]`);
+        if (existingRow) {
+            console.log('[MembersRT] Member already exists in table, skipping duplicate add');
+            return;
+        }
+
+        // Remove empty message if exists
+        const emptyRow = tbody.querySelector('td[colspan="4"]');
+        if (emptyRow) {
+            emptyRow.parentElement.remove();
+        }
+
+        // Create new row
+        const newRow = document.createElement('tr');
+        newRow.className = 'hover:bg-slate-50 dark:hover:bg-gray-700/50';
+        newRow.setAttribute('data-member-id', memberData.id);
+
+        newRow.innerHTML = `
+            <td class="px-6 py-4 font-medium text-[#0d171b] dark:text-white">${this.escapeHtml(memberData.username)}</td>
+            <td class="px-6 py-4 text-sm text-gray-500">${this.escapeHtml(memberData.email || '-')}</td>
+            <td class="px-6 py-4 text-sm text-gray-500">
+                <span class="px-2 py-1 text-sm font-medium rounded-full bg-primary/20 text-primary">${this.escapeHtml(memberData.role_display)}</span>
+            </td>
+            <td class="px-6 py-4 text-center whitespace-nowrap">
+                <div class="flex justify-center gap-2">
+                    <span class="text-xs text-gray-400 dark:text-gray-500">{% trans "View only" %}</span>
+                </div>
+            </td>
+        `;
+
+        tbody.appendChild(newRow);
+
+        // Highlight new row
+        if (window.RealtimeUI && window.RealtimeUI.utils && window.RealtimeUI.utils.highlightElement) {
+            window.RealtimeUI.utils.highlightElement(newRow, 2000);
+        }
+    },
+
+    updateMember: function(memberData) {
+        console.log('[MembersRT] Updating member:', memberData);
+
+        const row = document.querySelector(`tr[data-member-id="${memberData.id}"]`);
+        if (!row) {
+            console.warn('[MembersRT] Member row not found for ID:', memberData.id);
+            return;
+        }
+
+        // Update username
+        const usernameCell = row.querySelector('td:nth-child(1)');
+        if (usernameCell) {
+            usernameCell.textContent = memberData.username;
+        }
+
+        // Update email
+        const emailCell = row.querySelector('td:nth-child(2)');
+        if (emailCell) {
+            emailCell.textContent = memberData.email || '-';
+        }
+
+        // Update role
+        const roleCell = row.querySelector('td:nth-child(3) span');
+        if (roleCell) {
+            roleCell.textContent = memberData.role_display;
+        }
+
+        // Highlight updated row
+        if (window.RealtimeUI && window.RealtimeUI.utils && window.RealtimeUI.utils.highlightElement) {
+            window.RealtimeUI.utils.highlightElement(row, 2000);
+        }
+    },
+
+    removeMember: function(memberData) {
+        console.log('[MembersRT] Removing member:', memberData);
+
+        const row = document.querySelector(`tr[data-member-id="${memberData.id}"]`);
+        if (!row) {
+            console.warn('[MembersRT] Member row not found for ID:', memberData.id);
+            return;
+        }
+
+        // Add fade-out animation
+        row.style.transition = 'opacity 0.3s';
+        row.style.opacity = '0';
+
+        setTimeout(() => {
+            row.remove();
+
+            // Check if table is empty and add empty message
+            const tbody = document.querySelector('table tbody');
+            if (tbody && tbody.children.length === 0) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = `
+                    <td colspan="4" class="px-6 py-4 text-sm text-gray-500 text-center">{% trans "No members found in the family." %}</td>
+                `;
+                tbody.appendChild(emptyRow);
+            }
+        }, 300);
+    },
+
+    escapeHtml: function(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+};
+
+// Listen for configuration events
+document.addEventListener('realtime:configuration:updated', function(event) {
+    if (window.ConfigurationRealtime && window.ConfigurationRealtime.updateConfiguration) {
+        window.ConfigurationRealtime.updateConfiguration(event.detail.data);
+    }
+});
+
+// Listen for member events
+document.addEventListener('realtime:member:added', function(event) {
+    if (window.MembersRealtime && window.MembersRealtime.addMember) {
+        window.MembersRealtime.addMember(event.detail.data);
+    }
+});
+
+document.addEventListener('realtime:member:updated', function(event) {
+    if (window.MembersRealtime && window.MembersRealtime.updateMember) {
+        window.MembersRealtime.updateMember(event.detail.data);
+    }
+});
+
+document.addEventListener('realtime:member:removed', function(event) {
+    // Check if current user is the actor (who performed the action)
+    // If yes, skip the real-time update as the page will redirect
+    const currentUsername = '{{ request.user.username }}';
+    const actorUsername = event.detail.actor?.username;
+
+    if (actorUsername && actorUsername === currentUsername) {
+        console.log('[MembersRT] Current user is the actor, skipping real-time removal (page will redirect)');
+        return;
+    }
+
+    if (window.MembersRealtime && window.MembersRealtime.removeMember) {
+        window.MembersRealtime.removeMember(event.detail.data);
+    }
+});
+
+// Add Member Form - Prevent page reload
+const addMemberForm = document.getElementById('add-member-form');
+if (addMemberForm) {
+    addMemberForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(addMemberForm);
+        const submitBtn = addMemberForm.querySelector('button[type="submit"]');
+
+        // Disable button during submission
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="material-symbols-outlined mr-1 animate-spin">progress_activity</span>{% trans "Adding..." %}';
+
+        fetch(addMemberForm.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (response.redirected) {
+                // If redirected, means there was an error (redirect to same page with errors)
+                // Reload to show errors
+                window.location.href = response.url;
+            } else {
+                // Success - member was added
+                // Reset form
+                addMemberForm.reset();
+
+                // Re-enable button
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span class="material-symbols-outlined mr-1">add</span>{% trans "Add" %}';
+
+                // The WebSocket will add the new row automatically
+                console.log('[AddMember] Member added successfully, waiting for WebSocket update');
+            }
+        })
+        .catch(error => {
+            console.error('[AddMember] Error:', error);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<span class="material-symbols-outlined mr-1">add</span>{% trans "Add" %}';
+            alert('{% trans "Error adding member. Please try again." %}');
+        });
+    });
+}
+
+console.log('[ConfigurationRealtime] Loaded successfully');
+console.log('[MembersRealtime] Loaded successfully');
 
 </script>
 {% endblock %}

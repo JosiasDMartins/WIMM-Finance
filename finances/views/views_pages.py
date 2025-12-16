@@ -544,6 +544,7 @@ def configuration_view(request):
         'available_periods': available_periods,
         'current_period_label': current_period_label,
         'is_current_period': is_current_period,
+        'tab': request.GET.get('tab', 'configuration'),
         'VERSION': VERSION,
         'app_version': VERSION,
     }
@@ -957,7 +958,7 @@ def add_member_view(request):
         return redirect('configuration')
 
     query_period = request.GET.get('period')
-    redirect_url = f"/settings/?period={query_period}" if query_period else "/settings/"
+    redirect_url = f"/settings/?period={query_period}&tab=members" if query_period else "/settings/?tab=members"
 
     form = NewUserAndMemberForm(request.POST)
 
@@ -1018,7 +1019,7 @@ def edit_member_view(request, member_id):
 
     member = get_object_or_404(FamilyMember, id=member_id, family=family)
     query_period = request.GET.get('period')
-    redirect_url = f"/settings/?period={query_period}" if query_period else "/settings/"
+    redirect_url = f"/settings/?period={query_period}&tab=members" if query_period else "/settings/?tab=members"
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -1138,8 +1139,13 @@ def remove_member_view(request, member_id):
     username = member_to_remove.user.username
     family_id = member_to_remove.family.id
     member_id_to_remove = member_to_remove.id
+    user_to_delete = member_to_remove.user
 
+    # Delete FamilyMember first
     member_to_remove.delete()
+
+    # Delete the User account (this also removes any other related data)
+    user_to_delete.delete()
 
     messages.success(request, _('Member %(username)s has been removed from the family.') % {'username': username})
 
@@ -1156,7 +1162,7 @@ def remove_member_view(request, member_id):
         print(f"[WebSocket] Error broadcasting member removal: {e}")
 
     query_period = request.GET.get('period')
-    redirect_url = f"/settings/?period={query_period}" if query_period else "/settings/"
+    redirect_url = f"/settings/?period={query_period}&tab=members" if query_period else "/settings/?tab=members"
     return redirect(redirect_url)
 
 

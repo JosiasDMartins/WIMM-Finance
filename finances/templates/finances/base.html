@@ -1296,6 +1296,22 @@
                 window.RealtimeUI.handleReconciliationModeChanged(data);
             });
 
+            wsManager.registerHandler('configuration_updated', function(data) {
+                window.RealtimeUI.handleConfigurationUpdated(data);
+            });
+
+            wsManager.registerHandler('member_added', function(data) {
+                window.RealtimeUI.handleMemberAdded(data);
+            });
+
+            wsManager.registerHandler('member_updated', function(data) {
+                window.RealtimeUI.handleMemberUpdated(data);
+            });
+
+            wsManager.registerHandler('member_removed', function(data) {
+                window.RealtimeUI.handleMemberRemoved(data);
+            });
+
             wsManager.registerHandler('notification', function(data) {
                 window.RealtimeUI.handleNotification(data);
             });
