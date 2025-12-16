@@ -76,12 +76,26 @@ def ensure_recurring_data_for_period(family, period_start_date):
     total_transactions = 0
 
     for source_group in groups_to_check:
+        # Get budget amount - handle MoneyField correctly
+        from djmoney.money import Money
+        budget_amount = source_group.budgeted_amount
+
+        # Ensure we have a Money object with correct currency
+        if hasattr(budget_amount, 'amount') and hasattr(budget_amount, 'currency'):
+            # It's already a Money object
+            budget_money = Money(budget_amount.amount, budget_amount.currency)
+        else:
+            # Fallback: get currency from family
+            from .utils import get_period_currency
+            currency = get_period_currency(family, period_start_date)
+            budget_money = Money(budget_amount, currency)
+
         # Create new FlowGroup
         new_group = FlowGroup.objects.create(
             family=family,
             name=source_group.name,
             group_type=source_group.group_type,
-            budgeted_amount=source_group.budgeted_amount,
+            budgeted_amount=budget_money,
             period_start_date=period_start_date,
             is_shared=source_group.is_shared,
             is_kids_group=source_group.is_kids_group,
@@ -193,12 +207,26 @@ def replicate_recurring_flowgroups(family, new_period_start_date):
 
     # Calculate month difference for date adjustments
     for source_group in groups_to_copy:
+        # Get budget amount - handle MoneyField correctly
+        from djmoney.money import Money
+        budget_amount = source_group.budgeted_amount
+
+        # Ensure we have a Money object with correct currency
+        if hasattr(budget_amount, 'amount') and hasattr(budget_amount, 'currency'):
+            # It's already a Money object
+            budget_money = Money(budget_amount.amount, budget_amount.currency)
+        else:
+            # Fallback: get currency from family
+            from .utils import get_period_currency
+            currency = get_period_currency(family, new_period_start_date)
+            budget_money = Money(budget_amount, currency)
+
         # Create new FlowGroup with copied properties
         new_group = FlowGroup.objects.create(
             family=family,
             name=source_group.name,
             group_type=source_group.group_type,
-            budgeted_amount=source_group.budgeted_amount,
+            budgeted_amount=budget_money,
             period_start_date=new_period_start_date,
             is_shared=source_group.is_shared,
             is_kids_group=source_group.is_kids_group,

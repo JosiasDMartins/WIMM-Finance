@@ -724,7 +724,33 @@ def create_flow_group_view(request):
             flow_group.owner = request.user
             flow_group.group_type = EXPENSE_MAIN
             flow_group.period_start_date = start_date
-            
+
+            # Check for duplicate name in the same period
+            group_name = form.cleaned_data.get('name')
+            if FlowGroup.objects.filter(
+                family=family,
+                name=group_name,
+                period_start_date=start_date
+            ).exists():
+                error_message = _("A Flow Group with the name '%(name)s' already exists in this period.") % {'name': group_name}
+
+                # If AJAX request, return JSON error
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    from django.http import JsonResponse
+                    return JsonResponse({
+                        'error': str(error_message),
+                        'error_type': 'duplicate_name'
+                    }, status=400)
+
+                # Otherwise, add error to form and re-render
+                form.add_error('name', error_message)
+                context = {
+                    'form': form, 'start_date': start_date, 'end_date': end_date,
+                    'current_member': current_member,
+                }
+                context.update(get_base_template_context(family, query_period, start_date))
+                return render(request, 'finances/add_flow_group.html', context)
+
             currency = get_period_currency(family, start_date)
             budget_decimal = form.cleaned_data.get('budgeted_amount')
             flow_group.budgeted_amount = Money(budget_decimal, currency)
@@ -832,7 +858,7 @@ def edit_flow_group_view(request, group_id):
     family, current_member, family_members = get_family_context(request.user)
     if not family:
         return redirect('dashboard')
-        
+
     group = get_object_or_404(FlowGroup, id=group_id, family=family)
 
     if not can_access_flow_group(group, current_member):
@@ -854,14 +880,63 @@ def edit_flow_group_view(request, group_id):
         can_edit_budget = False
     
     if request.method == 'POST' and can_edit_group:
+        # CRITICAL: Store old name BEFORE creating form, because form modifies the instance!
+        old_name = group.name
+        current_group_id = group.id
+        current_period = group.period_start_date
+
         form = FlowGroupForm(request.POST, instance=group, family=family)
+
+        # Check for duplicate name validation error
+        if not form.is_valid() and 'name' in form.errors:
+            # If AJAX request, return JSON error
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                from django.http import JsonResponse
+                error_message = form.errors['name'][0]  # Get first error message
+                return JsonResponse({
+                    'error': str(error_message),
+                    'error_type': 'duplicate_name'
+                }, status=400)
+
         if form.is_valid():
+            # Get new name from form data
+            new_name = form.cleaned_data.get('name')
+
+            # Check if name was changed (rename operation)
+            name_changed = (old_name != new_name)
+
+            # IMPORTANT: If this FlowGroup is being renamed AND it was created from a recurring group,
+            # we need to unmark the source as recurring BEFORE renaming.
+            # This follows the same logic as delete_flow_group_view
+            if name_changed:
+                # Find the most recent FlowGroup with CURRENT name (old_name) in previous periods
+                # that is marked as recurring
+                # IMPORTANT: Exclude the current group to avoid unmarking the wrong group
+                previous_group = FlowGroup.objects.filter(
+                    family=family,
+                    name=old_name,
+                    period_start_date__lt=current_period,
+                    is_recurring=True
+                ).exclude(id=current_group_id).order_by('-period_start_date').first()
+
+                if previous_group:
+                    # Unmark as recurring (DO NOT RENAME IT)
+                    previous_group.is_recurring = False
+                    previous_group.save()
+
+                    # Unmark all fixed transactions in the previous group
+                    Transaction.objects.filter(
+                        flow_group=previous_group,
+                        is_fixed=True
+                    ).update(is_fixed=False)
+
+            # NOW save the renamed group
             flow_group = form.save(commit=False)
-            
+
             currency = get_period_currency(family, start_date)
             budget_decimal = form.cleaned_data.get('budgeted_amount')
             flow_group.budgeted_amount = Money(budget_decimal, currency)
-            
+
             if flow_group.is_kids_group:
                 flow_group.is_shared = True
 

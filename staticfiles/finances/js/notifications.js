@@ -9,7 +9,6 @@
     // State
     let isDropdownOpen = false;
     let pollTimer = null;
-    let lastNotificationCount = 0;
 
     // Elements
     const notificationBell = document.getElementById('notification-bell');
@@ -85,40 +84,21 @@
 
     // Load notifications from API
     function loadNotifications() {
-        console.log('[NOTIF JS] ========================================');
-        console.log('[NOTIF JS] Loading notifications...');
-
         fetch('/api/notifications/')
             .then(response => {
-                console.log('[NOTIF JS] API response status:', response.status);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 return response.json();
             })
             .then(data => {
-                console.log('[NOTIF JS] API response data:', data);
-                console.log('[NOTIF JS] Success:', data.success);
-                console.log('[NOTIF JS] Count:', data.count);
-
                 if (data.success) {
-                    console.log('[NOTIF JS] Notifications received:', data.notifications.length);
-
-                    // Log por tipo
-                    const typeCount = {};
-                    data.notifications.forEach(n => {
-                        typeCount[n.type] = (typeCount[n.type] || 0) + 1;
-                        console.log('[NOTIF JS]   -', n.type, ':', n.message);
-                    });
-                    console.log('[NOTIF JS] By type:', typeCount);
-
                     renderNotifications(data.notifications);
                     updateBadge(data.count);
                 } else {
                     console.error('[NOTIF JS] API returned success=false:', data.error);
                     notificationList.innerHTML = '<div class="px-4 py-3 text-sm text-red-600 dark:text-red-400">Error: ' + data.error + '</div>';
                 }
-                console.log('[NOTIF JS] ========================================');
             })
             .catch(error => {
                 console.error('[NOTIF JS] Error loading notifications:', error);
@@ -129,11 +109,8 @@
     // Update badge count only (for polling)
     function updateBadgeOnly() {
         if (isDropdownOpen) {
-            console.log('[NOTIF JS] Skipping badge update (dropdown is open)');
             return;
         }
-
-        console.log('[NOTIF JS] Polling: Updating badge...');
 
         fetch('/api/notifications/')
             .then(response => {
@@ -144,15 +121,6 @@
             })
             .then(data => {
                 if (data.success) {
-                    console.log('[NOTIF JS] Polling: Badge update - count:', data.count);
-
-                    // Detecta nova notificação
-                    if (data.count > lastNotificationCount) {
-                        console.log('[NOTIF JS] NEW NOTIFICATION DETECTED!');
-                        console.log('[NOTIF JS] Previous count:', lastNotificationCount, '→ New count:', data.count);
-                    }
-
-                    lastNotificationCount = data.count;
                     updateBadge(data.count);
                 }
             })
@@ -161,8 +129,6 @@
 
     // Render notifications list
     function renderNotifications(notifications) {
-        console.log('[NOTIF JS] Rendering', notifications.length, 'notifications');
-
         if (notifications.length === 0) {
             notificationList.innerHTML = '<div class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 text-center">No notifications</div>';
             return;
@@ -172,8 +138,6 @@
         notifications.forEach(notif => {
             const iconClass = getNotificationIcon(notif.type);
             const colorClass = getNotificationColor(notif.type);
-
-            console.log('[NOTIF JS] Rendering notification:', notif.id, notif.type, notif.message);
 
             html += `
                 <div class="notification-item border-b border-gray-100 dark:border-gray-700" data-notification-id="${notif.id}">
@@ -193,7 +157,6 @@
         });
 
         notificationList.innerHTML = html;
-        console.log('[NOTIF JS] Notifications rendered successfully');
     }
 
     // Get icon based on notification type
@@ -226,15 +189,11 @@
 
     // Update badge count
     function updateBadge(count) {
-        console.log('[NOTIF JS] Updating badge with count:', count);
-
         if (count > 0) {
             notificationBadge.textContent = count > 99 ? '99+' : count;
             notificationBadge.classList.remove('hidden');
-            console.log('[NOTIF JS] Badge shown with count:', notificationBadge.textContent);
         } else {
             notificationBadge.classList.add('hidden');
-            console.log('[NOTIF JS] Badge hidden');
         }
     }
 
@@ -249,8 +208,6 @@
     window.acknowledgeAndNavigate = function(event, notificationId, targetUrl) {
         event.preventDefault();
 
-        console.log('[NOTIF JS] Acknowledging notification:', notificationId);
-
         const formData = new FormData();
         formData.append('notification_id', notificationId);
 
@@ -263,8 +220,6 @@
         })
         .then(response => response.json())
         .then(data => {
-            console.log('[NOTIF JS] Acknowledge response:', data);
-
             if (data.success) {
                 // Remove notification from list
                 const notifElement = document.querySelector(`.notification-item[data-notification-id="${notificationId}"]`);
@@ -274,7 +229,6 @@
 
                 // Update badge
                 updateBadge(data.remaining_count);
-                lastNotificationCount = data.remaining_count;
 
                 // Check if list is now empty
                 const remainingItems = document.querySelectorAll('.notification-item');
@@ -297,8 +251,6 @@
     function acknowledgeAllNotifications(e) {
         e.preventDefault();
 
-        console.log('[NOTIF JS] Acknowledging all notifications...');
-
         fetch('/api/notifications/acknowledge-all/', {
             method: 'POST',
             headers: {
@@ -307,11 +259,8 @@
         })
         .then(response => response.json())
         .then(data => {
-            console.log('[NOTIF JS] Acknowledge all response:', data);
-
             if (data.success) {
                 updateBadge(0);
-                lastNotificationCount = 0;
                 notificationList.innerHTML = '<div class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 text-center">No notifications</div>';
             }
         })
@@ -320,23 +269,29 @@
         });
     }
 
-    // Start polling for new notifications
+    // Start polling for new notifications (DEPRECATED - now using WebSocket)
     function startPolling() {
-        console.log('[NOTIF JS] Starting polling (interval:', POLL_INTERVAL / 1000, 'seconds)');
-
-        // Initial update
+        // Polling is no longer used - WebSocket handles real-time notification updates
+        // Initial badge update only
         updateBadgeOnly();
-
-        // Set interval
-        pollTimer = setInterval(updateBadgeOnly, POLL_INTERVAL);
     }
 
     // Stop polling (for cleanup if needed)
     function stopPolling() {
         if (pollTimer) {
-            console.log('[NOTIF JS] Stopping polling');
             clearInterval(pollTimer);
             pollTimer = null;
+        }
+    }
+
+    // Handle notification received via WebSocket
+    function handleWebSocketNotification(data) {
+        // Reload badge count from server to ensure accuracy
+        updateBadgeOnly();
+
+        // If dropdown is open, reload notifications list
+        if (isDropdownOpen) {
+            loadNotifications();
         }
     }
 
@@ -355,14 +310,20 @@
             acknowledgeAllBtn.addEventListener('click', acknowledgeAllNotifications);
         }
 
-        // Start polling
+        // Start polling (only does initial badge update now)
         startPolling();
 
-        // Expose stop function for debugging
+        // Listen for WebSocket notifications
+        document.addEventListener('realtime:notification', function(event) {
+            handleWebSocketNotification(event.detail.data);
+        });
+
+        // Expose functions for debugging
         window.stopNotificationPolling = stopPolling;
         window.forceNotificationLoad = loadNotifications;
+        window.handleWebSocketNotification = handleWebSocketNotification;
 
-        console.log('[NOTIF JS] Notification system initialized successfully');
+        console.log('[NOTIF JS] Notification system initialized successfully (WebSocket mode)');
         console.log('[NOTIF JS] ========================================');
     }
 

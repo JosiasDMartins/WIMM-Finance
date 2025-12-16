@@ -255,7 +255,7 @@ class FlowGroupForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
-        family = kwargs.pop('family', None)
+        self.family = kwargs.pop('family', None)
         super().__init__(*args, **kwargs)
         
         # If editing existing FlowGroup, populate with current amount value (extract from Money)
@@ -277,17 +277,51 @@ class FlowGroupForm(forms.ModelForm):
         
         # Populate members (ONLY PARENTS, exclude ADMIN) queryset if family is provided
         # Admins don't need to be in assigned_members since they have access to everything
-        if family:
+        if self.family:
             self.fields['assigned_members'].queryset = FamilyMember.objects.filter(
-                family=family,
+                family=self.family,
                 role='PARENT'  # Only PARENT, not ADMIN
             ).select_related('user').order_by('user__username')
-            
+
             # Populate children queryset if family is provided
             self.fields['assigned_children'].queryset = FamilyMember.objects.filter(
-                family=family,
+                family=self.family,
                 role='CHILD'
             ).select_related('user').order_by('user__username')
+
+    def clean_name(self):
+        """Validate that FlowGroup name is unique within the same period."""
+        from django.utils.translation import gettext as _
+        name = self.cleaned_data.get('name')
+
+        if not name:
+            return name
+
+        # Get period_start_date from instance
+        if self.instance and self.instance.period_start_date:
+            period_start = self.instance.period_start_date
+        else:
+            # For new FlowGroups, we can't validate here as period is set in view
+            # Validation will happen in the view
+            return name
+
+        # Check if another FlowGroup with same name exists in same period
+        duplicate_check = FlowGroup.objects.filter(
+            family=self.family,
+            name=name,
+            period_start_date=period_start
+        )
+
+        # Exclude current instance if editing
+        if self.instance and self.instance.pk:
+            duplicate_check = duplicate_check.exclude(pk=self.instance.pk)
+
+        if duplicate_check.exists():
+            raise forms.ValidationError(
+                _("A Flow Group with the name '%(name)s' already exists in this period.") % {'name': name}
+            )
+
+        return name
 
 # --- Transaction Form (for spreadsheet-like editing) ---
 class TransactionForm(forms.ModelForm):

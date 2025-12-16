@@ -549,6 +549,27 @@ def delete_flow_group_view(request, group_id):
         group_name = flow_group.name
         group_id_str = str(flow_group.id)
         family_id = flow_group.family.id
+        period_start = flow_group.period_start_date
+
+        # If this FlowGroup was created from a recurring group, unmark the source as recurring
+        # Find the most recent FlowGroup with same name in previous periods
+        previous_group = FlowGroup.objects.filter(
+            family=family,
+            name=group_name,
+            period_start_date__lt=period_start,
+            is_recurring=True
+        ).order_by('-period_start_date').first()
+
+        if previous_group:
+            # Unmark as recurring
+            previous_group.is_recurring = False
+            previous_group.save()
+
+            # Unmark all fixed transactions in the previous group
+            Transaction.objects.filter(
+                flow_group=previous_group,
+                is_fixed=True
+            ).update(is_fixed=False)
 
         flow_group.delete()
 

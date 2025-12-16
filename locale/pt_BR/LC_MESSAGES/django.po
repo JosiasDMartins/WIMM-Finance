@@ -2950,6 +2950,39 @@ msgid ""
 "available"
 msgstr ""
 
+#: .\finances\templates\finances\FlowGroup.html:2781
+msgid "Duplicate Name"
+msgstr "Nome Duplicado"
+
+#: .\finances\forms.py:318 .\finances\views\views_pages.py:732
+#, python-format
+msgid "A Flow Group with the name '%(name)s' already exists in this period."
+msgstr "Um Grupo de Fluxo com o nome '%(name)s' já existe neste período."
+
+#: .\finances\templates\finances\configurations.html:752
+msgid "No File Selected"
+msgstr "Nenhum Arquivo Selecionado"
+
+#: .\finances\templates\finances\configurations.html:759
+msgid "Confirm Database Restore"
+msgstr "Confirmar Restauração do Banco de Dados"
+
+#: .\finances\templates\finances\configurations.html:803
+msgid "Database restored successfully! Redirecting to login page..."
+msgstr "Banco de dados restaurado com sucesso! Redirecionando para a página de login..."
+
+#: .\finances\templates\finances\configurations.html:804
+msgid "Restore Successful"
+msgstr "Restauração Bem-Sucedida"
+
+#: .\finances\templates\finances\configurations.html:810
+msgid "Restore Failed"
+msgstr "Restauração Falhou"
+
+#: .\finances\templates\finances\configurations.html:814
+msgid "Restore Error"
+msgstr "Erro na Restauração"
+
 #~ msgid ""
 #~ "For now, mark Flow Groups as \"Investment\" in the dashboard to track "
 #~ "money set aside for investing."

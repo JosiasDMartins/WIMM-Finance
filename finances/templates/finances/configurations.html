@@ -749,11 +749,17 @@ document.addEventListener('DOMContentLoaded', function() {
     btnRestore?.addEventListener('click', async function() {
         const file = restoreFileInput.files[0];
         if (!file) {
-            alert("{% trans 'Please select a backup file first' %}");
+            GenericModal.alert("{% trans 'Please select a backup file first' %}", "{% trans 'No File Selected' %}");
             return;
         }
 
-        if (!confirm("{% trans 'WARNING: This will replace your current database. All current data will be lost. Continue?' %}")) {
+        // Show confirmation modal using GenericModal.confirm
+        const confirmed = await GenericModal.confirm(
+            "{% trans 'WARNING: This will replace your current database. All current data will be lost. Continue?' %}",
+            "{% trans 'Confirm Database Restore' %}"
+        );
+
+        if (!confirmed) {
             return;
         }
 
@@ -762,11 +768,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         btn.disabled = true;
         btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> {% trans "Restoring..." %}';
-        
+
         try {
             const formData = new FormData();
             formData.append('backup_file', file);
-            
+
             const response = await fetch('/restore-backup/', {
                 method: 'POST',
                 headers: {
@@ -774,14 +780,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: formData
             });
-            
+
             const data = await response.json();
-            
+
             if (data.success) {
                 const preview = document.getElementById('restore-preview');
                 const familyName = document.getElementById('restore-family-name');
                 const usersList = document.getElementById('restore-users-list');
-                
+
                 familyName.textContent = data.family.name;
                 usersList.innerHTML = '';
                 data.users.forEach(user => {
@@ -789,16 +795,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     li.textContent = `${user.username} (${user.role})`;
                     usersList.appendChild(li);
                 });
-                
+
                 preview.classList.remove('hidden');
 
-                alert("{% trans 'Database restored successfully! Please log out and log in again.' %}");
+                // Show success modal and redirect to login
+                await GenericModal.alert(
+                    "{% trans 'Database restored successfully! Redirecting to login page...' %}",
+                    "{% trans 'Restore Successful' %}"
+                );
+
+                // Redirect to login page
+                window.location.href = '/login/';
             } else {
-                alert("{% trans 'Failed to restore backup:' %} " + data.error);
+                GenericModal.alert("{% trans 'Failed to restore backup:' %} " + data.error, "{% trans 'Restore Failed' %}");
             }
         } catch (error) {
             console.error('Error restoring backup:', error);
-            alert("{% trans 'Failed to restore backup:' %} " + error.message);
+            GenericModal.alert("{% trans 'Failed to restore backup:' %} " + error.message, "{% trans 'Restore Error' %}");
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalText;

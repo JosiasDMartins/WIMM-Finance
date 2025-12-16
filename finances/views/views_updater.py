@@ -573,20 +573,46 @@ def restore_backup(request):
     try:
         if 'backup_file' not in request.FILES:
             return JsonResponse({'success': False, 'error': _('No backup file provided')}, status=400)
-        
+
         backup_file = request.FILES['backup_file']
-        
+
         # Pega o caminho correto do banco de dados do Django settings
         db_path = Path(settings.DATABASES['default']['NAME'])
-        
+
         temp_path = db_path.parent / 'temp_restore.sqlite3'
-        
+
+        # Save uploaded file to temporary location
         with open(temp_path, 'wb+') as destination:
             for chunk in backup_file.chunks():
                 destination.write(chunk)
-        
-        conn = sqlite3.connect(str(temp_path))
-        cursor = conn.cursor()
+
+        # STEP 1: Verify database integrity BEFORE attempting to use it
+        try:
+            conn = sqlite3.connect(str(temp_path))
+            cursor = conn.cursor()
+
+            # Run integrity check
+            cursor.execute("PRAGMA integrity_check")
+            integrity_result = cursor.fetchone()
+
+            if integrity_result[0] != 'ok':
+                conn.close()
+                temp_path.unlink()  # Delete corrupted temp file
+                return JsonResponse({
+                    'success': False,
+                    'error': _('Uploaded database file is corrupted and cannot be restored.'),
+                    'details': f'Integrity check failed: {integrity_result[0]}'
+                }, status=400)
+
+        except sqlite3.DatabaseError as db_error:
+            # Database is malformed or corrupted
+            if temp_path.exists():
+                temp_path.unlink()
+            return JsonResponse({
+                'success': False,
+                'error': _('Uploaded database file is corrupted: %(error)s') % {'error': str(db_error)},
+                'details': str(db_error)
+            }, status=400)
         
         cursor.execute("SELECT id, name FROM finances_family LIMIT 1")
         family_row = cursor.fetchone()
@@ -615,13 +641,21 @@ def restore_backup(request):
         
         conn.close()
 
+        # Ensure database is fully closed and synced to disk
+        import time
+        time.sleep(0.1)  # Brief pause to ensure file handles are released
+
         # Backup do banco atual antes de substituir
         if db_path.exists():
             backup_old = db_path.parent / f'{db_path.name}.old'
             shutil.copy2(db_path, backup_old)
 
-        # Move o arquivo temporário para o local correto
-        shutil.move(str(temp_path), str(db_path))
+        # Copy temp file to destination instead of move to avoid corruption
+        # Using copy2 preserves metadata and ensures proper file closure
+        shutil.copy2(str(temp_path), str(db_path))
+
+        # Clean up temp file after successful copy
+        temp_path.unlink()
 
         # Run migrations to ensure DB structure is up to date
         migration_output = io.StringIO()

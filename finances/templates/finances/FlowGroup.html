@@ -2734,7 +2734,7 @@
     // FIX: Process budgeted_amount before form submit
     // The money mask is applied to budgeted_amount field, but Django expects a decimal value
     // We need to convert the masked value (e.g., "1.234,56") to a raw decimal (e.g., "1234.56")
-    document.getElementById('flow-group-form').addEventListener('submit', function(event) {
+    document.getElementById('flow-group-form').addEventListener('submit', async function(event) {
         const budgetInput = document.querySelector('input[name="budgeted_amount"]');
         if (budgetInput && budgetInput.hasAttribute('data-field')) {
             // Get the masked value
@@ -2744,6 +2744,59 @@
             // Set the raw value for submission
             budgetInput.value = rawValue;
             console.log('[FORM SUBMIT] Converting budgeted_amount from', maskedValue, 'to', rawValue);
+        }
+
+        // Validate for duplicate name
+        const nameInput = document.querySelector('input[name="name"]');
+        if (nameInput) {
+            const flowGroupId = this.getAttribute('data-flow-group-id');
+            const flowGroupName = nameInput.value.trim();
+            const periodInput = document.querySelector('input[name="period"]');
+            const period = periodInput ? periodInput.value : null;
+
+            // Skip validation for new FlowGroups (will be validated server-side)
+            if (flowGroupId && flowGroupId !== 'NEW') {
+                event.preventDefault();
+
+                // Check for duplicate via fetch
+                const formData = new FormData(this);
+                const url = this.action;
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    // Check if response is JSON
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        const data = await response.json();
+                        if (data.error && data.error_type === 'duplicate_name') {
+                            // Show modal with error
+                            GenericModal.alert(data.error, '{% trans "Duplicate Name" %}');
+                            return;
+                        }
+                    }
+
+                    if (response.ok) {
+                        // Success - redirect
+                        window.location.href = response.url || url;
+                    } else {
+                        // Submit the form normally to show server errors
+                        this.removeEventListener('submit', arguments.callee);
+                        this.submit();
+                    }
+                } catch (error) {
+                    console.error('[FORM SUBMIT] Error:', error);
+                    // Submit the form normally
+                    this.removeEventListener('submit', arguments.callee);
+                    this.submit();
+                }
+            }
         }
     });
 
@@ -3410,8 +3463,8 @@
 
             // Show modal informing user that FlowGroup was deleted
             const modalHtml = `
-                <div id="flowgroup-deleted-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-                    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+                <div id="flowgroup-deleted-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+                    <div class="relative mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
                         <div class="mt-3 text-center">
                             <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30">
                                 <span class="material-symbols-outlined text-red-600 dark:text-red-400">delete</span>
