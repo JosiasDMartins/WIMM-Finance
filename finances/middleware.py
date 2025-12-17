@@ -18,42 +18,47 @@ logger = logging.getLogger(__name__)
 
 def handle_corrupted_database():
     """
+    TEMPORARY: Disabled during restore operations.
+
     Handles a corrupted database by renaming it with a timestamp and redirecting to setup.
 
     Returns:
         True if database was corrupted and renamed, False otherwise
+
+    TODO: Modularize this function and make it safe to run during restore operations.
+    Current issue: Opens SQLite connections that lock the database file on Windows.
     """
-    try:
-        db_path = Path(settings.DATABASES['default']['NAME'])
+    # DISABLED: This function opens SQLite connections that can lock the database
+    # during restore operations, preventing file deletion/renaming on Windows
+    logger.warning("[handle_corrupted_database] Function temporarily disabled to avoid DB locks")
+    return False
 
-        if not db_path.exists():
-            return False
-
-        # Try to connect and run integrity check
-        try:
-            conn = sqlite3.connect(str(db_path))
-            cursor = conn.cursor()
-            cursor.execute("PRAGMA integrity_check")
-            result = cursor.fetchone()
-            conn.close()
-
-            if result and result[0] == 'ok':
-                return False  # Database is fine
-        except sqlite3.DatabaseError as e:
-            # Database is corrupted
-            logger.error(f"Corrupted database detected: {e}")
-
-        # Database is corrupted - rename it with timestamp
-        timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-        corrupted_name = db_path.parent / f'{db_path.stem}_corrupted_{timestamp}{db_path.suffix}'
-
-        logger.warning(f"Renaming corrupted database from {db_path} to {corrupted_name}")
-        db_path.rename(corrupted_name)
-
-        return True
-    except Exception as e:
-        logger.error(f"Error handling corrupted database: {e}")
-        return False
+    # Original implementation commented out:
+    # try:
+    #     db_path = Path(settings.DATABASES['default']['NAME'])
+    #     if not db_path.exists():
+    #         return False
+    #     try:
+    #         conn = sqlite3.connect(f'file:{db_path}?mode=ro', uri=True, timeout=1.0)
+    #         cursor = conn.cursor()
+    #         cursor.execute("PRAGMA integrity_check")
+    #         result = cursor.fetchone()
+    #         cursor.close()
+    #         conn.close()
+    #         del cursor
+    #         del conn
+    #         if result and result[0] == 'ok':
+    #             return False
+    #     except sqlite3.DatabaseError as e:
+    #         logger.error(f"Corrupted database detected: {e}")
+    #     timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    #     corrupted_name = db_path.parent / f'{db_path.stem}_corrupted_{timestamp}{db_path.suffix}'
+    #     logger.warning(f"Renaming corrupted database from {db_path} to {corrupted_name}")
+    #     db_path.rename(corrupted_name)
+    #     return True
+    # except Exception as e:
+    #     logger.error(f"Error handling corrupted database: {e}")
+    #     return False
 
 
 class UserLanguageMiddleware:
@@ -124,13 +129,48 @@ class SetupRequiredMiddleware:
         
         # Check if database is accessible and if users exist
         try:
+            # CRITICAL: Check if database was recently modified (e.g., restored from backup)
+            # If so, close all connections to force Django to reconnect to the new database
+            db_path = Path(settings.DATABASES['default']['NAME'])
+
+            if db_path.exists():
+                from datetime import datetime, timedelta
+                db_modified_time = datetime.fromtimestamp(db_path.stat().st_mtime)
+                time_since_modification = datetime.now() - db_modified_time
+
+                # If DB was modified in the last 10 seconds, close all connections FIRST
+                # This ensures we reconnect to the new database
+                if time_since_modification < timedelta(seconds=10):
+                    from django.db import connections
+                    logger.info(f"[MIDDLEWARE] DB modified {time_since_modification.total_seconds():.2f}s ago - closing {len(connections.all())} connections BEFORE querying")
+                    for conn in connections.all():
+                        try:
+                            conn.close()
+                        except Exception:
+                            pass
+
+                    # Force garbage collection to release references
+                    import gc
+                    gc.collect()
+
+                    # CRITICAL: Wait for a moment to allow the OS to release file
+                    # handles and for Django to be ready to create a new connection.
+                    import time
+                    time.sleep(1)
+
+                    logger.info(f"[MIDDLEWARE] All connections closed, will reconnect to new DB")
+
             # Try to access the database
             UserModel = get_user_model()
 
             # Check if users table exists and has any records
-            if not UserModel.objects.exists():
+            users_exist = UserModel.objects.exists()
+            logger.info(f"[MIDDLEWARE] Path: {current_path}, DB exists: {db_path.exists()}, Users exist: {users_exist}")
+
+            if not users_exist:
                 # No users exist - redirect to setup
                 # This takes priority over everything, including login
+                logger.warning(f"[MIDDLEWARE] No users found, redirecting to setup from {current_path}")
                 try:
                     return redirect('initial_setup')
                 except (Resolver404, ImproperlyConfigured):
@@ -153,26 +193,11 @@ class SetupRequiredMiddleware:
                     logger.error("Database file does not exist")
                     db_missing_or_corrupted = True
                 else:
-                    # DB exists but session table is missing - check if DB is corrupted
-                    try:
-                        conn = sqlite3.connect(str(db_path))
-                        cursor = conn.cursor()
-                        cursor.execute("PRAGMA integrity_check")
-                        result = cursor.fetchone()
-                        conn.close()
-
-                        if result and result[0] != 'ok':
-                            # DB is corrupted
-                            logger.error(f"Database is corrupted: {result[0]}")
-                            if handle_corrupted_database():
-                                logger.info("Corrupted database renamed, redirecting to setup")
-                            db_missing_or_corrupted = True
-                    except Exception as db_check_error:
-                        # Could not check DB - assume it's corrupted
-                        logger.error(f"Could not verify DB integrity: {db_check_error}")
-                        if handle_corrupted_database():
-                            logger.info("Problematic database renamed, redirecting to setup")
-                        db_missing_or_corrupted = True
+                    # DB exists but session table is missing
+                    # TEMPORARY: Integrity check disabled during restore operations
+                    # TODO: Modularize this into a separate function that can be disabled during restore
+                    logger.warning("DB exists but session table missing - skipping integrity check during restore")
+                    db_missing_or_corrupted = True
 
                 if db_missing_or_corrupted:
                     # Clear the session cookie to prevent repeated errors

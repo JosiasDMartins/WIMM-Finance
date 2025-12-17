@@ -16,6 +16,16 @@ class UpdateConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         """Handle new WebSocket connection"""
+        # Check for restore lock file before doing anything
+        from django.conf import settings
+        from pathlib import Path
+        
+        restore_lock_file = Path(settings.BASE_DIR) / '.restore_lock'
+        if restore_lock_file.exists():
+            print(f"[WebSocket] Rejecting connection: Database restore in progress.")
+            await self.close()
+            return
+
         self.user = self.scope["user"]
 
         # Reject unauthenticated users
@@ -24,7 +34,14 @@ class UpdateConsumer(AsyncWebsocketConsumer):
             return
 
         # Get family ID using async wrapper
-        family_id = await self.get_family_id_for_user()
+        try:
+            family_id = await self.get_family_id_for_user()
+        except Exception as e:
+            # Database might be in the middle of restore operation
+            # Close connection and let client retry later
+            print(f"[WebSocket] Error getting family ID (DB might be restoring): {e}")
+            await self.close()
+            return
 
         if not family_id:
             # User has no family - reject connection

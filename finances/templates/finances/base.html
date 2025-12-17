@@ -930,7 +930,40 @@
             },
 
             // Show confirm modal (Yes/No or OK/Cancel)
+            // Can be used in two ways:
+            // 1. With callbacks: GenericModal.confirm(msg, title, onConfirm, onCancel)
+            // 2. As Promise: const result = await GenericModal.confirm(msg, title)
             confirm: function(message, title, onConfirm, onCancel) {
+                // If no callbacks provided, return Promise
+                if (typeof onConfirm !== 'function' && typeof onCancel !== 'function') {
+                    return new Promise((resolve) => {
+                        const modal = document.getElementById('generic-modal');
+
+                        this.show({
+                            type: 'warning',
+                            title: title || window.MODAL_I18N.confirm,
+                            message: message,
+                            buttons: [
+                                {
+                                    text: window.MODAL_I18N.cancel,
+                                    className: 'secondary',
+                                    callback: () => {
+                                        resolve(false);
+                                    }
+                                },
+                                {
+                                    text: window.MODAL_I18N.continue,
+                                    className: 'danger',
+                                    callback: () => {
+                                        resolve(true);
+                                    }
+                                }
+                            ]
+                        });
+                    });
+                }
+
+                // Legacy callback mode
                 return this.show({
                     type: 'warning',
                     title: title || window.MODAL_I18N.confirm,
@@ -1239,6 +1272,17 @@
     <script>
         // Initialize WebSocket connection on page load
         document.addEventListener('DOMContentLoaded', function() {
+            // CRITICAL: Do NOT initialize WebSocket on configuration pages
+            // Database restore operations need exclusive access to the DB file
+            // WebSocket connections create locks that prevent file operations on Windows
+            const currentPath = window.location.pathname;
+            const isConfigPage = currentPath.includes('/configurations') || currentPath.includes('/settings');
+
+            if (isConfigPage) {
+                console.log('[WebSocket] Skipping initialization on configuration page to avoid DB locks');
+                return;
+            }
+
             // Store current user ID for comparison in RealtimeUI
             document.body.dataset.userId = "{{ user.id }}";
 

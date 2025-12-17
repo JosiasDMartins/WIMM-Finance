@@ -1,8 +1,9 @@
 import io
-import shutil
+import tempfile
 import json
 import traceback
 import importlib.util
+import logging
 from pathlib import Path
 import sqlite3
 
@@ -564,125 +565,43 @@ def download_backup(request, filename):
 
 @require_http_methods(["POST"])
 def restore_backup(request):
-    """Restores the database from a backup file."""
+    """Restores the database from a backup file.
+
+    Uses the centralized restore function from finances.utils.db_restore
+    """
     # Block database restore in demo mode
     from django.conf import settings
     if getattr(settings, 'DEMO_MODE', False):
         return JsonResponse({'success': False, 'error': _('Database restore is disabled in demo mode.')}, status=403)
 
-    try:
-        if 'backup_file' not in request.FILES:
-            return JsonResponse({'success': False, 'error': _('No backup file provided')}, status=400)
+    # Validate file upload
+    if 'backup_file' not in request.FILES:
+        return JsonResponse({'success': False, 'error': _('No backup file provided')}, status=400)
 
-        backup_file = request.FILES['backup_file']
+    backup_file = request.FILES['backup_file']
 
-        # Pega o caminho correto do banco de dados do Django settings
-        db_path = Path(settings.DATABASES['default']['NAME'])
+    # Use centralized restore function
+    from finances.utils.db_restore import restore_database_from_file
 
-        temp_path = db_path.parent / 'temp_restore.sqlite3'
+    result = restore_database_from_file(backup_file)
 
-        # Save uploaded file to temporary location
-        with open(temp_path, 'wb+') as destination:
-            for chunk in backup_file.chunks():
-                destination.write(chunk)
+    if not result['success']:
+        return JsonResponse(result, status=400 if 'corrupted' in result.get('error', '') else 500)
 
-        # STEP 1: Verify database integrity BEFORE attempting to use it
-        try:
-            conn = sqlite3.connect(str(temp_path))
-            cursor = conn.cursor()
+    # Create JSON response
+    response = JsonResponse(result)
 
-            # Run integrity check
-            cursor.execute("PRAGMA integrity_check")
-            integrity_result = cursor.fetchone()
+    # CRITICAL: Delete the session cookie to prevent loops
+    # The old session from the previous DB no longer exists in the restored DB
+    session_cookie_name = settings.SESSION_COOKIE_NAME
+    response.delete_cookie(
+        session_cookie_name,
+        path=settings.SESSION_COOKIE_PATH,
+        domain=settings.SESSION_COOKIE_DOMAIN,
+    )
 
-            if integrity_result[0] != 'ok':
-                conn.close()
-                temp_path.unlink()  # Delete corrupted temp file
-                return JsonResponse({
-                    'success': False,
-                    'error': _('Uploaded database file is corrupted and cannot be restored.'),
-                    'details': f'Integrity check failed: {integrity_result[0]}'
-                }, status=400)
+    return response
 
-        except sqlite3.DatabaseError as db_error:
-            # Database is malformed or corrupted
-            if temp_path.exists():
-                temp_path.unlink()
-            return JsonResponse({
-                'success': False,
-                'error': _('Uploaded database file is corrupted: %(error)s') % {'error': str(db_error)},
-                'details': str(db_error)
-            }, status=400)
-        
-        cursor.execute("SELECT id, name FROM finances_family LIMIT 1")
-        family_row = cursor.fetchone()
-        
-        family_info = None
-        users_info = []
-        
-        if family_row:
-            family_id, family_name = family_row
-            family_info = {'id': family_id, 'name': family_name}
-            
-            cursor.execute("""
-                SELECT u.username, u.email, fm.role 
-                FROM finances_familymember fm
-                JOIN finances_customuser u ON fm.user_id = u.id
-                WHERE fm.family_id = ?
-                ORDER BY fm.role, u.username
-            """, (family_id,))
-            
-            for row in cursor.fetchall():
-                users_info.append({
-                    'username': row[0],
-                    'email': row[1] or '',
-                    'role': row[2]
-                })
-        
-        conn.close()
-
-        # Ensure database is fully closed and synced to disk
-        import time
-        time.sleep(0.1)  # Brief pause to ensure file handles are released
-
-        # Backup do banco atual antes de substituir
-        if db_path.exists():
-            backup_old = db_path.parent / f'{db_path.name}.old'
-            shutil.copy2(db_path, backup_old)
-
-        # Copy temp file to destination instead of move to avoid corruption
-        # Using copy2 preserves metadata and ensures proper file closure
-        shutil.copy2(str(temp_path), str(db_path))
-
-        # Clean up temp file after successful copy
-        temp_path.unlink()
-
-        # Run migrations to ensure DB structure is up to date
-        migration_output = io.StringIO()
-        try:
-            call_command('migrate', '--noinput', stdout=migration_output, stderr=migration_output)
-            migration_log = migration_output.getvalue()
-        except Exception as migration_error:
-            # If migration fails, we still consider restore successful
-            # but warn the user
-            migration_log = f"Warning: Migrations failed: {str(migration_error)}"
-
-        return JsonResponse({
-            'success': True,
-            'family': family_info,
-            'users': users_info,
-            'message': _('Database restored successfully'),
-            'migration_log': migration_log
-        })
-        
-    except Exception as e:
-        # Limpa arquivo temporário em caso de erro
-        db_path = Path(settings.DATABASES['default']['NAME'])
-        temp_path = db_path.parent / 'temp_restore.sqlite3'
-        if temp_path.exists():
-            temp_path.unlink()
-        
-        return JsonResponse({'success': False, 'error': f'Restore failed: {str(e)}'}, status=500)
 
 
 @require_http_methods(["POST"])

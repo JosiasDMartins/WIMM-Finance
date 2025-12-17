@@ -39,7 +39,8 @@ def initial_setup_view(request):
             return redirect('auth_login')
             
     except OperationalError as e:
-        if request.method != 'POST':
+        # If the error is about a missing table, it's safe to assume migrations are needed.
+        if 'no such table' in str(e).lower() and request.method != 'POST':
             context = {
                 'needs_migration': True,
                 'error_message': _('Database setup required. Running migrations...')
@@ -54,6 +55,14 @@ def initial_setup_view(request):
                 context['migration_error'] = str(migration_error)
             
             return render(request, 'finances/setup.html', {'form': InitialSetupForm(), **context})
+        
+        # For other OperationalErrors (like 'database is locked'), just show an error.
+        messages.error(request, _("Database error: %(error)s") % {'error': str(e)})
+        context = {
+            'form': InitialSetupForm(),
+            'database_error': str(e)
+        }
+        return render(request, 'finances/setup.html', context)
     
     except Exception as e:
         messages.error(request, _("Database error: %(error)s") % {'error': str(e)})

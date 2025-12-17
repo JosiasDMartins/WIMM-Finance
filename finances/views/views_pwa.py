@@ -25,11 +25,21 @@ def manifest_json(request):
 
     IMPORTANT: Headers prevent caching to ensure Windows/browsers always get latest version.
     """
-    try:
-        db_version = SystemVersion.get_current_version()
-    except Exception as e:
-        logger.error(f"Failed to get database version for manifest: {e}")
+    # CRITICAL: Check if DB exists before trying to access it
+    # During setup/restore, DB might not exist or be inaccessible
+    from pathlib import Path
+    db_path = Path(settings.DATABASES['default']['NAME'])
+
+    if not db_path.exists():
+        # DB doesn't exist yet (first-time setup or restore in progress)
+        logger.info(f"[MANIFEST] DB doesn't exist, using APP_VERSION: {APP_VERSION}")
         db_version = APP_VERSION
+    else:
+        try:
+            db_version = SystemVersion.get_current_version()
+        except Exception as e:
+            logger.error(f"Failed to get database version for manifest: {e}")
+            db_version = APP_VERSION
 
     manifest = {
         "name": settings.PWA_APP_NAME,
@@ -69,11 +79,24 @@ def service_worker(request):
 
     IMPORTANT: Headers prevent caching to ensure browsers always get latest version.
     """
-    try:
-        db_version = SystemVersion.get_current_version()
-    except Exception as e:
-        logger.error(f"Failed to get database version for service worker: {e}")
+    # CRITICAL: Check if DB exists before trying to access it
+    # During setup/restore, DB might not exist or be inaccessible
+    from pathlib import Path
+    db_path = Path(settings.DATABASES['default']['NAME'])
+
+    if not db_path.exists():
+        # DB doesn't exist yet (first-time setup or restore in progress)
+        # Use APP_VERSION without accessing database
+        logger.info(f"[SERVICE_WORKER] DB doesn't exist, using APP_VERSION: {APP_VERSION}")
         db_version = APP_VERSION
+    else:
+        try:
+            db_version = SystemVersion.get_current_version()
+            if not db_version:
+                db_version = APP_VERSION
+        except Exception as e:
+            logger.error(f"Failed to get database version for service worker: {e}")
+            db_version = APP_VERSION
 
     # Render service worker template with dynamic version
     sw_content = render_to_string('finances/serviceworker.js', {

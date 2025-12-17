@@ -6,7 +6,50 @@
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <title>{% trans "SweetMoney - Initial Setup" %}</title>
-    
+
+    <!-- CRITICAL: Unregister any existing service workers during setup -->
+    <script>
+        // Flag to track if service workers are fully unregistered
+        window.serviceWorkersUnregistered = false;
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                if (registrations.length === 0) {
+                    console.log('[SETUP] No service workers to unregister');
+                    window.serviceWorkersUnregistered = true;
+                    return;
+                }
+
+                let unregisteredCount = 0;
+                const totalRegistrations = registrations.length;
+
+                registrations.forEach(function(registration) {
+                    registration.unregister().then(function(success) {
+                        if (success) {
+                            console.log('[SETUP] Unregistered service worker successfully');
+                        } else {
+                            console.error('[SETUP] Failed to unregister service worker');
+                        }
+                        unregisteredCount++;
+
+                        // All service workers unregistered
+                        if (unregisteredCount === totalRegistrations) {
+                            console.log('[SETUP] All service workers unregistered');
+                            window.serviceWorkersUnregistered = true;
+                        }
+                    });
+                });
+            }).catch(function(error) {
+                console.error('[SETUP] Error getting service worker registrations:', error);
+                // Even if there's an error, allow the page to function
+                window.serviceWorkersUnregistered = true;
+            });
+        } else {
+            // Service workers not supported or not available
+            window.serviceWorkersUnregistered = true;
+        }
+    </script>
+
     <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
@@ -581,13 +624,43 @@
         btnUploadBackup?.addEventListener('click', async function() {
             const file = backupFileInput.files[0];
             if (!file) return;
-            
+
+            // CRITICAL: Wait for service workers to be unregistered before proceeding
+            // Service workers can hold database connections that prevent file operations
+            btnUploadBackup.disabled = true;
+            btnUploadBackup.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> {% trans "Checking service workers..." %}';
+
+            console.log('[RESTORE] Waiting for service workers to be unregistered...');
+            const maxWaitTime = 5000; // 5 seconds
+            const startTime = Date.now();
+
+            // Wait for service workers to be unregistered
+            while (!window.serviceWorkersUnregistered && (Date.now() - startTime) < maxWaitTime) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            if (!window.serviceWorkersUnregistered) {
+                console.error('[RESTORE] Service workers still not unregistered after 5 seconds');
+                alert("{% trans 'Service workers could not be unregistered. Please refresh the page and try again.' %}");
+                btnUploadBackup.disabled = false;
+                btnUploadBackup.innerHTML = '<span class="material-symbols-outlined">upload</span> {% trans "Upload Backup" %}';
+                return;
+            }
+
+            console.log('[RESTORE] Service workers unregistered, proceeding with restore');
+
+            // Close any existing WebSocket connections before restore
+            // This prevents database lock issues during restore
+            if (window.updateSocket && window.updateSocket.readyState === WebSocket.OPEN) {
+                console.log('[RESTORE] Closing WebSocket before database restore');
+                window.updateSocket.close();
+            }
+
             const formData = new FormData();
             formData.append('backup_file', file);
-            
-            btnUploadBackup.disabled = true;
+
             btnUploadBackup.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> {% trans "Restoring..." %}';
-            
+
             try {
                 const response = await fetch('/restore-backup/', {
                     method: 'POST',
