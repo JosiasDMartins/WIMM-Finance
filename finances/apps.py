@@ -20,6 +20,26 @@ class FinancesConfig(AppConfig):
             return
 
         try:
+            # Log which database is being used
+            from django.conf import settings
+            from finances.utils.db_backup import get_database_engine
+
+            db_engine = get_database_engine()
+            db_config = settings.DATABASES['default']
+
+            if db_engine == 'sqlite':
+                db_path = db_config.get('NAME', 'unknown')
+                logger.info(f"[STARTUP] 💾 Using SQLite database: {db_path}")
+            elif db_engine == 'postgresql':
+                db_name = db_config.get('NAME', 'unknown')
+                db_host = db_config.get('HOST', 'unknown')
+                db_port = db_config.get('PORT', '5432')
+                db_user = db_config.get('USER', 'unknown')
+                logger.info(f"[STARTUP] 🐘 Using PostgreSQL database: {db_name}@{db_host}:{db_port} (user: {db_user})")
+            else:
+                logger.info(f"[STARTUP] ⚙️ Using {db_engine} database")
+
+            # Check for automatic database migration
             from finances.utils.db_migration import check_and_migrate
 
             logger.info("[STARTUP] Checking for automatic database migration...")
