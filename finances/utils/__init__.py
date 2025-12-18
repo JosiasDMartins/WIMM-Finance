@@ -38,9 +38,26 @@ from .role_history_utils import (
     save_role_history_if_changed,
 )
 
+# Database backup utilities
+from .db_backup import (
+    create_database_backup,
+    get_database_engine,
+)
+
 # Database restore utilities
 from .db_restore import (
     restore_database_from_file,
+)
+
+from .db_restore_postgres import (
+    restore_postgres_database_from_file,
+)
+
+# Database migration utilities
+from .db_migration import (
+    check_and_migrate,
+    should_migrate,
+    migrate_sqlite_to_postgres,
 )
 
 __all__ = [
@@ -67,6 +84,16 @@ __all__ = [
     'get_member_role_for_period',
     'save_role_history_if_changed',
 
+    # Database backup utilities
+    'create_database_backup',
+    'get_database_engine',
+
     # Database restore utilities
     'restore_database_from_file',
+    'restore_postgres_database_from_file',
+
+    # Database migration utilities
+    'check_and_migrate',
+    'should_migrate',
+    'migrate_sqlite_to_postgres',
 ]

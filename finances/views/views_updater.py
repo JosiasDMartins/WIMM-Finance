@@ -508,32 +508,41 @@ def download_github_update(request):
 
 @require_http_methods(["POST"])
 def create_backup(request):
-    """Create a backup of the database."""
+    """Create a backup of the database.
+
+    Automatically detects database backend (SQLite or PostgreSQL)
+    and uses the appropriate backup strategy.
+    """
     # Block backups in demo mode
     from django.conf import settings
     if getattr(settings, 'DEMO_MODE', False):
         return JsonResponse({'success': False, 'error': _('Database backups are disabled in demo mode.')}, status=403)
 
     try:
-        success, message, backup_path = create_database_backup()
+        # Use centralized backup function that handles both SQLite and PostgreSQL
+        from finances.utils.db_backup import create_database_backup as create_db_backup
 
-        if success and backup_path:
-            # Ensure backup_path is a Path object or convert to string
-            filename = backup_path.name if hasattr(backup_path, 'name') else str(backup_path)
+        result = create_db_backup()
+
+        if result['success']:
+            backup_path = Path(result['backup_path'])
+            filename = result['filename']
+
             return JsonResponse({
                 'success': True,
-                'message': message,
+                'message': _('Backup created successfully'),
                 'filename': filename,
-                'download_url': f'/download-backup/{filename}/'
+                'download_url': f'/download-backup/{filename}/',
+                'size': result.get('size', 0)
             })
         else:
-            error_msg = message if message else "Unknown error creating backup"
+            error_msg = result.get('error', 'Unknown error creating backup')
             return JsonResponse({'success': False, 'error': error_msg}, status=500)
 
     except Exception as e:
         import traceback
         error_detail = traceback.format_exc()
-        print(f"Backup error: {error_detail}")
+        logger.error(f"Backup error: {error_detail}")
         return JsonResponse({'success': False, 'error': f'Server error: {str(e)}'}, status=500)
 
 
@@ -567,7 +576,8 @@ def download_backup(request, filename):
 def restore_backup(request):
     """Restores the database from a backup file.
 
-    Uses the centralized restore function from finances.utils.db_restore
+    Automatically detects database backend (SQLite or PostgreSQL)
+    and uses the appropriate restore strategy.
     """
     # Block database restore in demo mode
     from django.conf import settings
@@ -580,10 +590,22 @@ def restore_backup(request):
 
     backup_file = request.FILES['backup_file']
 
-    # Use centralized restore function
-    from finances.utils.db_restore import restore_database_from_file
+    # Detect database backend and use appropriate restore function
+    db_engine = settings.DATABASES['default']['ENGINE']
 
-    result = restore_database_from_file(backup_file)
+    if 'sqlite3' in db_engine:
+        # Use SQLite restore function
+        from finances.utils.db_restore import restore_database_from_file
+        result = restore_database_from_file(backup_file)
+    elif 'postgresql' in db_engine:
+        # Use PostgreSQL restore function
+        from finances.utils.db_restore_postgres import restore_postgres_database_from_file
+        result = restore_postgres_database_from_file(backup_file)
+    else:
+        return JsonResponse({
+            'success': False,
+            'error': _('Unsupported database engine: %(engine)s') % {'engine': db_engine}
+        }, status=400)
 
     if not result['success']:
         return JsonResponse(result, status=400 if 'corrupted' in result.get('error', '') else 500)
