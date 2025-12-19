@@ -7,13 +7,11 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('finances', '0001_initial'),  # Adjust this to match your last migration
+        ('finances', '0008_alter_investment_date_created'),
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='transaction',
-            name='realized',
-            field=models.BooleanField(default=False, help_text='Whether this transaction has been consolidated/completed'),
-        ),
+        # This migration is redundant with 0006_transaction_realized
+        # Kept for migration history consistency, but does nothing
+        # The field is already added by 0006
     ]

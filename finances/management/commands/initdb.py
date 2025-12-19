@@ -25,8 +25,8 @@ class Command(BaseCommand):
             if result.get('details'):
                 for detail in result['details']:
                     self.stdout.write(f"   - {detail}")
+            # Return success (Django expects None or 0)
         else:
             self.stdout.write(self.style.ERROR(f"❌ {result['message']}"))
-            return 1
-
-        return 0
+            # Raise exception to indicate failure
+            raise Exception(result['message'])
