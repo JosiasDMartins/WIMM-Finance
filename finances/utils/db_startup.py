@@ -110,6 +110,9 @@ def check_database_has_tables():
         bool: True if database has tables, False otherwise
     """
     try:
+        # Close any stale connections first
+        connections.close_all()
+
         # Try to get table names
         with connection.cursor() as cursor:
             if get_database_engine() == 'postgresql':
@@ -137,7 +140,8 @@ def check_database_has_tables():
             return has_tables
 
     except Exception as e:
-        logger.debug(f"[DB_INIT] Cannot check tables (database might not exist yet): {e}")
+        logger.debug(f"[DB_INIT] Cannot check tables (database might not exist or no connection yet): {e}")
+        # If we can't connect, assume no tables
         return False
 
 
