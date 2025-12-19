@@ -183,10 +183,11 @@ def initialize_database():
     1. Detect configured database (SQLite or PostgreSQL)
     2. If PostgreSQL:
        a. Check if database exists, create if needed
-       b. Check if SQLite exists with data
-       c. Run migrations to create PostgreSQL schema
-       d. If SQLite has data: Import data to PostgreSQL and remove SQLite
-    3. If SQLite: Just ensure it exists and has tables
+       b. Check if SQLite exists. If so, run migrations on it first.
+       c. Check if SQLite has data.
+       d. Run migrations on PostgreSQL to create schema.
+       e. If SQLite has data, import it to PostgreSQL.
+    3. If SQLite: Just ensure it exists and has tables.
 
     Returns:
         dict: success bool, message str, details list
@@ -199,143 +200,88 @@ def initialize_database():
     logger.info(f"[DB_INIT] Engine: {db_engine}")
     logger.info(f"[DB_INIT] ========================================")
 
-    # STEP 1: Handle based on database type
+    from finances.utils.db_migration import get_sqlite_path, sqlite_has_data, migrate_sqlite_to_postgres
+
     if db_engine == 'postgresql':
-        # STEP 2: Check if PostgreSQL database exists (create if needed)
         db_check = check_postgres_database_exists()
-
         if not db_check['exists']:
-            return {
-                'success': False,
-                'message': db_check['message'],
-                'details': []
-            }
-
+            return {'success': False, 'message': db_check['message'], 'details': []}
         if db_check['created']:
             details.append("PostgreSQL database created")
 
-        # STEP 3: Check if SQLite exists with data BEFORE running migrations
-        logger.info(f"[DB_INIT] Checking for SQLite data...")
-
-        from finances.utils.db_migration import get_sqlite_path, sqlite_has_data, migrate_sqlite_to_postgres
-
         sqlite_path = get_sqlite_path()
-        logger.info(f"[DB_INIT] SQLite path result: {sqlite_path}")
+        sqlite_needs_migration = False
 
         if sqlite_path:
-            logger.info(f"[DB_INIT] SQLite file exists, checking if it has data...")
-            has_data = sqlite_has_data(sqlite_path)
-            logger.info(f"[DB_INIT] SQLite has data: {has_data}")
-            sqlite_needs_migration = has_data
-        else:
-            logger.info(f"[DB_INIT] No SQLite file found")
-            sqlite_needs_migration = False
+            logger.info(f"[DB_INIT] Found SQLite database at: {sqlite_path}")
+            details.append(f"Found existing SQLite file at {sqlite_path.name}")
 
-        if sqlite_needs_migration:
-            logger.info(f"[DB_INIT] [OK] Found SQLite database with data at: {sqlite_path}")
-            details.append(f"Found SQLite database with data at {sqlite_path}")
-        else:
-            logger.info(f"[DB_INIT] No SQLite data found for migration")
+            # Temporarily switch to SQLite to ensure its schema is up-to-date
+            original_db_config = settings.DATABASES['default'].copy()
+            logger.info(f"[DB_INIT] Temporarily switching to SQLite to run its migrations...")
+            settings.DATABASES['default'] = {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': sqlite_path,
+            }
+            connections.close_all()
 
-        # STEP 4: Run migrations to create schema
-        # This is needed even if SQLite exists (migrate needs tables to import into)
-        logger.info(f"[DB_INIT] Checking for pending migrations...")
-
-        try:
-            from io import StringIO
-            import sys
-
-            # Check if database has tables
-            has_tables = check_database_has_tables()
-
-            if not has_tables:
-                # No tables - run initial migrations
-                logger.info(f"[DB_INIT] Database is empty - running initial migrations...")
-                details.append("Running initial migrations...")
-
-                migration_result = run_migrations()
-
-                if not migration_result['success']:
-                    return {
-                        'success': False,
-                        'message': migration_result['message'],
-                        'details': details
-                    }
-
-                details.append("Initial migrations completed")
-            else:
-                # Has tables - check for pending migrations
-                logger.info(f"[DB_INIT] Database has tables - checking for pending migrations...")
-
-                # Capture output of showmigrations
-                old_stdout = sys.stdout
-                sys.stdout = StringIO()
-
-                call_command('showmigrations', '--plan', verbosity=0)
-
-                output = sys.stdout.getvalue()
-                sys.stdout = old_stdout
-
-                # Check if there are unapplied migrations (lines starting with [ ])
-                unapplied = [line for line in output.split('\n') if line.strip().startswith('[ ]')]
-
-                if unapplied:
-                    logger.info(f"[DB_INIT] Found {len(unapplied)} pending migrations - applying...")
-                    details.append(f"Applying {len(unapplied)} pending migrations...")
-
-                    migration_result = run_migrations()
-
-                    if migration_result['success']:
-                        details.append("Pending migrations applied")
-                    else:
-                        details.append(f"[WARN] Migration failed: {migration_result['message']}")
-                else:
-                    logger.info(f"[DB_INIT] No pending migrations")
-                    details.append("Database schema is up to date")
-
-        except Exception as e:
-            logger.warning(f"[DB_INIT] Could not check for pending migrations: {e}")
-            # Try to run migrations anyway
+            # Run migrations on SQLite
             migration_result = run_migrations()
-            if migration_result['success']:
-                details.append("Migrations applied")
+            if not migration_result['success']:
+                # Restore original settings before failing
+                settings.DATABASES['default'] = original_db_config
+                connections.close_all()
+                return {'success': False, 'message': f"Failed to migrate SQLite schema: {migration_result['message']}", 'details': details}
+            
+            details.append("SQLite schema is up to date.")
 
-        # STEP 5: If SQLite migration is needed, do it now (after schema is created)
+            # Now check if it has data
+            has_data = sqlite_has_data(sqlite_path)
+            if has_data:
+                sqlite_needs_migration = True
+                logger.info(f"[DB_INIT] [OK] SQLite has data and is ready for migration.")
+                details.append("SQLite has data and is marked for migration.")
+            else:
+                logger.info(f"[DB_INIT] SQLite is empty. No data migration needed.")
+                details.append("SQLite is empty. No data migration required.")
+
+            # Switch back to PostgreSQL
+            logger.info(f"[DB_INIT] Switching back to PostgreSQL...")
+            settings.DATABASES['default'] = original_db_config
+            connections.close_all()
+        else:
+            logger.info(f"[DB_INIT] No SQLite file found.")
+
+        # Run migrations on PostgreSQL
+        logger.info(f"[DB_INIT] Checking and running PostgreSQL migrations...")
+        migration_result = run_migrations()
+        if not migration_result['success']:
+            return {'success': False, 'message': migration_result['message'], 'details': details}
+        details.append("PostgreSQL schema is up to date.")
+
+        # If SQLite migration is needed, do it now
         if sqlite_needs_migration:
-            logger.info(f"[DB_INIT] PostgreSQL schema ready - now migrating SQLite data...")
+            logger.info(f"[DB_INIT] PostgreSQL schema ready, now migrating SQLite data...")
             details.append("Migrating SQLite data to PostgreSQL...")
 
             migration_result = migrate_sqlite_to_postgres(sqlite_path)
-
             if migration_result['success']:
-                details.append(f"[OK] SQLite data migrated successfully: {migration_result['message']}")
+                details.append(f"[OK] {migration_result['message']}")
                 logger.info(f"[DB_INIT] [OK] SQLite migration successful")
             else:
                 logger.error(f"[DB_INIT] [ERROR] SQLite migration failed: {migration_result['message']}")
-                return {
-                    'success': False,
-                    'message': f"SQLite migration failed: {migration_result['message']}",
-                    'details': details
-                }
+                return {'success': False, 'message': f"SQLite migration failed: {migration_result['message']}", 'details': details}
 
     elif db_engine == 'sqlite':
-        # SQLite - just check if it has tables
         has_tables = check_database_has_tables()
-
         if not has_tables:
             logger.info(f"[DB_INIT] SQLite database is empty - running initial migrations...")
             details.append("Running initial migrations on SQLite...")
-
             migration_result = run_migrations()
-
             if migration_result['success']:
                 details.append("SQLite initialized with tables")
             else:
-                return {
-                    'success': False,
-                    'message': migration_result['message'],
-                    'details': details
-                }
+                return {'success': False, 'message': migration_result['message'], 'details': details}
         else:
             details.append("SQLite database already initialized")
 
