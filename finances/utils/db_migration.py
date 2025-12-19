@@ -34,15 +34,24 @@ def get_sqlite_path():
     db_path_env = os.environ.get('DB_PATH')
     if db_path_env:
         sqlite_path = Path(db_path_env)
+        logger.info(f"[DB_MIGRATION] Checking DB_PATH: {db_path_env}")
         if sqlite_path.exists():
+            logger.info(f"[DB_MIGRATION] Found SQLite at DB_PATH: {sqlite_path}")
             return sqlite_path
-        logger.debug(f"[DB_MIGRATION] DB_PATH environment variable set to {db_path_env} but file not found")
+        else:
+            logger.info(f"[DB_MIGRATION] DB_PATH set but file not found: {db_path_env}")
 
     # Default SQLite location
     base_dir = Path(settings.BASE_DIR)
     sqlite_path = base_dir / 'db' / 'db.sqlite3'
 
-    return sqlite_path if sqlite_path.exists() else None
+    logger.info(f"[DB_MIGRATION] Checking default location: {sqlite_path}")
+    if sqlite_path.exists():
+        logger.info(f"[DB_MIGRATION] Found SQLite at default location: {sqlite_path}")
+        return sqlite_path
+    else:
+        logger.info(f"[DB_MIGRATION] SQLite not found at default location: {sqlite_path}")
+        return None
 
 
 def sqlite_has_data(sqlite_path):
@@ -55,13 +64,21 @@ def sqlite_has_data(sqlite_path):
     Returns:
         bool: True if database has users, False otherwise
     """
+    if not sqlite_path:
+        logger.info(f"[DB_MIGRATION] sqlite_path is None, cannot check for data")
+        return False
+
     try:
+        logger.info(f"[DB_MIGRATION] Connecting to SQLite at: {sqlite_path}")
         conn = sqlite3.connect(str(sqlite_path))
         cursor = conn.cursor()
 
         # Check if auth_user table exists and has data
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='auth_user'")
-        if not cursor.fetchone():
+        table_exists = cursor.fetchone()
+
+        if not table_exists:
+            logger.info(f"[DB_MIGRATION] SQLite has no auth_user table")
             cursor.close()
             conn.close()
             return False
@@ -72,10 +89,11 @@ def sqlite_has_data(sqlite_path):
         cursor.close()
         conn.close()
 
+        logger.info(f"[DB_MIGRATION] SQLite has {user_count} users")
         return user_count > 0
 
     except Exception as e:
-        logger.error(f"[DB_MIGRATION] Error checking SQLite data: {e}")
+        logger.error(f"[DB_MIGRATION] Error checking SQLite data: {e}", exc_info=True)
         return False
 
 
@@ -222,13 +240,9 @@ def migrate_sqlite_to_postgres(sqlite_path):
         settings.DATABASES['default'] = original_db_config
         connections.close_all()
 
-        # STEP 5: Run migrations on PostgreSQL to create tables
-        logger.info(f"[DB_MIGRATION] Running migrations on PostgreSQL")
-        try:
-            call_command('migrate', verbosity=2, interactive=False)
-        except Exception as e:
-            logger.error(f"[DB_MIGRATION] Migration failed: {e}")
-            raise
+        # STEP 5: PostgreSQL tables should already exist (migrations run by db_startup)
+        # Skip running migrations here - they were already run before calling this function
+        logger.info(f"[DB_MIGRATION] PostgreSQL tables already created by migrations")
 
         # STEP 6: Load data into PostgreSQL
         logger.info(f"[DB_MIGRATION] Loading data into PostgreSQL")
@@ -298,7 +312,7 @@ def migrate_sqlite_to_postgres(sqlite_path):
             # STEP 10: Remove SQLite database file
             logger.info(f"[DB_MIGRATION] Removing SQLite database file: {sqlite_path.name}")
             sqlite_path.unlink()
-            logger.info(f"[DB_MIGRATION] ✅ SQLite database removed successfully")
+            logger.info(f"[DB_MIGRATION] [OK] SQLite database removed successfully")
 
             # Remove related files if they exist
             for related_file in related_files:
@@ -331,7 +345,7 @@ def migrate_sqlite_to_postgres(sqlite_path):
 # The SQLite database has been removed and a backup
 # has been saved in the db/backups/ directory.
 #
-# ⚠️  DO NOT DELETE THIS FILE
+# [WARNING] DO NOT DELETE THIS FILE
 # If you need to revert to SQLite, you must manually
 # configure local_settings.py and restore from backup.
 # ====================================================
