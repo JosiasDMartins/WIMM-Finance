@@ -11,22 +11,26 @@ class FinancesConfig(AppConfig):
     def ready(self):
         """
         This method is called when Django starts.
-        We use it to check for automatic database migration from SQLite to PostgreSQL.
+
+        Handles:
+        1. Database initialization (PostgreSQL or SQLite)
+        2. Automatic migration from SQLite to PostgreSQL if needed
+        3. Running migrations if database is empty
         """
-        # Only run migration check in main process (not in reloader)
+        # Only run in main process (not in reloader)
         import os
         if os.environ.get('RUN_MAIN') != 'true' and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
-            # Skip in reloader process
             return
 
         try:
-            # Log which database is being used
             from django.conf import settings
             from finances.utils.db_backup import get_database_engine
+            from finances.utils.db_startup import initialize_database
 
             db_engine = get_database_engine()
             db_config = settings.DATABASES['default']
 
+            # Log database type
             if db_engine == 'sqlite':
                 db_path = db_config.get('NAME', 'unknown')
                 logger.info(f"[STARTUP] 💾 Using SQLite database: {db_path}")
@@ -37,29 +41,28 @@ class FinancesConfig(AppConfig):
                 db_user = db_config.get('USER', 'unknown')
                 db_password = db_config.get('PASSWORD')
 
-                # Check if credentials are properly configured
                 if not db_password or db_name == 'unknown' or db_host == 'unknown' or db_user == 'unknown':
                     logger.warning(f"[STARTUP] ⚠️  PostgreSQL configured but credentials incomplete!")
                     logger.warning(f"[STARTUP]     NAME: {db_name}, USER: {db_user}, HOST: {db_host}, PASSWORD: {'SET' if db_password else 'MISSING'}")
                     logger.warning(f"[STARTUP]     Please check config/local_settings.py and .env file")
+                    return
                 else:
                     logger.info(f"[STARTUP] 🐘 Using PostgreSQL database: {db_name}@{db_host}:{db_port} (user: {db_user})")
             else:
                 logger.info(f"[STARTUP] ⚙️ Using {db_engine} database")
 
-            # Check for automatic database migration
-            from finances.utils.db_migration import check_and_migrate
+            # Initialize database (create if needed, migrate if needed, import SQLite if needed)
+            logger.info("[STARTUP] Initializing database...")
+            result = initialize_database()
 
-            logger.info("[STARTUP] Checking for automatic database migration...")
-            result = check_and_migrate()
-
-            if result.get('migrated'):
+            if result.get('success'):
                 logger.info(f"[STARTUP] ✅ {result['message']}")
                 if result.get('details'):
-                    logger.info(f"[STARTUP] Details: {result['details']}")
+                    for detail in result['details']:
+                        logger.info(f"[STARTUP]    - {detail}")
             else:
-                logger.debug(f"[STARTUP] Migration not needed: {result['message']}")
+                logger.warning(f"[STARTUP] ⚠️  {result['message']}")
 
         except Exception as e:
-            # Don't crash the application if migration check fails
-            logger.error(f"[STARTUP] Error during migration check: {e}", exc_info=True)
+            # Don't crash the application if initialization fails
+            logger.error(f"[STARTUP] Error during database initialization: {e}", exc_info=True)

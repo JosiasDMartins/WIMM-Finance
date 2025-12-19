@@ -30,6 +30,14 @@ def get_sqlite_path():
     Returns:
         Path: Path to db.sqlite3 or None if not found
     """
+    # Check environment variable first (Docker)
+    db_path_env = os.environ.get('DB_PATH')
+    if db_path_env:
+        sqlite_path = Path(db_path_env)
+        if sqlite_path.exists():
+            return sqlite_path
+        logger.debug(f"[DB_MIGRATION] DB_PATH environment variable set to {db_path_env} but file not found")
+
     # Default SQLite location
     base_dir = Path(settings.BASE_DIR)
     sqlite_path = base_dir / 'db' / 'db.sqlite3'
