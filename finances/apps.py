@@ -35,7 +35,15 @@ class FinancesConfig(AppConfig):
                 db_host = db_config.get('HOST', 'unknown')
                 db_port = db_config.get('PORT', '5432')
                 db_user = db_config.get('USER', 'unknown')
-                logger.info(f"[STARTUP] 🐘 Using PostgreSQL database: {db_name}@{db_host}:{db_port} (user: {db_user})")
+                db_password = db_config.get('PASSWORD')
+
+                # Check if credentials are properly configured
+                if not db_password or db_name == 'unknown' or db_host == 'unknown' or db_user == 'unknown':
+                    logger.warning(f"[STARTUP] ⚠️  PostgreSQL configured but credentials incomplete!")
+                    logger.warning(f"[STARTUP]     NAME: {db_name}, USER: {db_user}, HOST: {db_host}, PASSWORD: {'SET' if db_password else 'MISSING'}")
+                    logger.warning(f"[STARTUP]     Please check config/local_settings.py and .env file")
+                else:
+                    logger.info(f"[STARTUP] 🐘 Using PostgreSQL database: {db_name}@{db_host}:{db_port} (user: {db_user})")
             else:
                 logger.info(f"[STARTUP] ⚙️ Using {db_engine} database")
 

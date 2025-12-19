@@ -76,10 +76,23 @@ def postgres_is_configured():
     Check if PostgreSQL is configured as the primary database.
 
     Returns:
-        bool: True if PostgreSQL is configured, False otherwise
+        bool: True if PostgreSQL is configured with all required credentials, False otherwise
     """
     db_engine = settings.DATABASES['default']['ENGINE']
-    return 'postgresql' in db_engine
+    if 'postgresql' not in db_engine:
+        return False
+
+    # Check if all required PostgreSQL credentials are present
+    db_config = settings.DATABASES['default']
+    required_fields = ['NAME', 'USER', 'PASSWORD', 'HOST']
+
+    for field in required_fields:
+        value = db_config.get(field)
+        if not value or value == 'unknown':
+            logger.warning(f"[DB_MIGRATION] PostgreSQL configured but {field} is missing or invalid")
+            return False
+
+    return True
 
 
 def postgres_has_data():
