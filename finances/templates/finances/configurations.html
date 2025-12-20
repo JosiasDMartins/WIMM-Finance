@@ -754,10 +754,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // STEP 1: Show initial warning about data loss and recommend backup
+        const backupWarningMessage =
+            `<p><span class="font-bold text-orange-600 dark:text-orange-400">⚠️ WARNING:</span> {% trans 'Restoring a backup will replace ALL current data in your database. This action cannot be undone.' %}</p>` +
+            `<p class="mt-4"><span class="font-bold text-orange-600 dark:text-orange-400">IMPORTANT:</span> {% trans 'It is strongly recommended to create a backup of your current database before proceeding.' %}</p>` +
+            `<p class="mt-4">{% trans 'Do you want to continue with the restore operation?' %}</p>`;
+
         const backupWarning = await GenericModal.confirm(
-            "{% trans 'WARNING: Restoring a backup will replace ALL current data in your database. This action cannot be undone.' %}\n\n" +
-            "{% trans 'IMPORTANT: It is strongly recommended to create a backup of your current database before proceeding.' %}\n\n" +
-            "{% trans 'Do you want to continue with the restore operation?' %}",
+            backupWarningMessage,
             "{% trans 'Confirm Database Restore' %}"
         );
 
@@ -792,14 +795,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
 
+                const migrationMessage =
+                    `<p><span class="font-bold text-orange-600 dark:text-orange-400">⚠️ WARNING:</span> ${data.message}</p>` +
+                    `<p class="mt-4 font-semibold">{% trans 'The following will happen:' %}</p>` +
+                    `<ul class="mt-2 ml-6 space-y-1 list-disc">` +
+                        `<li>{% trans 'Current PostgreSQL database will be backed up' %}</li>` +
+                        `<li>{% trans 'All current PostgreSQL data will be dropped' %}</li>` +
+                        `<li>{% trans 'SQLite data will be migrated to PostgreSQL' %}</li>` +
+                    `</ul>` +
+                    `<p class="mt-4">{% trans 'Do you want to proceed with the migration?' %}</p>`;
+
                 const migrationConfirmed = await GenericModal.confirm(
-                    "{% trans 'MIGRATION REQUIRED' %}\n\n" +
-                    data.message + "\n\n" +
-                    "{% trans 'The following will happen:' %}\n" +
-                    "• {% trans 'Current PostgreSQL database will be backed up' %}\n" +
-                    "• {% trans 'All current PostgreSQL data will be dropped' %}\n" +
-                    "• {% trans 'SQLite data will be migrated to PostgreSQL' %}\n\n" +
-                    "{% trans 'Do you want to proceed with the migration?' %}",
+                    migrationMessage,
                     "{% trans 'Confirm Migration' %}"
                 );
 

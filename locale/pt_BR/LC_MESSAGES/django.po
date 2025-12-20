@@ -2983,6 +2983,62 @@ msgstr "Restauração Falhou"
 msgid "Restore Error"
 msgstr "Erro na Restauração"
 
+#: .\finances\templates\finances\configurations.html:758
+msgid "Restoring a backup will replace ALL current data in your database. This action cannot be undone."
+msgstr "Restaurar um backup substituirá TODOS os dados atuais no seu banco de dados. Esta ação não pode ser desfeita."
+
+#: .\finances\templates\finances\configurations.html:759
+msgid "IMPORTANT:"
+msgstr "IMPORTANTE:"
+
+#: .\finances\templates\finances\configurations.html:759
+msgid "It is strongly recommended to create a backup of your current database before proceeding."
+msgstr "É fortemente recomendado criar um backup do seu banco de dados atual antes de prosseguir."
+
+#: .\finances\templates\finances\configurations.html:760
+msgid "Do you want to continue with the restore operation?"
+msgstr "Deseja continuar com a operação de restauração?"
+
+#: .\finances\templates\finances\configurations.html:800
+msgid "The following will happen:"
+msgstr "O seguinte acontecerá:"
+
+#: .\finances\templates\finances\configurations.html:802
+msgid "Current PostgreSQL database will be backed up"
+msgstr "O banco de dados PostgreSQL atual será copiado"
+
+#: .\finances\templates\finances\configurations.html:803
+msgid "All current PostgreSQL data will be dropped"
+msgstr "Todos os dados atuais do PostgreSQL serão removidos"
+
+#: .\finances\templates\finances\configurations.html:804
+msgid "SQLite data will be migrated to PostgreSQL"
+msgstr "Os dados do SQLite serão migrados para PostgreSQL"
+
+#: .\finances\templates\finances\configurations.html:806
+msgid "Do you want to proceed with the migration?"
+msgstr "Deseja prosseguir com a migração?"
+
+#: .\finances\templates\finances\configurations.html:810
+msgid "Confirm Migration"
+msgstr "Confirmar Migração"
+
+#: .\finances\templates\finances\configurations.html:846
+msgid "Database migrated successfully from SQLite to PostgreSQL! Redirecting to login page..."
+msgstr "Banco de dados migrado com sucesso de SQLite para PostgreSQL! Redirecionando para a página de login..."
+
+#: .\finances\templates\finances\configurations.html:848
+msgid "Migration Successful"
+msgstr "Migração Bem-sucedida"
+
+#: .\finances\templates\finances\configurations.html:853
+msgid "Failed to migrate backup:"
+msgstr "Falha ao migrar backup:"
+
+#: .\finances\templates\finances\configurations.html:853
+msgid "Migration Failed"
+msgstr "Migração Falhou"
+
 #~ msgid ""
 #~ "For now, mark Flow Groups as \"Investment\" in the dashboard to track "
 #~ "money set aside for investing."
