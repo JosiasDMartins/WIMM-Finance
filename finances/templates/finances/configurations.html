@@ -477,13 +477,13 @@
                         </div>
 
                         <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
-                            <input type="file" id="restore-file-input" accept=".sqlite3" class="hidden">
+                            <input type="file" id="restore-file-input" accept=".sqlite3,.dump" class="hidden">
                             <label for="restore-file-input" class="cursor-pointer">
                                 <span class="material-symbols-outlined text-4xl text-gray-400 mb-2 block">cloud_upload</span>
                                 <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">
                                     {% trans "Click to select a backup file" %}
                                 </p>
-                                <p class="text-xs text-gray-500">{% trans "SQLite3 database files only" %}</p>
+                                <p class="text-xs text-gray-500">{% trans "SQLite (.sqlite3) or PostgreSQL (.dump) files" %}</p>
                             </label>
                         </div>
 
@@ -753,13 +753,15 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Show confirmation modal using GenericModal.confirm
-        const confirmed = await GenericModal.confirm(
-            "{% trans 'WARNING: This will replace your current database. All current data will be lost. Continue?' %}",
+        // STEP 1: Show initial warning about data loss and recommend backup
+        const backupWarning = await GenericModal.confirm(
+            "{% trans 'WARNING: Restoring a backup will replace ALL current data in your database. This action cannot be undone.' %}\n\n" +
+            "{% trans 'IMPORTANT: It is strongly recommended to create a backup of your current database before proceeding.' %}\n\n" +
+            "{% trans 'Do you want to continue with the restore operation?' %}",
             "{% trans 'Confirm Database Restore' %}"
         );
 
-        if (!confirmed) {
+        if (!backupWarning) {
             return;
         }
 
@@ -770,6 +772,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> {% trans "Restoring..." %}';
 
         try {
+            // STEP 2: First attempt - check if migration is needed
             const formData = new FormData();
             formData.append('backup_file', file);
 
@@ -783,6 +786,77 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const data = await response.json();
 
+            // STEP 3: Handle migration confirmation if needed
+            if (data.needs_migration_confirmation) {
+                // SQLite → PostgreSQL migration needed
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+
+                const migrationConfirmed = await GenericModal.confirm(
+                    "{% trans 'MIGRATION REQUIRED' %}\n\n" +
+                    data.message + "\n\n" +
+                    "{% trans 'The following will happen:' %}\n" +
+                    "• {% trans 'Current PostgreSQL database will be backed up' %}\n" +
+                    "• {% trans 'All current PostgreSQL data will be dropped' %}\n" +
+                    "• {% trans 'SQLite data will be migrated to PostgreSQL' %}\n\n" +
+                    "{% trans 'Do you want to proceed with the migration?' %}",
+                    "{% trans 'Confirm Migration' %}"
+                );
+
+                if (!migrationConfirmed) {
+                    return;
+                }
+
+                // Retry with migration confirmation
+                btn.disabled = true;
+                btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> {% trans "Migrating..." %}';
+
+                const formData2 = new FormData();
+                formData2.append('backup_file', file);
+                formData2.append('confirm_migration', 'true');
+
+                const response2 = await fetch('/restore-backup/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: formData2
+                });
+
+                const data2 = await response2.json();
+
+                if (data2.success) {
+                    // Migration successful
+                    const preview = document.getElementById('restore-preview');
+                    const familyName = document.getElementById('restore-family-name');
+                    const usersList = document.getElementById('restore-users-list');
+
+                    familyName.textContent = data2.family.name;
+                    usersList.innerHTML = '';
+                    data2.users.forEach(user => {
+                        const li = document.createElement('li');
+                        li.textContent = `${user.username} (${user.role})`;
+                        usersList.appendChild(li);
+                    });
+
+                    preview.classList.remove('hidden');
+
+                    // Show success modal and redirect to login
+                    await GenericModal.alert(
+                        "{% trans 'Database migrated successfully from SQLite to PostgreSQL! Redirecting to login page...' %}",
+                        "{% trans 'Migration Successful' %}"
+                    );
+
+                    // Redirect to login page
+                    window.location.href = '/login/';
+                } else {
+                    GenericModal.alert("{% trans 'Failed to migrate backup:' %} " + data2.error, "{% trans 'Migration Failed' %}");
+                }
+
+                return;
+            }
+
+            // STEP 4: Handle normal restore (no migration needed)
             if (data.success) {
                 const preview = document.getElementById('restore-preview');
                 const familyName = document.getElementById('restore-family-name');
@@ -807,7 +881,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Redirect to login page
                 window.location.href = '/login/';
             } else {
-                GenericModal.alert("{% trans 'Failed to restore backup:' %} " + data.error, "{% trans 'Restore Failed' %}");
+                // Show detailed error message
+                let errorMessage = data.error;
+                if (data.details) {
+                    errorMessage += '\n\n{% trans "Details:" %} ' + data.details;
+                }
+                GenericModal.alert(errorMessage, "{% trans 'Restore Failed' %}");
             }
         } catch (error) {
             console.error('Error restoring backup:', error);

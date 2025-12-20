@@ -78,13 +78,31 @@ def restore_postgres_database_from_file(uploaded_file):
 
         logger.info(f"[PG_RESTORE] File saved successfully ({temp_backup_path.stat().st_size} bytes)")
 
-        # STEP 3: Read metadata from backup
+        # STEP 3: Create backup of current PostgreSQL database before restore
+        logger.info(f"[PG_RESTORE] Creating backup of current PostgreSQL database")
+        backup_created = False
+        try:
+            from finances.utils.db_backup import create_database_backup
+            backup_result = create_database_backup()
+
+            if backup_result['success']:
+                backup_created = True
+                logger.info(f"[PG_RESTORE] PostgreSQL backup created: {backup_result['filename']}")
+            else:
+                logger.warning(f"[PG_RESTORE] Could not create PostgreSQL backup: {backup_result.get('error')}")
+                # Not fatal, continue with restore
+
+        except Exception as backup_error:
+            logger.warning(f"[PG_RESTORE] Could not create PostgreSQL backup: {backup_error}")
+            # Not fatal, continue with restore
+
+        # STEP 4: Read metadata from backup
         # For PostgreSQL dumps, we need to extract metadata differently
         # We'll try to read it from a temporary SQLite conversion or from the restored DB after restore
         family_info = {'name': 'Unknown Family'}
         users_info = []
 
-        # STEP 4: Close all Django connections
+        # STEP 5: Close all Django connections
         logger.info(f"[PG_RESTORE] Closing all Django database connections")
         for conn in connections.all():
             try:
@@ -95,7 +113,7 @@ def restore_postgres_database_from_file(uploaded_file):
         gc.collect()
         time.sleep(0.5)
 
-        # STEP 5: Restore using pg_restore with --clean
+        # STEP 6: Restore using pg_restore with --clean
         logger.info(f"[PG_RESTORE] Starting pg_restore with --clean option")
 
         # Build pg_restore command
@@ -150,14 +168,14 @@ def restore_postgres_database_from_file(uploaded_file):
 
         logger.info(f"[PG_RESTORE] pg_restore completed")
 
-        # STEP 6: Force Django to reconnect
+        # STEP 7: Force Django to reconnect
         logger.info(f"[PG_RESTORE] Forcing Django to reconnect to database")
         for conn in connections.all():
             conn.close()
         gc.collect()
         time.sleep(0.5)
 
-        # STEP 7: Verify Django can read the restored database
+        # STEP 8: Verify Django can read the restored database
         try:
             from django.contrib.auth import get_user_model
             from finances.models import Family
@@ -203,7 +221,7 @@ def restore_postgres_database_from_file(uploaded_file):
                 'details': str(db_read_error)
             }
 
-        # STEP 8: Create reload flag to signal server restart needed
+        # STEP 9: Create reload flag to signal server restart needed
         try:
             from finances.views.views_updater import create_reload_flag
             create_reload_flag()
