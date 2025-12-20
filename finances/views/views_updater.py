@@ -555,20 +555,41 @@ def download_backup(request, filename):
         return JsonResponse({'error': _('Backup downloads are disabled in demo mode.')}, status=403)
 
     try:
-        backup_path = Path(settings.BASE_DIR) / 'backups' / filename
-        
+        # Try both possible backup locations
+        # Location 1: db/backups (PostgreSQL backups and SQLite backups)
+        backup_path = Path(settings.BASE_DIR) / 'db' / 'backups' / filename
+
+        # Location 2: Old location for backwards compatibility
         if not backup_path.exists():
+            backup_path = Path(settings.BASE_DIR) / 'backups' / filename
+
+        if not backup_path.exists():
+            logger.error(f"[DOWNLOAD_BACKUP] File not found: {filename}")
+            logger.error(f"[DOWNLOAD_BACKUP] Tried paths:")
+            logger.error(f"  - {Path(settings.BASE_DIR) / 'db' / 'backups' / filename}")
+            logger.error(f"  - {Path(settings.BASE_DIR) / 'backups' / filename}")
             return JsonResponse({'error': _('Backup file not found')}, status=404)
 
-        if not str(backup_path.resolve()).startswith(str(Path(settings.BASE_DIR) / 'backups')):
+        # Security check: ensure file is within allowed backup directories
+        allowed_dirs = [
+            str(Path(settings.BASE_DIR) / 'db' / 'backups'),
+            str(Path(settings.BASE_DIR) / 'backups')
+        ]
+
+        resolved_path = str(backup_path.resolve())
+        if not any(resolved_path.startswith(allowed_dir) for allowed_dir in allowed_dirs):
+            logger.error(f"[DOWNLOAD_BACKUP] Security violation: {resolved_path} not in allowed dirs")
             return JsonResponse({'error': _('Invalid file path')}, status=403)
-        
+
+        logger.info(f"[DOWNLOAD_BACKUP] Serving file: {backup_path}")
+
         response = FileResponse(open(backup_path, 'rb'), as_attachment=True)
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        
+
         return response
-        
+
     except Exception as e:
+        logger.error(f"[DOWNLOAD_BACKUP] Error: {e}", exc_info=True)
         return JsonResponse({'error': str(e)}, status=500)
 
 
