@@ -372,49 +372,24 @@ def create_database_backup():
     """
     Creates a backup of the database.
 
+    DEPRECATED: This function is deprecated and kept only for backwards compatibility.
+    Use finances.utils.db_backup.create_database_backup() instead, which supports
+    both SQLite and PostgreSQL with proper transactional backups.
+
     Returns:
         Tuple of (success: bool, message: str, backup_path: Path or None)
     """
-    try:
-        from django.conf import settings
-        import shutil
-        from datetime import datetime
+    # Import the new, complete implementation
+    from finances.utils.db_backup import create_database_backup as new_create_backup
 
-        # Create backups directory if it doesn't exist
-        backups_dir = Path(settings.BASE_DIR) / 'backups'
-        backups_dir.mkdir(exist_ok=True)
+    print("[DEPRECATED] github_utils.create_database_backup() is deprecated")
+    print("[DEPRECATED] Using finances.utils.db_backup.create_database_backup() instead")
 
-        # Source database file - ensure absolute path
-        db_name = settings.DATABASES['default']['NAME']
-        db_path = Path(db_name)
+    # Call the new implementation
+    result = new_create_backup()
 
-        # If path is not absolute, make it relative to BASE_DIR
-        if not db_path.is_absolute():
-            db_path = Path(settings.BASE_DIR) / db_path
-
-        print(f"Attempting to backup database from: {db_path}")
-        print(f"Database path exists: {db_path.exists()}")
-        print(f"Database path is absolute: {db_path.is_absolute()}")
-
-        if not db_path.exists():
-            error_msg = f"Database file not found at: {db_path}"
-            print(error_msg)
-            return False, error_msg, None
-
-        # Create backup filename with timestamp
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        backup_filename = f'db_backup_{timestamp}.sqlite3'
-        backup_path = backups_dir / backup_filename
-
-        # Copy database file
-        shutil.copy2(db_path, backup_path)
-
-        print(f"Database backup created: {backup_path}")
-        return True, "Backup created successfully", backup_path
-
-    except Exception as e:
-        import traceback
-        error_detail = traceback.format_exc()
-        print(f"Error creating backup: {str(e)}")
-        print(f"Traceback: {error_detail}")
-        return False, str(e), None
+    if result['success']:
+        backup_path = Path(result['backup_path'])
+        return True, result.get('message', 'Backup created successfully'), backup_path
+    else:
+        return False, result.get('error', 'Unknown error'), None

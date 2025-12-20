@@ -2,7 +2,7 @@
 
 from django.urls import path
 from . import views
-from finances.views import views_password_reset
+from finances.views import views_password_reset, views_backup
 
 urlpatterns = [
     # === SETUP (must be first) ===
@@ -90,10 +90,12 @@ urlpatterns = [
     path('check-updates/manual/', views.manual_check_updates, name='manual_check_updates'),
     path('apply-local-updates/', views.apply_local_updates, name='apply_local_updates'),
     path('download-github-update/', views.download_github_update, name='download_github_update'),
-    path('create-backup/', views.create_backup, name='create_backup'),
-    path('download-backup/<str:filename>/', views.download_backup, name='download_backup'),
-    path('restore-backup/', views.restore_backup, name='restore_backup'),
     path('skip-updates/', views.skip_updates, name='skip_updates'),
+
+    # Backup and Restore (moved to views_backup.py)
+    path('create-backup/', views_backup.create_backup, name='create_backup'),
+    path('download-backup/<str:filename>/', views_backup.download_backup, name='download_backup'),
+    path('restore-backup/', views_backup.restore_backup, name='restore_backup'),
 
     #Notifications
     path('api/notifications/', views.get_notifications_ajax, name='get_notifications_ajax'),
