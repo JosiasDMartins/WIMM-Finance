@@ -175,23 +175,27 @@ def restore_sqlite_to_postgres(uploaded_file):
         temp_dump_path = Path(tempfile.gettempdir()) / f"sqlite_migration_dump_{int(time.time())}.json"
 
         try:
-            output = io.StringIO()
-            call_command(
-                'dumpdata',
-                database='sqlite_migration',
-                natural_foreign=True,
-                natural_primary=True,
-                exclude=['contenttypes', 'auth.permission'],
-                output=str(temp_dump_path),
-                stdout=output,
-                stderr=output
-            )
+            # Use the same approach as db_migration.py (which works!)
+            with open(temp_dump_path, 'w', encoding='utf-8') as f:
+                call_command(
+                    'dumpdata',
+                    natural_foreign=True,
+                    natural_primary=True,
+                    exclude=['contenttypes', 'auth.permission'],
+                    database='sqlite_migration',
+                    stdout=f,
+                    verbosity=2
+                )
 
-            logger.info(f"[SQLITE_TO_PG] dumpdata completed: {output.getvalue()}")
+            logger.info(f"[SQLITE_TO_PG] dumpdata completed successfully")
             logger.info(f"[SQLITE_TO_PG] Dump file size: {temp_dump_path.stat().st_size} bytes")
 
+            # Verify dump file is not empty
+            if temp_dump_path.stat().st_size == 0:
+                raise Exception("Dump file is empty. Cannot load data.")
+
         except Exception as dump_error:
-            logger.error(f"[SQLITE_TO_PG] dumpdata failed: {dump_error}")
+            logger.error(f"[SQLITE_TO_PG] dumpdata failed: {dump_error}", exc_info=True)
             return {
                 'success': False,
                 'error': _('Failed to export data from SQLite backup'),
