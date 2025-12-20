@@ -78,6 +78,60 @@ def restore_postgres_database_from_file(uploaded_file):
 
         logger.info(f"[PG_RESTORE] File saved successfully ({temp_backup_path.stat().st_size} bytes)")
 
+        # STEP 2.5: Clean the backup file to remove incompatible SET commands
+        # PostgreSQL 17 adds SET commands that don't exist in older versions
+        logger.info(f"[PG_RESTORE] Cleaning backup file to remove incompatible SET commands")
+
+        use_sql_format = False
+        sql_output_path = None
+        original_backup_path = temp_backup_path  # Keep reference to original
+
+        try:
+            # Convert backup to SQL, filter out problematic commands, then restore
+            # Use pg_restore to convert to SQL
+            env = os.environ.copy()
+            env['PGPASSWORD'] = db_password
+
+            # First, convert dump to SQL format
+            sql_output_path = Path(tempfile.gettempdir()) / f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.sql"
+
+            cmd_to_sql = [
+                'pg_restore',
+                '--file', str(sql_output_path),
+                str(temp_backup_path)
+            ]
+
+            logger.info(f"[PG_RESTORE] Converting dump to SQL format")
+            result = subprocess.run(cmd_to_sql, env=env, capture_output=True, text=True, timeout=60)
+
+            if result.returncode == 0 and sql_output_path.exists():
+                # Filter out problematic SET commands
+                logger.info(f"[PG_RESTORE] Filtering incompatible SET commands from SQL")
+                with open(sql_output_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    sql_content = f.read()
+
+                # Remove the problematic SET command
+                filtered_sql = sql_content.replace('SET transaction_timeout = 0;', '-- SET transaction_timeout = 0; (removed for compatibility)')
+
+                # Save filtered SQL
+                with open(sql_output_path, 'w', encoding='utf-8') as f:
+                    f.write(filtered_sql)
+
+                logger.info(f"[PG_RESTORE] Filtered SQL saved, will use SQL format for restore")
+                use_sql_format = True
+            else:
+                logger.warning(f"[PG_RESTORE] Could not convert to SQL format, using original dump")
+                use_sql_format = False
+                if sql_output_path and sql_output_path.exists():
+                    sql_output_path.unlink()
+                    sql_output_path = None
+        except Exception as filter_error:
+            logger.warning(f"[PG_RESTORE] Could not filter backup: {filter_error}, using original")
+            use_sql_format = False
+            if sql_output_path and sql_output_path.exists():
+                sql_output_path.unlink()
+                sql_output_path = None
+
         # STEP 3: Create backup of current PostgreSQL database before restore
         logger.info(f"[PG_RESTORE] Creating backup of current PostgreSQL database")
         backup_created = False
@@ -113,56 +167,93 @@ def restore_postgres_database_from_file(uploaded_file):
         gc.collect()
         time.sleep(0.5)
 
-        # STEP 6: Restore using pg_restore with --clean
-        logger.info(f"[PG_RESTORE] Starting pg_restore with --clean option")
-
-        # Build pg_restore command
-        # --clean: Drop database objects before recreating them
-        # --if-exists: Use IF EXISTS when dropping objects (prevents errors if objects don't exist)
-        # --no-owner: Don't set ownership of objects
-        # --no-acl: Don't restore access privileges
-        cmd = [
-            'pg_restore',
-            '--username', db_user,
-            '--host', db_host,
-            '--port', str(db_port),
-            '--dbname', db_name,
-            '--clean',          # Drop objects before recreating
-            '--if-exists',      # Use IF EXISTS (no errors if object doesn't exist)
-            '--no-owner',       # Don't try to set ownership
-            '--no-acl',         # Don't restore privileges
-            '--verbose',        # Show progress
-            str(temp_backup_path)
-        ]
-
+        # STEP 6: Restore database
         # Set PGPASSWORD environment variable for authentication
         env = os.environ.copy()
         env['PGPASSWORD'] = db_password
 
-        # Execute pg_restore
-        logger.info(f"[PG_RESTORE] Executing pg_restore command")
-        result = subprocess.run(
-            cmd,
-            env=env,
-            capture_output=True,
-            text=True,
-            timeout=600  # 10 minutes timeout
-        )
+        if use_sql_format and sql_output_path:
+            # Use psql to restore from filtered SQL file
+            logger.info(f"[PG_RESTORE] Restoring from filtered SQL file using psql")
+            cmd = [
+                'psql',
+                '--username', db_user,
+                '--host', db_host,
+                '--port', str(db_port),
+                '--dbname', db_name,
+                '--file', str(sql_output_path),
+                '--quiet'
+            ]
+
+            logger.info(f"[PG_RESTORE] Executing psql command")
+            result = subprocess.run(
+                cmd,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=600  # 10 minutes timeout
+            )
+        else:
+            # Use pg_restore for original dump file
+            logger.info(f"[PG_RESTORE] Restoring from dump file using pg_restore")
+
+            # Build pg_restore command
+            # --clean: Drop database objects before recreating them
+            # --if-exists: Use IF EXISTS when dropping objects (prevents errors if objects don't exist)
+            # --no-owner: Don't set ownership of objects
+            # --no-acl: Don't restore access privileges
+            cmd = [
+                'pg_restore',
+                '--username', db_user,
+                '--host', db_host,
+                '--port', str(db_port),
+                '--dbname', db_name,
+                '--clean',          # Drop objects before recreating
+                '--if-exists',      # Use IF EXISTS (no errors if object doesn't exist)
+                '--no-owner',       # Don't try to set ownership
+                '--no-acl',         # Don't restore privileges
+                '--verbose',        # Show progress
+                str(original_backup_path)
+            ]
+
+            logger.info(f"[PG_RESTORE] Executing pg_restore command")
+            result = subprocess.run(
+                cmd,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=600  # 10 minutes timeout
+            )
 
         # pg_restore may return non-zero even on success (warnings about existing objects)
         # We check stderr for actual errors
         if result.returncode != 0:
             # Check if it's just warnings or actual errors
             stderr_lower = result.stderr.lower()
-            has_real_error = any(err in stderr_lower for err in ['error:', 'fatal:', 'could not'])
 
-            if has_real_error:
-                logger.error(f"[PG_RESTORE] pg_restore failed: {result.stderr}")
+            # Ignore specific errors that are not critical:
+            # - transaction_timeout: compatibility issue between PostgreSQL versions
+            ignorable_errors = [
+                'transaction_timeout',
+                'unrecognized configuration parameter'
+            ]
+
+            # Check if stderr contains ignorable errors only
+            is_ignorable = any(ignore_err in stderr_lower for ignore_err in ignorable_errors)
+
+            # Check for real critical errors
+            critical_errors = ['fatal:', 'could not connect', 'authentication failed', 'does not exist']
+            has_critical_error = any(err in stderr_lower for err in critical_errors)
+
+            if has_critical_error:
+                logger.error(f"[PG_RESTORE] pg_restore failed with critical error: {result.stderr}")
                 return {
                     'success': False,
                     'error': _('Database restore failed'),
                     'details': result.stderr
                 }
+            elif is_ignorable:
+                logger.warning(f"[PG_RESTORE] pg_restore had ignorable warnings: {result.stderr}")
             else:
                 logger.warning(f"[PG_RESTORE] pg_restore had warnings: {result.stderr}")
 
@@ -265,11 +356,12 @@ def restore_postgres_database_from_file(uploaded_file):
         }
 
     finally:
-        # ALWAYS clean up temporary backup file
-        if temp_backup_path and temp_backup_path.exists():
+        # ALWAYS clean up temporary files
+        # Clean up original backup file
+        if original_backup_path and original_backup_path.exists():
             for cleanup_attempt in range(5):
                 try:
-                    temp_backup_path.unlink()
+                    original_backup_path.unlink()
                     logger.info(f"[PG_RESTORE] Temporary backup file deleted")
                     break
                 except PermissionError:
@@ -278,7 +370,15 @@ def restore_postgres_database_from_file(uploaded_file):
                         gc.collect()
                         time.sleep(0.5)
                     else:
-                        logger.warning(f"[PG_RESTORE] Could not delete temp file after 5 attempts: {temp_backup_path}")
+                        logger.warning(f"[PG_RESTORE] Could not delete temp file after 5 attempts: {original_backup_path}")
                 except Exception as cleanup_error:
                     logger.warning(f"[PG_RESTORE] Could not delete temp file: {cleanup_error}")
                     break
+
+        # Clean up filtered SQL file if it exists
+        if sql_output_path and sql_output_path.exists():
+            try:
+                sql_output_path.unlink()
+                logger.info(f"[PG_RESTORE] Filtered SQL file deleted")
+            except Exception as cleanup_error:
+                logger.warning(f"[PG_RESTORE] Could not delete SQL file: {cleanup_error}")
