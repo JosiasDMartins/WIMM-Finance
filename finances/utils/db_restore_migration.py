@@ -176,22 +176,42 @@ def restore_sqlite_to_postgres(uploaded_file):
 
         try:
             # Use the same approach as db_migration.py (which works!)
+            # Capture both stdout and stderr to diagnose issues
+            stderr_buffer = io.StringIO()
+
             with open(temp_dump_path, 'w', encoding='utf-8') as f:
-                call_command(
-                    'dumpdata',
-                    natural_foreign=True,
-                    natural_primary=True,
-                    exclude=['contenttypes', 'auth.permission'],
-                    database='sqlite_migration',
-                    stdout=f,
-                    verbosity=2
-                )
+                try:
+                    call_command(
+                        'dumpdata',
+                        natural_foreign=True,
+                        natural_primary=True,
+                        exclude=['contenttypes', 'auth.permission'],
+                        database='sqlite_migration',
+                        stdout=f,
+                        stderr=stderr_buffer,
+                        verbosity=2
+                    )
+                except Exception as cmd_error:
+                    stderr_output = stderr_buffer.getvalue()
+                    logger.error(f"[SQLITE_TO_PG] call_command raised exception: {cmd_error}")
+                    logger.error(f"[SQLITE_TO_PG] stderr output: {stderr_output}")
+                    raise Exception(f"dumpdata command failed: {cmd_error}. stderr: {stderr_output}")
+
+            stderr_output = stderr_buffer.getvalue()
+            if stderr_output:
+                logger.warning(f"[SQLITE_TO_PG] dumpdata stderr output: {stderr_output}")
 
             logger.info(f"[SQLITE_TO_PG] dumpdata completed successfully")
-            logger.info(f"[SQLITE_TO_PG] Dump file size: {temp_dump_path.stat().st_size} bytes")
+
+            # Check if file exists and has content
+            if not temp_dump_path.exists():
+                raise Exception("Dump file was not created")
+
+            file_size = temp_dump_path.stat().st_size
+            logger.info(f"[SQLITE_TO_PG] Dump file size: {file_size} bytes")
 
             # Verify dump file is not empty
-            if temp_dump_path.stat().st_size == 0:
+            if file_size == 0:
                 raise Exception("Dump file is empty. Cannot load data.")
 
         except Exception as dump_error:
