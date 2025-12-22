@@ -857,7 +857,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Redirect to login page
                     window.location.href = '/login/';
                 } else {
-                    GenericModal.alert("{% trans 'Failed to migrate backup:' %} " + data2.error, "{% trans 'Migration Failed' %}");
+                    // Show detailed error with details if available
+                    let errorMsg = "{% trans 'Failed to migrate backup:' %} " + data2.error;
+                    if (data2.details) {
+                        errorMsg += "\n\n" + "{% trans 'Details:' %}\n" + data2.details;
+                    }
+                    GenericModal.alert(errorMsg, "{% trans 'Migration Failed' %}");
                 }
 
                 return;

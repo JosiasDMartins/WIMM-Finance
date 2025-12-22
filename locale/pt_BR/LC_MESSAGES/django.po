@@ -3047,6 +3047,10 @@ msgstr "Migração Necessária"
 msgid "The backup file is from SQLite, but your system is running PostgreSQL. The data will be migrated from SQLite to PostgreSQL. This operation will drop all current data in PostgreSQL. Do you want to proceed?"
 msgstr "O arquivo de backup é do SQLite, mas seu sistema está executando PostgreSQL. Os dados serão migrados do SQLite para PostgreSQL. Esta operação eliminará todos os dados atuais no PostgreSQL."
 
+#: .\finances\templates\finances\configurations.html:863
+msgid "Details:"
+msgstr "Detalhes:"
+
 #~ msgid ""
 #~ "For now, mark Flow Groups as \"Investment\" in the dashboard to track "
 #~ "money set aside for investing."

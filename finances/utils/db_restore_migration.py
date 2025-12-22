@@ -215,11 +215,18 @@ def restore_sqlite_to_postgres(uploaded_file):
                 raise Exception("Dump file is empty. Cannot load data.")
 
         except Exception as dump_error:
-            logger.error(f"[SQLITE_TO_PG] dumpdata failed: {dump_error}", exc_info=True)
+            error_msg = str(dump_error)
+            logger.error(f"[SQLITE_TO_PG] dumpdata failed: {error_msg}", exc_info=True)
+
+            # Import traceback to get full error details
+            import traceback
+            full_traceback = traceback.format_exc()
+            logger.error(f"[SQLITE_TO_PG] Full traceback:\n{full_traceback}")
+
             return {
                 'success': False,
                 'error': _('Failed to export data from SQLite backup'),
-                'details': str(dump_error)
+                'details': f"{error_msg}\n\nTraceback:\n{full_traceback}"
             }
 
         finally:
