@@ -41,23 +41,36 @@ from .role_history_utils import (
 # Database backup utilities
 from .db_backup import (
     create_database_backup,
+)
+
+# Database common utilities
+from .db_utils_common import (
     get_database_engine,
+    detect_backup_type,
 )
 
-# Database restore utilities
-from .db_restore import (
-    restore_database_from_file,
+# Database SQLite utilities
+from .db_utils_sqlite import (
+    restore_sqlite_from_file,
+    create_sqlite_backup,
 )
 
-from .db_restore_postgres import (
-    restore_postgres_database_from_file,
+# Database PostgreSQL utilities
+from .db_utils_pgsql import (
+    restore_postgres_from_file,
+    create_postgres_backup,
 )
 
 # Database migration utilities
-from .db_migration import (
+from .db_data_migration import (
     check_and_migrate,
     should_migrate,
     migrate_sqlite_to_postgres,
+)
+
+# Database restore with migration
+from .db_restore_migration import (
+    restore_sqlite_backup_to_postgres,
 )
 
 __all__ = [
@@ -86,11 +99,17 @@ __all__ = [
 
     # Database backup utilities
     'create_database_backup',
+    'create_sqlite_backup',
+    'create_postgres_backup',
+
+    # Database common utilities
     'get_database_engine',
+    'detect_backup_type',
 
     # Database restore utilities
-    'restore_database_from_file',
-    'restore_postgres_database_from_file',
+    'restore_sqlite_from_file',
+    'restore_postgres_from_file',
+    'restore_sqlite_backup_to_postgres',
 
     # Database migration utilities
     'check_and_migrate',
