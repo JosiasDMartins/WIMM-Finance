@@ -17,7 +17,7 @@ from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from django.conf import settings
 from django.core.management import call_command
 from django.db import connection, connections
-from finances.utils.db_backup import get_database_engine
+from finances.utils.db_utils_common import get_database_engine
 
 logger = logging.getLogger(__name__)
 
@@ -195,7 +195,7 @@ def initialize_database():
     details = []
     db_engine = get_database_engine()
 
-    from finances.utils.db_migration import get_sqlite_path, sqlite_has_data, migrate_sqlite_to_postgres
+    from finances.utils.db_data_migration import get_sqlite_path, sqlite_has_data, migrate_sqlite_to_postgres
 
     logger.info(f"[DB_INIT] ==========================================")
     logger.info(f"[DB_INIT] DATABASE INITIALIZATION")

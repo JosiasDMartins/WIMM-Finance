@@ -153,7 +153,7 @@ def restore_backup(request):
         logger.info(f"[RESTORE_BACKUP] Backup file saved to temp: {temp_path}")
 
         # STEP 3: Detect backup file type
-        from finances.utils.db_type_detector import detect_backup_type
+        from finances.utils.db_utils_common import detect_backup_type
         backup_file_type = detect_backup_type(temp_path)
 
         logger.info(f"[RESTORE_BACKUP] Backup file type: {backup_file_type}")
@@ -213,8 +213,8 @@ def restore_backup(request):
                         None
                     )
 
-                from finances.utils.db_restore_migration import restore_sqlite_to_postgres
-                result = restore_sqlite_to_postgres(backup_file_for_migration)
+                from finances.utils.db_restore_migration import restore_sqlite_backup_to_postgres
+                result = restore_sqlite_backup_to_postgres(backup_file_for_migration)
 
         # SCENARIO 3: SQLite → SQLite (TRANSACTIONAL RESTORE)
         elif backup_file_type == 'sqlite' and current_db_type == 'sqlite':
@@ -235,8 +235,8 @@ def restore_backup(request):
                     None
                 )
 
-            from finances.utils.db_restore import restore_database_from_file
-            result = restore_database_from_file(backup_file_for_restore)
+            from finances.utils.db_utils_sqlite import restore_sqlite_from_file
+            result = restore_sqlite_from_file(backup_file_for_restore)
 
         # SCENARIO 4: PostgreSQL → PostgreSQL (TRANSACTIONAL RESTORE)
         elif backup_file_type == 'postgresql' and current_db_type == 'postgresql':
@@ -257,8 +257,8 @@ def restore_backup(request):
                     None
                 )
 
-            from finances.utils.db_restore_postgres import restore_postgres_database_from_file
-            result = restore_postgres_database_from_file(backup_file_for_restore)
+            from finances.utils.db_utils_pgsql import restore_postgres_from_file
+            result = restore_postgres_from_file(backup_file_for_restore)
 
         else:
             # Should never reach here

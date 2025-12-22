@@ -15,7 +15,7 @@ import time
 logger = logging.getLogger(__name__)
 
 
-def restore_sqlite_to_postgres(uploaded_file):
+def restore_sqlite_backup_to_postgres(uploaded_file):
     """
     Restore a SQLite backup file into PostgreSQL database.
 
@@ -132,7 +132,7 @@ def restore_sqlite_to_postgres(uploaded_file):
         # STEP 4: Delegate to main migration function
         logger.info(f"[RESTORE_MIGRATION] Delegating to main migration function...")
 
-        from finances.utils.db_migration import migrate_sqlite_to_postgres
+        from finances.utils.db_data_migration import migrate_sqlite_to_postgres
         migration_result = migrate_sqlite_to_postgres(temp_sqlite_path)
 
         if migration_result['success']:

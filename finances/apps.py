@@ -24,7 +24,7 @@ class FinancesConfig(AppConfig):
 
         try:
             from django.conf import settings
-            from finances.utils.db_backup import get_database_engine
+            from finances.utils.db_utils_common import get_database_engine
             from finances.utils.db_startup import initialize_database
 
             db_engine = get_database_engine()

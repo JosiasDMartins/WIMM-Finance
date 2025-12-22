@@ -1,15 +1,33 @@
 """
-Database Backup Type Detection Utility
+Common database utilities used across multiple modules.
 
-This module provides functionality to detect whether a backup file is
-from SQLite or PostgreSQL database.
+This module provides functions that are used by both SQLite and PostgreSQL
+specific modules, such as database engine detection and backup type detection.
 """
 
 import sqlite3
 import logging
 from pathlib import Path
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+
+def get_database_engine():
+    """
+    Get the current database engine type.
+
+    Returns:
+        str: 'sqlite' or 'postgresql' or 'unknown'
+    """
+    engine = settings.DATABASES['default']['ENGINE']
+
+    if 'sqlite3' in engine:
+        return 'sqlite'
+    elif 'postgresql' in engine:
+        return 'postgresql'
+    else:
+        return 'unknown'
 
 
 def detect_backup_type(file_path):

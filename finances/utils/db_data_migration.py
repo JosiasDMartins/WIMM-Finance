@@ -9,10 +9,7 @@ This module detects if:
 If all conditions are met, it automatically migrates data from SQLite to PostgreSQL.
 """
 
-import os
-import sys
 import logging
-import sqlite3
 import tempfile
 from pathlib import Path
 from django.conf import settings
@@ -20,143 +17,11 @@ from django.core.management import call_command
 from django.db import connection, connections
 from io import StringIO
 
+# Import from new organized modules
+from finances.utils.db_utils_sqlite import get_sqlite_path, sqlite_has_data
+from finances.utils.db_utils_pgsql import postgres_is_configured, postgres_has_data
+
 logger = logging.getLogger(__name__)
-
-
-def get_sqlite_path():
-    """
-    Get the path to the default SQLite database file.
-
-    Returns:
-        Path: Path to db.sqlite3 or None if not found
-    """
-    # Check environment variable first (Docker)
-    db_path_env = os.environ.get('DB_PATH')
-    if db_path_env:
-        sqlite_path = Path(db_path_env)
-        logger.info(f"[DB_MIGRATION] Checking DB_PATH: {db_path_env}")
-        if sqlite_path.exists():
-            logger.info(f"[DB_MIGRATION] Found SQLite at DB_PATH: {sqlite_path}")
-            return sqlite_path
-        else:
-            logger.info(f"[DB_MIGRATION] DB_PATH set but file not found: {db_path_env}")
-
-    # Default SQLite location
-    base_dir = Path(settings.BASE_DIR)
-    sqlite_path = base_dir / 'db' / 'db.sqlite3'
-
-    logger.info(f"[DB_MIGRATION] Checking default location: {sqlite_path}")
-    if sqlite_path.exists():
-        logger.info(f"[DB_MIGRATION] Found SQLite at default location: {sqlite_path}")
-        return sqlite_path
-    else:
-        logger.info(f"[DB_MIGRATION] SQLite not found at default location: {sqlite_path}")
-        return None
-
-
-def sqlite_has_data(sqlite_path):
-    """
-    Check if SQLite database has data (users or transactions).
-
-    Args:
-        sqlite_path (Path): Path to SQLite database
-
-    Returns:
-        bool: True if database has users, False otherwise
-    """
-    if not sqlite_path:
-        logger.info(f"[DB_MIGRATION] sqlite_path is None, cannot check for data")
-        return False
-
-    try:
-        logger.info(f"[DB_MIGRATION] Connecting to SQLite at: {sqlite_path}")
-        conn = sqlite3.connect(str(sqlite_path))
-        cursor = conn.cursor()
-
-        # Check if 'finances_customuser' table exists
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='finances_customuser'")
-        user_table_exists = cursor.fetchone()
-
-        if not user_table_exists:
-            logger.info(f"[DB_MIGRATION] SQLite has no 'finances_customuser' table")
-            cursor.close()
-            conn.close()
-            return False
-
-        # Check if 'finances_transaction' table exists
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='finances_transaction'")
-        transaction_table_exists = cursor.fetchone()
-
-        if not transaction_table_exists:
-            logger.info(f"[DB_MIGRATION] SQLite has no 'finances_transaction' table")
-            cursor.close()
-            conn.close()
-            return False
-
-        # Check for users
-        cursor.execute("SELECT COUNT(*) FROM finances_customuser")
-        user_count = cursor.fetchone()[0]
-        logger.info(f"[DB_MIGRATION] SQLite has {user_count} users")
-
-        # Check for transactions
-        cursor.execute("SELECT COUNT(*) FROM finances_transaction")
-        transaction_count = cursor.fetchone()[0]
-        logger.info(f"[DB_MIGRATION] SQLite has {transaction_count} transactions")
-
-        cursor.close()
-        conn.close()
-
-        # Return True if there is any data
-        return user_count > 0 or transaction_count > 0
-
-    except Exception as e:
-        logger.error(f"[DB_MIGRATION] Error checking SQLite data: {e}", exc_info=True)
-        return False
-
-
-def postgres_is_configured():
-    """
-    Check if PostgreSQL is configured as the primary database.
-
-    Returns:
-        bool: True if PostgreSQL is configured with all required credentials, False otherwise
-    """
-    db_engine = settings.DATABASES['default']['ENGINE']
-    if 'postgresql' not in db_engine:
-        return False
-
-    # Check if all required PostgreSQL credentials are present
-    db_config = settings.DATABASES['default']
-    required_fields = ['NAME', 'USER', 'PASSWORD', 'HOST']
-
-    for field in required_fields:
-        value = db_config.get(field)
-        if not value or value == 'unknown':
-            logger.warning(f"[DB_MIGRATION] PostgreSQL configured but {field} is missing or invalid")
-            return False
-
-    return True
-
-
-def postgres_has_data():
-    """
-    Check if PostgreSQL database already has data (users).
-
-    Returns:
-        bool: True if database has users, False otherwise
-    """
-    try:
-        from django.contrib.auth import get_user_model
-        UserModel = get_user_model()
-
-        # Try to count users
-        user_count = UserModel.objects.count()
-        return user_count > 0
-
-    except Exception as e:
-        # Table might not exist yet
-        logger.debug(f"[DB_MIGRATION] Could not check PostgreSQL data: {e}")
-        return False
 
 
 def should_migrate():
@@ -202,9 +67,9 @@ def migrate_sqlite_to_postgres(sqlite_path):
     4. Reset sequences on PostgreSQL.
     5. Clean up and rename the SQLite file.
     """
-    logger.info(f"[DB_MIGRATION] ========== STARTING AUTOMATIC MIGRATION ==========")
-    logger.info(f"[DB_MIGRATION] SQLite: {sqlite_path}")
-    logger.info(f"[DB_MIGRATION] Target: PostgreSQL")
+    logger.info(f"[DATA_MIGRATION] ========== STARTING AUTOMATIC MIGRATION ==========")
+    logger.info(f"[DATA_MIGRATION] SQLite: {sqlite_path}")
+    logger.info(f"[DATA_MIGRATION] Target: PostgreSQL")
 
     temp_dump_file = None
     sqlite_db_alias = 'sqlite_migration'
@@ -212,13 +77,13 @@ def migrate_sqlite_to_postgres(sqlite_path):
     try:
         # STEP 1: Add a temporary database alias for SQLite by copying the default
         # and overriding the engine and name.
-        logger.info(f"[DB_MIGRATION] Adding temporary SQLite DB connection: '{sqlite_db_alias}'")
+        logger.info(f"[DATA_MIGRATION] Adding temporary SQLite DB connection: '{sqlite_db_alias}'")
         settings.DATABASES[sqlite_db_alias] = settings.DATABASES['default'].copy()
         settings.DATABASES[sqlite_db_alias]['ENGINE'] = 'django.db.backends.sqlite3'
         settings.DATABASES[sqlite_db_alias]['NAME'] = str(sqlite_path)
 
         # STEP 2: Export data from SQLite using the new alias
-        logger.info(f"[DB_MIGRATION] Exporting data from SQLite using dumpdata")
+        logger.info(f"[DATA_MIGRATION] Exporting data from SQLite using dumpdata")
         temp_dump_file = Path(tempfile.gettempdir()) / 'sqlite_migration_dump.json'
 
         with open(temp_dump_file, 'w', encoding='utf-8') as f:
@@ -233,17 +98,17 @@ def migrate_sqlite_to_postgres(sqlite_path):
                     verbosity=2
                 )
             except Exception as e:
-                logger.error(f"[DB_MIGRATION] Dumpdata failed: {e}")
+                logger.error(f"[DATA_MIGRATION] Dumpdata failed: {e}")
                 raise
 
-        logger.info(f"[DB_MIGRATION] Data exported successfully ({temp_dump_file.stat().st_size} bytes)")
+        logger.info(f"[DATA_MIGRATION] Data exported successfully ({temp_dump_file.stat().st_size} bytes)")
 
         # STEP 3: Remove the temporary SQLite connection
         del settings.DATABASES[sqlite_db_alias]
         connections.close_all() # Important to close connections after settings change
 
         # STEP 4: Load data into PostgreSQL (the default connection)
-        logger.info(f"[DB_MIGRATION] Loading data into PostgreSQL")
+        logger.info(f"[DATA_MIGRATION] Loading data into PostgreSQL")
         try:
             # Verify the dump file is not empty before loading
             if temp_dump_file.stat().st_size == 0:
@@ -251,13 +116,13 @@ def migrate_sqlite_to_postgres(sqlite_path):
                 
             call_command('loaddata', str(temp_dump_file), verbosity=2)
         except Exception as e:
-            logger.error(f"[DB_MIGRATION] Loaddata failed: {e}")
+            logger.error(f"[DATA_MIGRATION] Loaddata failed: {e}")
             raise
 
-        logger.info(f"[DB_MIGRATION] Data loaded successfully")
+        logger.info(f"[DATA_MIGRATION] Data loaded successfully")
 
         # STEP 5: Reset PostgreSQL sequences
-        logger.info(f"[DB_MIGRATION] Resetting PostgreSQL sequences")
+        logger.info(f"[DATA_MIGRATION] Resetting PostgreSQL sequences")
         try:
             sql_output = StringIO()
             call_command('sqlsequencereset', 'finances', stdout=sql_output)
@@ -266,14 +131,14 @@ def migrate_sqlite_to_postgres(sqlite_path):
             if sql_commands.strip():
                 with connection.cursor() as cursor:
                     cursor.execute(sql_commands)
-                logger.info(f"[DB_MIGRATION] Sequences reset successfully")
+                logger.info(f"[DATA_MIGRATION] Sequences reset successfully")
             else:
-                logger.info(f"[DB_MIGRATION] No sequences to reset")
+                logger.info(f"[DATA_MIGRATION] No sequences to reset")
         except Exception as e:
-            logger.warning(f"[DB_MIGRATION] Could not reset sequences: {e}")
+            logger.warning(f"[DATA_MIGRATION] Could not reset sequences: {e}")
 
         # STEP 6: Verify migration
-        logger.info(f"[DB_MIGRATION] Verifying migration")
+        logger.info(f"[DATA_MIGRATION] Verifying migration")
         from django.contrib.auth import get_user_model
         UserModel = get_user_model()
         user_count = UserModel.objects.count()
@@ -281,7 +146,7 @@ def migrate_sqlite_to_postgres(sqlite_path):
         if user_count == 0:
             raise Exception("Migration completed but no users found in PostgreSQL")
 
-        logger.info(f"[DB_MIGRATION] Verification successful: {user_count} users found")
+        logger.info(f"[DATA_MIGRATION] Verification successful: {user_count} users found")
 
         # STEP 7: Backup and remove SQLite database
         backup_path = sqlite_path.parent / 'backups'
@@ -290,7 +155,7 @@ def migrate_sqlite_to_postgres(sqlite_path):
         backup_filename = f"sqlite_backup_before_migration_{datetime.now().strftime('%Y%m%d_%H%M%S')}.sqlite3"
         final_backup = backup_path / backup_filename
 
-        logger.info(f"[DB_MIGRATION] Creating final backup of SQLite: {backup_filename}")
+        logger.info(f"[DATA_MIGRATION] Creating final backup of SQLite: {backup_filename}")
         try:
             import shutil
             shutil.copy2(str(sqlite_path), str(final_backup))
@@ -300,14 +165,14 @@ def migrate_sqlite_to_postgres(sqlite_path):
                 if file_path.exists():
                     try:
                         file_path.unlink()
-                        logger.info(f"[DB_MIGRATION] Removed file: {file_path.name}")
+                        logger.info(f"[DATA_MIGRATION] Removed file: {file_path.name}")
                     except Exception as e:
-                        logger.warning(f"[DB_MIGRATION] Could not remove {file_path.name}: {e}")
+                        logger.warning(f"[DATA_MIGRATION] Could not remove {file_path.name}: {e}")
 
         except Exception as e:
-            logger.warning(f"[DB_MIGRATION] Could not back up or remove SQLite file: {e}")
+            logger.warning(f"[DATA_MIGRATION] Could not back up or remove SQLite file: {e}")
 
-        logger.info(f"[DB_MIGRATION] ========== MIGRATION COMPLETED SUCCESSFULLY ==========")
+        logger.info(f"[DATA_MIGRATION] ========== MIGRATION COMPLETED SUCCESSFULLY ==========")
         return {
             'success': True,
             'message': f'Successfully migrated {user_count} users from SQLite to PostgreSQL',
@@ -315,7 +180,7 @@ def migrate_sqlite_to_postgres(sqlite_path):
         }
 
     except Exception as e:
-        logger.error(f"[DB_MIGRATION] Migration failed: {e}", exc_info=True)
+        logger.error(f"[DATA_MIGRATION] Migration failed: {e}", exc_info=True)
         return {
             'success': False,
             'message': f'Migration failed: {str(e)}',
@@ -330,9 +195,9 @@ def migrate_sqlite_to_postgres(sqlite_path):
         if temp_dump_file and temp_dump_file.exists():
             try:
                 temp_dump_file.unlink()
-                logger.info(f"[DB_MIGRATION] Temp dump file cleaned up")
+                logger.info(f"[DATA_MIGRATION] Temp dump file cleaned up")
             except Exception as e:
-                logger.warning(f"[DB_MIGRATION] Could not delete temp file: {e}")
+                logger.warning(f"[DATA_MIGRATION] Could not delete temp file: {e}")
 
 
 def check_and_migrate():
@@ -348,7 +213,7 @@ def check_and_migrate():
         # Check if migration should occur
         should_migrate_flag, sqlite_path, reason = should_migrate()
 
-        logger.info(f"[DB_MIGRATION] Migration check: {reason}")
+        logger.info(f"[DATA_MIGRATION] Migration check: {reason}")
 
         if not should_migrate_flag:
             return {
@@ -357,7 +222,7 @@ def check_and_migrate():
             }
 
         # Perform migration
-        logger.info(f"[DB_MIGRATION] Starting automatic migration from SQLite to PostgreSQL")
+        logger.info(f"[DATA_MIGRATION] Starting automatic migration from SQLite to PostgreSQL")
         result = migrate_sqlite_to_postgres(sqlite_path)
 
         if result['success']:
@@ -374,7 +239,7 @@ def check_and_migrate():
             }
 
     except Exception as e:
-        logger.error(f"[DB_MIGRATION] Unexpected error during migration check: {e}", exc_info=True)
+        logger.error(f"[DATA_MIGRATION] Unexpected error during migration check: {e}", exc_info=True)
         return {
             'migrated': False,
             'message': f'Migration check failed: {str(e)}',

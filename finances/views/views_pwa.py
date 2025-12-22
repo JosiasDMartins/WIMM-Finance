@@ -28,7 +28,7 @@ def manifest_json(request):
     # CRITICAL: Check if DB exists before trying to access it
     # During setup/restore, DB might not exist or be inaccessible
     from pathlib import Path
-    from finances.utils.db_backup import get_database_engine
+    from finances.utils.db_utils_common import get_database_engine
 
     db_engine = get_database_engine()
     db_exists = False
@@ -94,7 +94,7 @@ def service_worker(request):
     # CRITICAL: Check if DB exists before trying to access it
     # During setup/restore, DB might not exist or be inaccessible
     from pathlib import Path
-    from finances.utils.db_backup import get_database_engine
+    from finances.utils.db_utils_common import get_database_engine
 
     db_engine = get_database_engine()
     db_exists = False
