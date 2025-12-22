@@ -1,6 +1,8 @@
 import json
+import time
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
+from finances.websocket_security import WebSocketRateLimiter, WebSocketConnectionMonitor
 
 
 class UpdateConsumer(AsyncWebsocketConsumer):
@@ -19,7 +21,7 @@ class UpdateConsumer(AsyncWebsocketConsumer):
         # Check for restore lock file before doing anything
         from django.conf import settings
         from pathlib import Path
-        
+
         restore_lock_file = Path(settings.BASE_DIR) / '.restore_lock'
         if restore_lock_file.exists():
             print(f"[WebSocket] Rejecting connection: Database restore in progress.")
@@ -31,6 +33,16 @@ class UpdateConsumer(AsyncWebsocketConsumer):
         # Reject unauthenticated users
         if not self.user.is_authenticated:
             await self.close()
+            return
+
+        # Rate limiting check
+        allowed, retry_after = WebSocketRateLimiter.check_connection_rate(self.user.id)
+        if not allowed:
+            print(
+                f"[WebSocket] Rate limit exceeded for user {self.user.username}. "
+                f"Retry after {retry_after}s"
+            )
+            await self.close(code=4029)  # Custom close code for rate limiting
             return
 
         # Get family ID using async wrapper
@@ -60,6 +72,9 @@ class UpdateConsumer(AsyncWebsocketConsumer):
         # Accept the connection
         await self.accept()
 
+        # Register connection for monitoring
+        WebSocketConnectionMonitor.register_connection(self.user.id, self.channel_name)
+
         # Log connection for debugging
         print(f"[WebSocket] User {self.user.username} connected to family {self.family_id}")
 
@@ -70,6 +85,11 @@ class UpdateConsumer(AsyncWebsocketConsumer):
                 self.family_group_name,
                 self.channel_name
             )
+
+            # Unregister connection from monitoring
+            if hasattr(self, 'user') and self.user.is_authenticated:
+                WebSocketConnectionMonitor.unregister_connection(self.user.id, self.channel_name)
+
             print(f"[WebSocket] User {self.user.username} disconnected (code: {close_code})")
 
     async def receive(self, text_data):
@@ -82,6 +102,10 @@ class UpdateConsumer(AsyncWebsocketConsumer):
             message_type = data.get('type')
 
             if message_type == 'ping':
+                # Update heartbeat timestamp
+                if hasattr(self, 'user') and self.user.is_authenticated:
+                    WebSocketConnectionMonitor.update_heartbeat(self.user.id, self.channel_name)
+
                 # Respond to ping for connection health check
                 await self.send(text_data=json.dumps({
                     'type': 'pong',

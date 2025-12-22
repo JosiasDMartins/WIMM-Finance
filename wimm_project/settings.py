@@ -42,6 +42,7 @@ INSTALLED_APPS = [
 
     # Third-party apps
     'channels',
+    'csp',  # Content Security Policy
     'pwa',
 
     #My App
@@ -51,6 +52,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'csp.middleware.CSPMiddleware',  # Content Security Policy
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',  # Language detection and activation
     'django.middleware.common.CommonMiddleware',
@@ -98,9 +100,112 @@ ASGI_APPLICATION = 'wimm_project.asgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# Security settings (can be overridden in local_settings.py)
 ALLOWED_HOSTS = []
 CSRF_TRUSTED_ORIGINS = []
 DEBUG = False
+
+# ==================================================================
+# Security Settings (Production)
+# ==================================================================
+# These settings are OPTIONAL and controlled via local_settings.py
+# They are disabled by default to allow local development with IP/localhost
+
+# SSL/HTTPS settings (only enable if you have HTTPS configured)
+SECURE_SSL_REDIRECT = False  # Set True in local_settings.py if using HTTPS
+SECURE_HSTS_SECONDS = 0  # Set to 31536000 (1 year) in production with HTTPS
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
+
+# Security headers (safe to enable even without HTTPS)
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True
+X_FRAME_OPTIONS = 'DENY'  # Prevent clickjacking
+
+# Cookie security (only enable with HTTPS in production)
+SESSION_COOKIE_SECURE = False  # Set True in local_settings.py if using HTTPS
+CSRF_COOKIE_SECURE = False  # Set True in local_settings.py if using HTTPS
+SESSION_COOKIE_HTTPONLY = True  # Safe to enable always
+CSRF_COOKIE_HTTPONLY = False  # Must be False for JavaScript access
+
+# Session security
+SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection
+CSRF_COOKIE_SAMESITE = 'Lax'
+
+# ==================================================================
+# WebSocket Security Settings (Optional)
+# ==================================================================
+# These can be overridden in local_settings.py
+
+# WebSocket rate limiting
+WS_RATE_LIMIT_MAX_ATTEMPTS = 10  # Max connection attempts per user
+WS_RATE_LIMIT_WINDOW_SECONDS = 60  # Time window in seconds
+
+# WebSocket connection timeout
+WS_CONNECTION_TIMEOUT = 3600  # 1 hour - disconnect idle connections
+WS_HEARTBEAT_INTERVAL = 30  # Heartbeat check interval in seconds
+
+# ==================================================================
+# Content Security Policy (CSP) Settings
+# ==================================================================
+# These can be overridden in local_settings.py
+# CSP helps prevent XSS, clickjacking, and other code injection attacks
+
+# Report-only mode (recommended for initial deployment)
+# Set to False in local_settings.py to enforce CSP
+CSP_REPORT_ONLY = True
+
+# Default source for all content types
+CSP_DEFAULT_SRC = ("'self'",)
+
+# Script sources (JavaScript)
+CSP_SCRIPT_SRC = (
+    "'self'",
+    "cdn.jsdelivr.net",  # Used for external libraries
+    "'unsafe-inline'",  # Allow inline scripts (consider removing after audit)
+)
+
+# Style sources (CSS)
+CSP_STYLE_SRC = (
+    "'self'",
+    "cdn.jsdelivr.net",
+    "'unsafe-inline'",  # Required for inline styles
+)
+
+# Image sources
+CSP_IMG_SRC = (
+    "'self'",
+    "data:",  # Allow data: URIs for images
+)
+
+# Font sources
+CSP_FONT_SRC = (
+    "'self'",
+    "cdn.jsdelivr.net",
+)
+
+# Connection sources (AJAX, WebSocket, etc.)
+# Will be configured in local_settings.py based on domain
+CSP_CONNECT_SRC = ("'self'",)
+
+# Frame sources (iframes)
+CSP_FRAME_SRC = ("'none'",)
+
+# Object sources (Flash, etc.)
+CSP_OBJECT_SRC = ("'none'",)
+
+# Base URI for relative URLs
+CSP_BASE_URI = ("'self'",)
+
+# Form action targets
+CSP_FORM_ACTION = ("'self'",)
+
+# Frame ancestors (who can embed this page)
+CSP_FRAME_ANCESTORS = ("'none'",)
+
+# Upgrade insecure requests (HTTP to HTTPS)
+# Only enable if using HTTPS
+CSP_UPGRADE_INSECURE_REQUESTS = False
 
 EXTERNAL_SETTINGS_PATH = '/app/config/local_settings.py'
 

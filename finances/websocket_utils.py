@@ -1,8 +1,12 @@
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 import json
+import logging
 from datetime import datetime
 from decimal import Decimal
+from finances.websocket_sanitizer import sanitize_broadcast_data
+
+logger = logging.getLogger(__name__)
 
 
 class WebSocketBroadcaster:
@@ -44,6 +48,9 @@ class WebSocketBroadcaster:
             json.dumps(message, default=str)
         )
 
+        # SECURITY: Sanitize all user-generated content to prevent XSS
+        message = sanitize_broadcast_data(message)
+
         try:
             async_to_sync(channel_layer.group_send)(
                 group_name,
@@ -52,9 +59,10 @@ class WebSocketBroadcaster:
                     'message': message
                 }
             )
+            logger.debug(f"[WebSocket] Broadcast sent to family {family_id}: {message_type}")
         except Exception as e:
             # Log error but don't crash the request
-            print(f"[WebSocket] Broadcast error: {e}")
+            logger.error(f"[WebSocket] Broadcast error: {e}")
             import traceback
             traceback.print_exc()
 
