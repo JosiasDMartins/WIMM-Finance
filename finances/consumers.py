@@ -3,6 +3,7 @@ import time
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from finances.websocket_security import WebSocketRateLimiter, WebSocketConnectionMonitor
+from finances.security_logger import SecurityLogger
 
 
 class UpdateConsumer(AsyncWebsocketConsumer):
@@ -32,6 +33,7 @@ class UpdateConsumer(AsyncWebsocketConsumer):
 
         # Reject unauthenticated users
         if not self.user.is_authenticated:
+            SecurityLogger.log_connection_rejected('unauthenticated')
             await self.close()
             return
 
@@ -42,6 +44,7 @@ class UpdateConsumer(AsyncWebsocketConsumer):
                 f"[WebSocket] Rate limit exceeded for user {self.user.username}. "
                 f"Retry after {retry_after}s"
             )
+            SecurityLogger.log_connection_rejected('rate_limit_exceeded', self.user.id)
             await self.close(code=4029)  # Custom close code for rate limiting
             return
 
@@ -57,6 +60,7 @@ class UpdateConsumer(AsyncWebsocketConsumer):
 
         if not family_id:
             # User has no family - reject connection
+            SecurityLogger.log_connection_rejected('no_family', self.user.id)
             await self.close()
             return
 
@@ -75,6 +79,14 @@ class UpdateConsumer(AsyncWebsocketConsumer):
         # Register connection for monitoring
         WebSocketConnectionMonitor.register_connection(self.user.id, self.channel_name)
 
+        # Get client IP from scope
+        client_ip = 'unknown'
+        if 'client' in self.scope and self.scope['client']:
+            client_ip = self.scope['client'][0] if self.scope['client'][0] else 'unknown'
+
+        # Log successful connection
+        SecurityLogger.log_connection_attempt(self.user.id, self.user.username, client_ip)
+
         # Log connection for debugging
         print(f"[WebSocket] User {self.user.username} connected to family {self.family_id}")
 
@@ -86,8 +98,19 @@ class UpdateConsumer(AsyncWebsocketConsumer):
                 self.channel_name
             )
 
-            # Unregister connection from monitoring
+            # Unregister connection from monitoring and log disconnection
             if hasattr(self, 'user') and self.user.is_authenticated:
+                # Get connection info for duration
+                from finances.websocket_security import WebSocketConnectionMonitor as Monitor
+                conn_info = Monitor.get_connection_info(self.user.id, self.channel_name)
+                duration = None
+                if conn_info and 'connected_at' in conn_info:
+                    duration = time.time() - conn_info['connected_at']
+
+                # Log disconnection
+                SecurityLogger.log_disconnection(self.user.id, self.user.username, close_code, duration)
+
+                # Unregister from monitoring
                 WebSocketConnectionMonitor.unregister_connection(self.user.id, self.channel_name)
 
             print(f"[WebSocket] User {self.user.username} disconnected (code: {close_code})")

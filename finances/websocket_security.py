@@ -11,6 +11,7 @@ import time
 import logging
 from django.core.cache import cache
 from django.conf import settings
+from finances.security_logger import SecurityLogger
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +86,7 @@ class WebSocketRateLimiter:
                 f"({attempts_data['count']}/{max_attempts}). "
                 f"Retry after {retry_after}s"
             )
+            SecurityLogger.log_rate_limit_violation(user_id, attempts_data['count'], max_attempts, retry_after)
             return False, retry_after
 
         # Increment counter
@@ -102,6 +104,7 @@ class WebSocketRateLimiter:
         cache_key = WebSocketRateLimiter.get_cache_key(user_id)
         cache.delete(cache_key)
         logger.info(f"[WS_RATE_LIMIT] User {user_id}: Rate limit reset")
+        SecurityLogger.log_rate_limit_reset(user_id)
 
 
 class WebSocketConnectionMonitor:
@@ -198,6 +201,7 @@ class WebSocketConnectionMonitor:
                 f"[WS_MONITOR] User {user_id}: Unhealthy connection - "
                 f"{time_since_heartbeat:.1f}s since last heartbeat"
             )
+            SecurityLogger.log_heartbeat_failure(user_id, channel_name, time_since_heartbeat)
 
         return is_healthy, time_since_heartbeat
 

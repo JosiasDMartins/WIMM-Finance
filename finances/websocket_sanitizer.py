@@ -9,6 +9,7 @@ injection of malicious HTML/JavaScript.
 import bleach
 import logging
 from typing import Any, Dict, List, Union
+from finances.security_logger import SecurityLogger
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,7 @@ class WebSocketSanitizer:
         # Additional safety: ensure no script tags survived
         if '<script' in cleaned.lower() or 'javascript:' in cleaned.lower():
             logger.warning(f"[WS_SANITIZER] Potential XSS detected and blocked: {value[:100]}")
+            SecurityLogger.log_xss_attempt(value, 'websocket_broadcast')
             # Replace with safe placeholder
             cleaned = "[BLOCKED: Potential XSS]"
 

@@ -146,6 +146,56 @@ WS_CONNECTION_TIMEOUT = 3600  # 1 hour - disconnect idle connections
 WS_HEARTBEAT_INTERVAL = 30  # Heartbeat check interval in seconds
 
 # ==================================================================
+# Security Logging Configuration
+# ==================================================================
+# Control security event logging levels (configurable in local_settings.py)
+# 0 = Disabled - No security logging
+# 1 = Basic - Only critical security events (violations, attacks)
+# 2 = Standard - Normal security events (connections, disconnections, violations)
+# 3 = Detailed - All security events with full context and debugging info
+SECURITY_LOG_LEVEL = 0  # Default: disabled (enable in local_settings.py)
+
+# Django logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'security_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'security.log'),
+            'maxBytes': 10485760,  # 10MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'security': {
+            'handlers': ['security_file', 'console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+    },
+}
+
+# ==================================================================
 # Content Security Policy (CSP) Settings
 # ==================================================================
 # These can be overridden in local_settings.py
