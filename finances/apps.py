@@ -42,26 +42,26 @@ class FinancesConfig(AppConfig):
                 db_password = db_config.get('PASSWORD')
 
                 if not db_password or db_name == 'unknown' or db_host == 'unknown' or db_user == 'unknown':
-                    logger.warning(f"[STARTUP] ⚠️  PostgreSQL configured but credentials incomplete!")
+                    logger.warning(f"[STARTUP] [WARNING] PostgreSQL configured but credentials incomplete!")
                     logger.warning(f"[STARTUP]     NAME: {db_name}, USER: {db_user}, HOST: {db_host}, PASSWORD: {'SET' if db_password else 'MISSING'}")
                     logger.warning(f"[STARTUP]     Please check config/local_settings.py and .env file")
                     return
                 else:
-                    logger.info(f"[STARTUP] 🐘 Using PostgreSQL database: {db_name}@{db_host}:{db_port} (user: {db_user})")
+                    logger.info(f"[STARTUP] Using PostgreSQL database: {db_name}@{db_host}:{db_port} (user: {db_user})")
             else:
-                logger.info(f"[STARTUP] ⚙️ Using {db_engine} database")
+                logger.info(f"[STARTUP] Using {db_engine} database")
 
             # Initialize database (create if needed, migrate if needed, import SQLite if needed)
             logger.info("[STARTUP] Initializing database...")
             result = initialize_database()
 
             if result.get('success'):
-                logger.info(f"[STARTUP] ✅ {result['message']}")
+                logger.info(f"[STARTUP] [OK] {result['message']}")
                 if result.get('details'):
                     for detail in result['details']:
                         logger.info(f"[STARTUP]    - {detail}")
             else:
-                logger.warning(f"[STARTUP] ⚠️  {result['message']}")
+                logger.warning(f"[STARTUP] [WARNING] {result['message']}")
 
         except Exception as e:
             # Don't crash the application if initialization fails
