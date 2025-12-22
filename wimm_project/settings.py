@@ -290,8 +290,20 @@ PWA_APP_ICONS_APPLE = [
 # Channel Layers Configuration for Redis
 # Build Redis URL with optional password
 redis_password = os.environ.get('REDIS_PASSWORD', None)
+# Strip whitespace and treat empty string as None
+if redis_password is not None:
+    redis_password = redis_password.strip()
+    if not redis_password:  # Empty string after stripping
+        redis_password = None
+
 redis_host = os.environ.get('REDIS_HOST', '127.0.0.1')
 redis_port = os.environ.get('REDIS_PORT', '6379')
+
+# Debug: Log Redis configuration (will help diagnose connection issues)
+print(f"[Django Channels] Redis configuration:")
+print(f"  - Host: {redis_host}")
+print(f"  - Port: {redis_port}")
+print(f"  - Password: {'SET ({} chars)'.format(len(redis_password)) if redis_password else 'NOT SET'}")
 
 # Check if we should use InMemoryChannelLayer (development without Redis)
 use_in_memory = os.environ.get('USE_REDIS_MOCK', '').lower() == 'true'
@@ -319,7 +331,7 @@ if redis_available:
         # Format: redis://:password@host:port
         redis_url = f"redis://:{redis_password}@{redis_host}:{redis_port}"
     else:
-        # Format: redis://host:port
+        # Format: redis://host:port (no password)
         redis_url = f"redis://{redis_host}:{redis_port}"
 
     CHANNEL_LAYERS = {

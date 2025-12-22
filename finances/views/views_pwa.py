@@ -28,17 +28,29 @@ def manifest_json(request):
     # CRITICAL: Check if DB exists before trying to access it
     # During setup/restore, DB might not exist or be inaccessible
     from pathlib import Path
-    db_path = Path(settings.DATABASES['default']['NAME'])
+    from finances.utils.db_backup import get_database_engine
 
-    if not db_path.exists():
-        # DB doesn't exist yet (first-time setup or restore in progress)
-        logger.info(f"[MANIFEST] DB doesn't exist, using APP_VERSION: {APP_VERSION}")
+    db_engine = get_database_engine()
+    db_exists = False
+
+    if db_engine == 'sqlite':
+        # For SQLite, check if file exists
+        db_path = Path(settings.DATABASES['default']['NAME'])
+        db_exists = db_path.exists()
+    else:
+        # For PostgreSQL, assume DB exists if configured
+        # (PostgreSQL connection failures are handled by the exception block)
+        db_exists = True
+
+    if not db_exists:
+        # DB doesn't exist yet (first-time setup)
+        logger.debug(f"[MANIFEST] SQLite DB doesn't exist, using APP_VERSION: {APP_VERSION}")
         db_version = APP_VERSION
     else:
         try:
             db_version = SystemVersion.get_current_version()
         except Exception as e:
-            logger.error(f"Failed to get database version for manifest: {e}")
+            logger.debug(f"[MANIFEST] Cannot access database version, using APP_VERSION: {APP_VERSION}")
             db_version = APP_VERSION
 
     manifest = {
@@ -82,12 +94,24 @@ def service_worker(request):
     # CRITICAL: Check if DB exists before trying to access it
     # During setup/restore, DB might not exist or be inaccessible
     from pathlib import Path
-    db_path = Path(settings.DATABASES['default']['NAME'])
+    from finances.utils.db_backup import get_database_engine
 
-    if not db_path.exists():
-        # DB doesn't exist yet (first-time setup or restore in progress)
+    db_engine = get_database_engine()
+    db_exists = False
+
+    if db_engine == 'sqlite':
+        # For SQLite, check if file exists
+        db_path = Path(settings.DATABASES['default']['NAME'])
+        db_exists = db_path.exists()
+    else:
+        # For PostgreSQL, assume DB exists if configured
+        # (PostgreSQL connection failures are handled by the exception block)
+        db_exists = True
+
+    if not db_exists:
+        # DB doesn't exist yet (first-time setup)
         # Use APP_VERSION without accessing database
-        logger.info(f"[SERVICE_WORKER] DB doesn't exist, using APP_VERSION: {APP_VERSION}")
+        logger.debug(f"[SERVICE_WORKER] SQLite DB doesn't exist, using APP_VERSION: {APP_VERSION}")
         db_version = APP_VERSION
     else:
         try:
@@ -95,7 +119,7 @@ def service_worker(request):
             if not db_version:
                 db_version = APP_VERSION
         except Exception as e:
-            logger.error(f"Failed to get database version for service worker: {e}")
+            logger.debug(f"[SERVICE_WORKER] Cannot access database version, using APP_VERSION: {APP_VERSION}")
             db_version = APP_VERSION
 
     # Render service worker template with dynamic version
