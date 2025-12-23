@@ -1,0 +1,546 @@
+# ============================================================================
+# SweetMoney Local Settings - Comprehensive Example Configuration
+# ============================================================================
+#
+# This is the COMPREHENSIVE configuration file with all available options.
+# For a minimal production-ready configuration, see: config/local_settings.py.example
+#
+# Copy this file to config/local_settings.py and customize:
+#   cp local_settings.py.example ../config/local_settings.py
+#
+# SECURITY WARNING: Never commit local_settings.py to version control!
+#
+# Location depends on deployment mode:
+# - Docker/Production: /app/config/local_settings.py (mounted volume)
+# - Development: config/local_settings.py (local directory)
+#
+# Documentation: https://github.com/yourusername/sweetmoney/wiki/Configuration
+# ============================================================================
+
+import os
+
+# ============================================================================
+# SECTION 1: BASIC CONFIGURATION
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Secret Key - CRITICAL SECURITY SETTING
+# ----------------------------------------------------------------------------
+# Used for cryptographic signing (sessions, passwords, CSRF tokens)
+# MUST be unique and kept secret in production
+#
+# Generate a new key:
+#   python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
+#
+# Or use environment variable:
+#   SECRET_KEY = os.environ.get('SECRET_KEY', 'fallback-key-for-dev-only')
+
+SECRET_KEY = 'django-insecure-CHANGE-THIS-IN-PRODUCTION-use-random-50-chars'
+
+# ----------------------------------------------------------------------------
+# Debug Mode
+# ----------------------------------------------------------------------------
+# CRITICAL: ALWAYS set to False in production!
+# When True: Shows detailed error pages, serves static files, disables caching
+# When False: Shows generic error pages, requires static file collection
+
+DEBUG = False
+
+# For development only:
+# DEBUG = True
+
+# ============================================================================
+# SECTION 2: SECURITY SETTINGS
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Allowed Hosts
+# ----------------------------------------------------------------------------
+# List of domains/IPs that can access this application
+# Protects against HTTP Host header attacks
+#
+# Examples:
+ALLOWED_HOSTS = [
+    'localhost',              # Local access
+    '127.0.0.1',             # Loopback
+    # Production domains:
+    # 'sweetmoney.yourdomain.com',
+    # 'www.sweetmoney.yourdomain.com',
+    # Local network:
+    # '192.168.1.100',
+    # '10.0.0.50',
+    # Wildcard (NOT recommended for production):
+    # '*',
+]
+
+# ----------------------------------------------------------------------------
+# CSRF Trusted Origins
+# ----------------------------------------------------------------------------
+# Required for POST requests from these origins
+# Must include protocol (http:// or https://)
+#
+# Examples:
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+    # Production with HTTPS:
+    # 'https://sweetmoney.yourdomain.com',
+    # 'https://www.sweetmoney.yourdomain.com',
+    # Local network:
+    # 'http://192.168.1.100:8000',
+]
+
+# ----------------------------------------------------------------------------
+# SSL/HTTPS Settings (Production with HTTPS/Nginx)
+# ----------------------------------------------------------------------------
+# Enable these ONLY if you have HTTPS configured (e.g., Nginx with SSL certificate)
+# These settings significantly improve security for HTTPS deployments
+
+# Redirect all HTTP requests to HTTPS
+# SECURE_SSL_REDIRECT = True
+
+# HTTP Strict Transport Security (HSTS)
+# Forces browsers to use HTTPS for the specified duration
+# WARNING: Test thoroughly before enabling - incorrect config can lock users out
+# SECURE_HSTS_SECONDS = 31536000  # 1 year (recommended for production)
+# SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+# SECURE_HSTS_PRELOAD = True  # For inclusion in browser HSTS preload lists
+
+# Secure cookies (only sent over HTTPS)
+# SESSION_COOKIE_SECURE = True
+# CSRF_COOKIE_SECURE = True
+
+# Additional security headers (already enabled by default in settings.py):
+# - X-Content-Type-Options: nosniff
+# - X-XSS-Protection: 1; mode=block
+# - X-Frame-Options: DENY
+
+# ============================================================================
+# SECTION 3: DATABASE CONFIGURATION
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Option 1: SQLite (Default - Recommended for most deployments)
+# ----------------------------------------------------------------------------
+# Pros: Simple, no additional setup, good for <10 concurrent users
+# Cons: Limited scalability, file-based locking
+#
+# Uncomment to customize SQLite settings:
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': '/app/db/db.sqlite3',  # Docker: /app/db/db.sqlite3 | Dev: db/db.sqlite3
+#         'OPTIONS': {
+#             'timeout': 20,  # Wait 20s for lock (handles concurrent requests)
+#             'init_command': 'PRAGMA journal_mode=WAL;',  # Write-Ahead Logging (better concurrency)
+#         },
+#     }
+# }
+
+# ----------------------------------------------------------------------------
+# Option 2: PostgreSQL (Recommended for high-traffic or multi-server setups)
+# ----------------------------------------------------------------------------
+# Pros: Better concurrency, advanced features, scalable
+# Cons: Requires separate PostgreSQL server
+#
+# Uncomment and configure environment variables:
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': os.environ.get('POSTGRES_DB', 'sweetmoney'),
+#         'USER': os.environ.get('POSTGRES_USER', 'sweetmoney_user'),
+#         'PASSWORD': os.environ.get('POSTGRES_PASSWORD', ''),
+#         'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
+#         'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+#         'OPTIONS': {
+#             'connect_timeout': 10,
+#         },
+#         'CONN_MAX_AGE': 600,  # Connection pooling (10 minutes)
+#     }
+# }
+
+# ----------------------------------------------------------------------------
+# Option 3: MySQL/MariaDB
+# ----------------------------------------------------------------------------
+# Uncomment and configure environment variables:
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': os.environ.get('MYSQL_DB', 'sweetmoney'),
+#         'USER': os.environ.get('MYSQL_USER', 'sweetmoney_user'),
+#         'PASSWORD': os.environ.get('MYSQL_PASSWORD', ''),
+#         'HOST': os.environ.get('MYSQL_HOST', 'localhost'),
+#         'PORT': os.environ.get('MYSQL_PORT', '3306'),
+#         'OPTIONS': {
+#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+#             'charset': 'utf8mb4',
+#         },
+#     }
+# }
+
+# ============================================================================
+# SECTION 4: WEBSOCKET & REAL-TIME CONFIGURATION
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# WebSocket Security Settings
+# ----------------------------------------------------------------------------
+# These settings protect against WebSocket abuse and DDoS attacks
+# Default values are optimized for typical usage - customize as needed
+
+# Rate limiting (prevents connection spam)
+# Default: 10 connections per 60 seconds per user
+# Adjust based on your application usage patterns:
+# - High-traffic: Increase max_attempts (e.g., 20)
+# - Strict security: Decrease max_attempts (e.g., 5)
+# WS_RATE_LIMIT_MAX_ATTEMPTS = 10
+# WS_RATE_LIMIT_WINDOW_SECONDS = 60
+
+# Connection timeout (auto-disconnect idle connections)
+# Default: 3600 seconds (1 hour)
+# Increase for long-running sessions, decrease for stricter security
+# WS_CONNECTION_TIMEOUT = 3600
+
+# Heartbeat interval (keeps connections alive)
+# Default: 30 seconds (good balance between responsiveness and overhead)
+# Decrease for faster idle detection, increase to reduce network traffic
+# WS_HEARTBEAT_INTERVAL = 30
+
+# ----------------------------------------------------------------------------
+# Redis Configuration (for WebSocket channel layer)
+# ----------------------------------------------------------------------------
+# Redis enables WebSocket scaling across multiple servers
+# Required for: Load balancing, horizontal scaling, >100 concurrent users
+# Not required for: Single-server deployments, <100 users
+#
+# Uncomment and configure if using Redis:
+# CHANNEL_LAYERS = {
+#     'default': {
+#         'BACKEND': 'channels_redis.core.RedisChannelLayer',
+#         'CONFIG': {
+#             'hosts': [(
+#                 os.environ.get('REDIS_HOST', '127.0.0.1'),
+#                 int(os.environ.get('REDIS_PORT', 6379))
+#             )],
+#             'capacity': 1500,  # Max messages per channel
+#             'expiry': 10,      # Message expiry in seconds
+#         },
+#     },
+# }
+#
+# With authentication:
+# CHANNEL_LAYERS = {
+#     'default': {
+#         'BACKEND': 'channels_redis.core.RedisChannelLayer',
+#         'CONFIG': {
+#             'hosts': [{
+#                 'address': f'redis://:{os.environ.get("REDIS_PASSWORD")}@{os.environ.get("REDIS_HOST", "127.0.0.1")}:{os.environ.get("REDIS_PORT", 6379)}/0',
+#             }],
+#         },
+#     },
+# }
+
+# ============================================================================
+# SECTION 5: CONTENT SECURITY POLICY (CSP)
+# ============================================================================
+# CSP protects against XSS attacks by controlling resource loading
+#
+# SECURITY PHASES (Incremental Approach):
+# Phase 0 (Current): 40% security - Report-only mode (settings.py default)
+# Phase 1 (Quick Win): 60% security - Block mode with 'unsafe-inline'
+# Phase 2 (High Risk): 75% security - Protected critical areas
+# Phase 3 (Templates): 85% security - Most inline handlers removed
+# Phase 4 (Strict CSP): 100% security - Full CSP enforcement
+#
+# Documentation: DOC/security/TODO_Sec.md
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# RECOMMENDED: Phase 1 CSP Block Mode (Production-Ready)
+# ----------------------------------------------------------------------------
+# This is the recommended configuration for immediate production deployment
+# Security Improvement: 40% → 60% (+20%)
+# Risk: LOW - Zero functionality breakage
+# Deploy: Ready for immediate production use
+
+# PRODUCTION (with HTTPS):
+# CONTENT_SECURITY_POLICY = {
+#     'DIRECTIVES': {
+#         'default-src': ("'self'",),
+#         'script-src': ("'self'", "cdn.jsdelivr.net", "'unsafe-inline'"),  # Phase 1
+#         'style-src': ("'self'", "cdn.jsdelivr.net", "'unsafe-inline'"),
+#         'img-src': ("'self'", "data:"),
+#         'font-src': ("'self'", "cdn.jsdelivr.net"),
+#         'connect-src': (
+#             "'self'",
+#             "wss://sweetmoney.yourdomain.com",  # Replace with your domain
+#         ),
+#         'frame-src': ("'none'",),
+#         'object-src': ("'none'",),
+#         'base-uri': ("'self'",),
+#         'form-action': ("'self'",),
+#         'frame-ancestors': ("'none'",),
+#         'upgrade-insecure-requests': True,
+#     }
+# }
+# CONTENT_SECURITY_POLICY_REPORT_ONLY = None  # Enable enforcement
+
+# DEVELOPMENT (without HTTPS):
+# CONTENT_SECURITY_POLICY = {
+#     'DIRECTIVES': {
+#         'default-src': ("'self'",),
+#         'script-src': ("'self'", "cdn.jsdelivr.net", "'unsafe-inline'"),
+#         'style-src': ("'self'", "cdn.jsdelivr.net", "'unsafe-inline'"),
+#         'img-src': ("'self'", "data:"),
+#         'font-src': ("'self'", "cdn.jsdelivr.net"),
+#         'connect-src': (
+#             "'self'",
+#             "ws://localhost:8001",  # Daphne WebSocket
+#             "ws://127.0.0.1:8001",
+#         ),
+#         'frame-src': ("'none'",),
+#         'object-src': ("'none'",),
+#         'base-uri': ("'self'",),
+#         'form-action': ("'self'",),
+#         'frame-ancestors': ("'none'",),
+#         'upgrade-insecure-requests': False,
+#     }
+# }
+# CONTENT_SECURITY_POLICY_REPORT_ONLY = None  # Enable enforcement
+
+# ----------------------------------------------------------------------------
+# ALTERNATIVE: Report-Only Mode (Testing Only - NOT for Production)
+# ----------------------------------------------------------------------------
+# Use ONLY for testing CSP before enforcement
+# Logs violations without blocking them - provides NO actual security
+# CONTENT_SECURITY_POLICY_REPORT_ONLY = {
+#     'DIRECTIVES': {
+#         'default-src': ("'self'",),
+#         'script-src': ("'self'", "cdn.jsdelivr.net", "'unsafe-inline'"),
+#         'style-src': ("'self'", "cdn.jsdelivr.net", "'unsafe-inline'"),
+#         'img-src': ("'self'", "data:"),
+#         'font-src': ("'self'", "cdn.jsdelivr.net"),
+#         'connect-src': ("'self'",),
+#         'frame-src': ("'none'",),
+#         'object-src': ("'none'",),
+#     }
+# }
+
+# ============================================================================
+# SECTION 6: EMAIL CONFIGURATION
+# ============================================================================
+# Required for: Password reset, notifications, user invitations
+# Not required for: Basic application functionality
+
+# ----------------------------------------------------------------------------
+# Option 1: Gmail (Recommended for small deployments)
+# ----------------------------------------------------------------------------
+# Requires Google App Password (not your regular password)
+# Create App Password: https://myaccount.google.com/apppasswords
+#
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.gmail.com'
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = 'your-email@gmail.com'
+# EMAIL_HOST_PASSWORD = 'your-16-char-app-password'
+# DEFAULT_FROM_EMAIL = 'SweetMoney <noreply@sweetmoney.yourdomain.com>'
+# SERVER_EMAIL = 'errors@sweetmoney.yourdomain.com'  # For error emails
+
+# ----------------------------------------------------------------------------
+# Option 2: Microsoft 365 / Outlook
+# ----------------------------------------------------------------------------
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.office365.com'
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = 'your-email@outlook.com'
+# EMAIL_HOST_PASSWORD = 'your-password'
+# DEFAULT_FROM_EMAIL = 'SweetMoney <noreply@sweetmoney.yourdomain.com>'
+
+# ----------------------------------------------------------------------------
+# Option 3: Custom SMTP Server
+# ----------------------------------------------------------------------------
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'mail.yourdomain.com'
+# EMAIL_PORT = 587  # or 465 for SSL
+# EMAIL_USE_TLS = True  # or EMAIL_USE_SSL = True
+# EMAIL_HOST_USER = 'noreply@sweetmoney.yourdomain.com'
+# EMAIL_HOST_PASSWORD = 'your-password'
+# DEFAULT_FROM_EMAIL = 'SweetMoney <noreply@sweetmoney.yourdomain.com>'
+
+# ----------------------------------------------------------------------------
+# Option 4: Console Backend (Development Only)
+# ----------------------------------------------------------------------------
+# Prints emails to console instead of sending them
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# ============================================================================
+# SECTION 7: LOGGING CONFIGURATION
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Security Logging Level
+# ----------------------------------------------------------------------------
+# Controls security event logging verbosity
+# 0 = Disabled - No security logging (no performance impact)
+# 1 = Basic - Only critical security events (violations, attacks)
+# 2 = Standard - Normal security events (connections, violations)
+# 3 = Detailed - All events with full context and debugging info
+#
+# Recommended settings:
+# - Development: 0 or 1 (minimal logging)
+# - Staging: 2 (monitor normal operations)
+# - Production: 1 (only security violations)
+# - Debugging: 3 (full details)
+
+# SECURITY_LOG_LEVEL = 1
+
+# ----------------------------------------------------------------------------
+# Django Logging (Advanced)
+# ----------------------------------------------------------------------------
+# Customize Django's logging behavior
+# Uncomment and modify as needed:
+#
+# LOGGING = {
+#     'version': 1,
+#     'disable_existing_loggers': False,
+#     'formatters': {
+#         'verbose': {
+#             'format': '{levelname} {asctime} {module} {message}',
+#             'style': '{',
+#         },
+#     },
+#     'handlers': {
+#         'file': {
+#             'level': 'INFO',
+#             'class': 'logging.handlers.RotatingFileHandler',
+#             'filename': '/app/logs/django.log',
+#             'maxBytes': 10485760,  # 10MB
+#             'backupCount': 5,
+#             'formatter': 'verbose',
+#         },
+#         'console': {
+#             'level': 'DEBUG',
+#             'class': 'logging.StreamHandler',
+#             'formatter': 'verbose',
+#         },
+#     },
+#     'loggers': {
+#         'django': {
+#             'handlers': ['file', 'console'],
+#             'level': 'INFO',
+#             'propagate': True,
+#         },
+#         'finances': {
+#             'handlers': ['file', 'console'],
+#             'level': 'DEBUG',
+#             'propagate': False,
+#         },
+#     },
+# }
+
+# ============================================================================
+# SECTION 8: CACHING CONFIGURATION
+# ============================================================================
+# Caching improves performance by storing frequently accessed data
+# Required for: High-traffic deployments (>100 concurrent users)
+# Not required for: Small deployments, development
+
+# ----------------------------------------------------------------------------
+# Option 1: Redis Cache (Recommended for Production)
+# ----------------------------------------------------------------------------
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django_redis.cache.RedisCache',
+#         'LOCATION': f'redis://{os.environ.get("REDIS_HOST", "127.0.0.1")}:{os.environ.get("REDIS_PORT", 6379)}/1',
+#         'OPTIONS': {
+#             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+#             'PASSWORD': os.environ.get('REDIS_PASSWORD', ''),
+#         },
+#         'KEY_PREFIX': 'sweetmoney',
+#         'TIMEOUT': 300,  # 5 minutes default timeout
+#     }
+# }
+
+# ----------------------------------------------------------------------------
+# Option 2: Memcached
+# ----------------------------------------------------------------------------
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django.core.cache.backends.memcached.PyMemcacheCache',
+#         'LOCATION': '127.0.0.1:11211',
+#     }
+# }
+
+# ----------------------------------------------------------------------------
+# Option 3: File-Based Cache (Simple, no additional setup)
+# ----------------------------------------------------------------------------
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+#         'LOCATION': '/app/cache',
+#     }
+# }
+
+# ============================================================================
+# SECTION 9: DEMO MODE (Optional)
+# ============================================================================
+# Enable demo mode for public demonstrations
+# Disables: Backup, restore, dangerous operations
+# Adds: Demo banner with repository link
+
+# DEMO_MODE = True
+# DEMO_REPO_URL = 'https://github.com/yourusername/sweetmoney'
+
+# ============================================================================
+# SECTION 10: INTERNATIONALIZATION
+# ============================================================================
+
+# Language code
+# LANGUAGE_CODE = 'en-us'  # English (default)
+# LANGUAGE_CODE = 'pt-br'  # Brazilian Portuguese
+# LANGUAGE_CODE = 'es'     # Spanish
+
+# Time zone
+# TIME_ZONE = 'UTC'              # Universal
+# TIME_ZONE = 'America/Sao_Paulo'  # Brazil
+# TIME_ZONE = 'America/New_York'   # US East
+# TIME_ZONE = 'Europe/London'      # UK
+
+# ============================================================================
+# SECTION 11: FILE UPLOADS
+# ============================================================================
+
+# Maximum upload file size (in bytes)
+# DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
+# FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
+
+# Media files (user uploads)
+# MEDIA_ROOT = '/app/media'
+# MEDIA_URL = '/media/'
+
+# ============================================================================
+# SECTION 12: SESSION CONFIGURATION
+# ============================================================================
+
+# Session cookie age (in seconds)
+# SESSION_COOKIE_AGE = 1209600  # 2 weeks (default)
+# SESSION_COOKIE_AGE = 86400    # 1 day
+# SESSION_COOKIE_AGE = 604800   # 1 week
+
+# Session expire on browser close
+# SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+# Session cookie name (change for multiple SweetMoney instances)
+# SESSION_COOKIE_NAME = 'sweetmoney_sessionid'
+
+# ============================================================================
+# SECTION 13: CUSTOM APPLICATION SETTINGS
+# ============================================================================
+
+# Add any custom settings for your deployment here
+# Examples:
+# CUSTOM_FEATURE_ENABLED = True
+# MAX_TRANSACTIONS_PER_PAGE = 50
+# BACKUP_RETENTION_DAYS = 30

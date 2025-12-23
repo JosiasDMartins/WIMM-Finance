@@ -1,0 +1,190 @@
+# ============================================================================
+# SweetMoney - Docker Compose Configuration
+# ============================================================================
+# Production-ready configuration with security, performance, and monitoring
+#
+# Quick Start:
+#   1. Copy to docker-compose.yml: cp docker-compose.yml.example docker-compose.yml
+#   2. Create .env file: cp .env.example .env
+#   3. Create local_settings.py: cp local_settings.py.example config/local_settings.py
+#   4. Edit configurations to match your environment
+#   5. Run: docker compose up -d
+#
+# Documentation: https://github.com/yourusername/sweetmoney/wiki/Installation-Guide
+# ============================================================================
+
+services:
+  # --------------------------------------------------------------------------
+  # SweetMoney Application
+  # --------------------------------------------------------------------------
+  sweetmoney:
+    container_name: sweetmoney
+
+    # Docker image - change tag based on your architecture:
+    #   - latest-amd64: Intel/AMD processors (most common)
+    #   - latest-arm64: ARM processors (Raspberry Pi, Apple Silicon)
+    image: josiasdmartins/sweetmoney:latest-amd64
+
+    # Always pull latest image on startup
+    pull_policy: always
+
+    # Port mapping (host:container)
+    # Change 8000 to your preferred port (e.g., 80, 8080, 3000)
+    ports:
+      - "8000:8000"  # HTTP (Gunicorn)
+      - "8001:8001"  # WebSocket (Daphne) - for real-time updates
+
+    # Environment variables (load from .env file)
+    env_file:
+      - .env
+
+    # Alternative: Inline environment variables (not recommended for production)
+    # environment:
+    #   DB_PATH: /app/db/db.sqlite3
+    #   GUNICORN_WORKERS: 5
+    #   AUTO_MIGRATE: "true"
+
+    # Persistent volumes - CRITICAL: Map these to your host for backups!
+    volumes:
+      # Database storage (BACKUP REGULARLY!)
+      - ./db:/app/db
+
+      # Configuration files (local_settings.py)
+      - ./config:/app/config
+
+      # Application logs (security, errors, access)
+      - ./logs:/app/logs
+
+      # Optional: Media files (user uploads)
+      # - ./media:/app/media
+
+      # Optional: Static files (if you want to serve via Nginx)
+      # - ./static:/app/staticfiles
+
+    # Restart policy
+    # Options: no, always, on-failure, unless-stopped
+    restart: unless-stopped
+
+    # Resource limits (prevent container from consuming all host resources)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'      # Max 2 CPU cores
+          memory: 2G       # Max 2GB RAM
+        reservations:
+          cpus: '0.5'      # Reserve 0.5 CPU core
+          memory: 512M     # Reserve 512MB RAM
+
+    # Health check (monitors container health)
+    healthcheck:
+      test: ["CMD", "python", "/app/healthcheck.py"]
+      interval: 30s      # Check every 30 seconds
+      timeout: 10s       # Timeout after 10 seconds
+      start_period: 60s  # Wait 60s before first check (startup time)
+      retries: 3         # Mark unhealthy after 3 failed checks
+
+    # Security: Run as non-root user
+    # user: "1000:1000"  # Uncomment and adjust to your user:group ID
+
+    # Network mode (optional - for advanced setups)
+    # network_mode: bridge
+
+    # DNS settings (optional - use custom DNS servers)
+    # dns:
+    #   - 8.8.8.8
+    #   - 8.8.4.4
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"    # Max log file size
+        max-file: "3"      # Keep 3 log files
+        compress: "true"   # Compress rotated logs
+
+  # --------------------------------------------------------------------------
+  # Redis (Optional - for WebSocket scaling)
+  # --------------------------------------------------------------------------
+  # Uncomment this section if you need Redis for WebSocket channel layer
+  # Required for multi-server deployments or high-traffic scenarios
+  #
+  # redis:
+  #   container_name: sweetmoney-redis
+  #   image: redis:7-alpine
+  #   restart: unless-stopped
+  #
+  #   # Persist Redis data
+  #   volumes:
+  #     - ./redis-data:/data
+  #
+  #   # Redis configuration
+  #   command: redis-server --appendonly yes --requirepass your-redis-password
+  #
+  #   # Resource limits
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.5'
+  #         memory: 512M
+  #
+  #   # Health check
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 30s
+  #     timeout: 3s
+  #     retries: 3
+  #
+  #   # Logging
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "5m"
+  #       max-file: "2"
+
+  # --------------------------------------------------------------------------
+  # Nginx Reverse Proxy (Optional - for HTTPS and static file serving)
+  # --------------------------------------------------------------------------
+  # Uncomment this section if you want to use Nginx as reverse proxy
+  # Benefits: HTTPS, static file serving, load balancing, caching
+  #
+  # nginx:
+  #   container_name: sweetmoney-nginx
+  #   image: nginx:alpine
+  #   restart: unless-stopped
+  #
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #
+  #   volumes:
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./nginx/ssl:/etc/nginx/ssl:ro
+  #     - ./static:/var/www/static:ro
+  #
+  #   depends_on:
+  #     - sweetmoney
+  #
+  #   healthcheck:
+  #     test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+  #     interval: 30s
+  #     timeout: 5s
+  #     retries: 3
+
+# ----------------------------------------------------------------------------
+# Networks (Optional - for advanced networking)
+# ----------------------------------------------------------------------------
+# networks:
+#   sweetmoney-net:
+#     driver: bridge
+#     ipam:
+#       config:
+#         - subnet: 172.28.0.0/16
+
+# ----------------------------------------------------------------------------
+# Volumes (Optional - for named volumes instead of bind mounts)
+# ----------------------------------------------------------------------------
+# volumes:
+#   sweetmoney-db:
+#     driver: local
+#   sweetmoney-logs:
+#     driver: local
