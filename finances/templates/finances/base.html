@@ -1359,6 +1359,14 @@
             wsManager.registerHandler('notification', function(data) {
                 window.RealtimeUI.handleNotification(data);
             });
+
+            // Handle notification_created events (new notifications)
+            wsManager.registerHandler('notification_created', function(data) {
+                // Trigger custom event for notifications.js to handle
+                document.dispatchEvent(new CustomEvent('realtime:notification', {
+                    detail: { data: data }
+                }));
+            });
         });
     </script>
     {% endif %}

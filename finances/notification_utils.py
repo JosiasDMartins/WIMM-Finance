@@ -54,7 +54,7 @@ def create_overdue_notifications(family, member):
             # URL for the FlowGroup
             target_url = reverse('edit_flow_group', kwargs={'group_id': transaction.flow_group.id}) + f"?period={transaction.flow_group.period_start_date.strftime('%Y-%m-%d')}"
 
-            Notification.objects.create(
+            notif = Notification.objects.create(
                 family=family,
                 member=member,
                 notification_type='OVERDUE',
@@ -62,6 +62,20 @@ def create_overdue_notifications(family, member):
                 flow_group=transaction.flow_group,
                 message=message,
                 target_url=target_url
+            )
+
+            # Broadcast notification via WebSocket
+            from finances.websocket_utils import WebSocketBroadcaster
+            WebSocketBroadcaster.broadcast_to_family(
+                family_id=family.id,
+                message_type='notification_created',
+                data={
+                    'notification_id': notif.id,
+                    'type': notif.notification_type,
+                    'message': notif.message,
+                    'target_url': notif.target_url,
+                    'created_at': notif.created_at.isoformat()
+                }
             )
             notifications_created += 1
     
@@ -112,13 +126,27 @@ def create_overbudget_notifications(family, member):
 
                 target_url = reverse('edit_flow_group', kwargs={'group_id': flow_group.id}) + f"?period={flow_group.period_start_date.strftime('%Y-%m-%d')}"
 
-                Notification.objects.create(
+                notif = Notification.objects.create(
                     family=family,
                     member=member,
                     notification_type='OVERBUDGET',
                     flow_group=flow_group,
                     message=message,
                     target_url=target_url
+                )
+
+                # Broadcast notification via WebSocket
+                from finances.websocket_utils import WebSocketBroadcaster
+                WebSocketBroadcaster.broadcast_to_family(
+                    family_id=family.id,
+                    message_type='notification_created',
+                    data={
+                        'notification_id': notif.id,
+                        'type': notif.notification_type,
+                        'message': notif.message,
+                        'target_url': notif.target_url,
+                        'created_at': notif.created_at.isoformat()
+                    }
                 )
                 notifications_created += 1
     
@@ -230,6 +258,20 @@ def create_new_transaction_notification(transaction, exclude_member=None):
 
         if debug_enabled:
             print(f"[DEBUG NOTIF]   Notification created with ID: {notif.id}")
+
+        # Broadcast notification via WebSocket
+        from finances.websocket_utils import WebSocketBroadcaster
+        WebSocketBroadcaster.broadcast_to_family(
+            family_id=family.id,
+            message_type='notification_created',
+            data={
+                'notification_id': notif.id,
+                'type': notif.notification_type,
+                'message': notif.message,
+                'target_url': notif.target_url,
+                'created_at': notif.created_at.isoformat()
+            }
+        )
 
         notifications_created += 1
 

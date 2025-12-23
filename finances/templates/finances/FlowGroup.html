@@ -3452,8 +3452,14 @@
         /**
          * Handle FlowGroup deletion
          */
-        handleFlowGroupDeleted: function(flowgroupId, flowgroupName) {
-            console.log('[FlowGroup RT] FlowGroup deleted:', flowgroupId);
+        handleFlowGroupDeleted: function(data) {
+            console.log('[FlowGroup RT] FlowGroup deleted:', data);
+
+            // Extract FlowGroup data from WebSocket message structure
+            // Message format: { type, timestamp, data: {id, name}, actor: {id, username} }
+            const flowgroupData = data.data || data;  // Fallback for different message formats
+            const flowgroupId = flowgroupData.id;
+            const flowgroupName = flowgroupData.name || '';
 
             // Check if this is the current FlowGroup
             const currentFlowGroupId = document.getElementById('flow-group-form')?.getAttribute('data-flow-group-id');
@@ -3461,22 +3467,44 @@
                 return;
             }
 
-            // Show modal informing user that FlowGroup was deleted
+            // Check if current user deleted it
+            const currentUserId = document.body.dataset.userId ? parseInt(document.body.dataset.userId) : null;
+            const isOwnAction = data.actor && data.actor.id === currentUserId;
+
+            // Prepare message based on who deleted
+            let title, message, iconColor, iconBgColor;
+
+            if (isOwnAction) {
+                // Own action - success message
+                title = "{% trans 'FlowGroup Deleted Successfully' %}";
+                message = "{% trans 'The FlowGroup was successfully deleted.' %}";
+                iconColor = "text-green-600 dark:text-green-400";
+                iconBgColor = "bg-green-100 dark:bg-green-900/30";
+            } else {
+                // Another user's action - informational message
+                title = "{% trans 'FlowGroup Deleted' %}";
+                const actorName = data.actor ? data.actor.username : "{% trans 'another user' %}";
+                message = `{% trans 'This FlowGroup was deleted by' %} <strong>${actorName}</strong>.`;
+                iconColor = "text-red-600 dark:text-red-400";
+                iconBgColor = "bg-red-100 dark:bg-red-900/30";
+            }
+
+            // Show modal informing user
             const modalHtml = `
                 <div id="flowgroup-deleted-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
                     <div class="relative mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
                         <div class="mt-3 text-center">
-                            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30">
-                                <span class="material-symbols-outlined text-red-600 dark:text-red-400">delete</span>
+                            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full ${iconBgColor}">
+                                <span class="material-symbols-outlined ${iconColor}">${isOwnAction ? 'check_circle' : 'delete'}</span>
                             </div>
                             <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white mt-5">
-                                {% trans "FlowGroup Deleted" %}
+                                ${title}
                             </h3>
                             <div class="mt-2 px-7 py-3">
                                 <p class="text-sm text-gray-500 dark:text-gray-400">
-                                    {% trans "This FlowGroup was deleted by another user." %}
+                                    ${message}
                                 </p>
-                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 mt-2">${flowgroupName || ''}</p>
+                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 mt-2">${flowgroupName}</p>
                             </div>
                             <div class="items-center px-4 py-3">
                                 <button id="flowgroup-deleted-ok-btn"
@@ -3502,7 +3530,7 @@
     // Listen for FlowGroup deletion events
     document.addEventListener('realtime:flowgroup:deleted', function(event) {
         if (window.FlowGroupRealtime && window.FlowGroupRealtime.handleFlowGroupDeleted) {
-            window.FlowGroupRealtime.handleFlowGroupDeleted(event.detail.data.id, event.detail.data.name);
+            window.FlowGroupRealtime.handleFlowGroupDeleted(event.detail.data);
         }
     });
 

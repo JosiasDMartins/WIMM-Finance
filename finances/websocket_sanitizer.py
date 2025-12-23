@@ -53,7 +53,6 @@ class WebSocketSanitizer:
             value,
             tags=WebSocketSanitizer.ALLOWED_TAGS,
             attributes=WebSocketSanitizer.ALLOWED_ATTRIBUTES,
-            styles=WebSocketSanitizer.ALLOWED_STYLES,
             strip=True  # Remove tags completely instead of escaping
         )
 
