@@ -196,66 +196,46 @@ LOGGING = {
 }
 
 # ==================================================================
-# Content Security Policy (CSP) Settings
+# Content Security Policy (CSP) Settings - django-csp 4.0+ format
 # ==================================================================
 # These can be overridden in local_settings.py
 # CSP helps prevent XSS, clickjacking, and other code injection attacks
 
+# CSP configuration using the new format (django-csp >= 4.0)
+CONTENT_SECURITY_POLICY = {
+    'DIRECTIVES': {
+        'default-src': ("'self'",),
+        'script-src': (
+            "'self'",
+            "cdn.jsdelivr.net",
+            "'unsafe-inline'",  # Allow inline scripts (consider removing after audit)
+        ),
+        'style-src': (
+            "'self'",
+            "cdn.jsdelivr.net",
+            "'unsafe-inline'",  # Required for inline styles
+        ),
+        'img-src': (
+            "'self'",
+            "data:",  # Allow data: URIs for images
+        ),
+        'font-src': (
+            "'self'",
+            "cdn.jsdelivr.net",
+        ),
+        'connect-src': ("'self'",),  # Configure in local_settings.py for WebSocket
+        'frame-src': ("'none'",),
+        'object-src': ("'none'",),
+        'base-uri': ("'self'",),
+        'form-action': ("'self'",),
+        'frame-ancestors': ("'none'",),
+        'upgrade-insecure-requests': False,  # Enable in local_settings.py if using HTTPS
+    }
+}
+
 # Report-only mode (recommended for initial deployment)
-# Set to False in local_settings.py to enforce CSP
-CSP_REPORT_ONLY = True
-
-# Default source for all content types
-CSP_DEFAULT_SRC = ("'self'",)
-
-# Script sources (JavaScript)
-CSP_SCRIPT_SRC = (
-    "'self'",
-    "cdn.jsdelivr.net",  # Used for external libraries
-    "'unsafe-inline'",  # Allow inline scripts (consider removing after audit)
-)
-
-# Style sources (CSS)
-CSP_STYLE_SRC = (
-    "'self'",
-    "cdn.jsdelivr.net",
-    "'unsafe-inline'",  # Required for inline styles
-)
-
-# Image sources
-CSP_IMG_SRC = (
-    "'self'",
-    "data:",  # Allow data: URIs for images
-)
-
-# Font sources
-CSP_FONT_SRC = (
-    "'self'",
-    "cdn.jsdelivr.net",
-)
-
-# Connection sources (AJAX, WebSocket, etc.)
-# Will be configured in local_settings.py based on domain
-CSP_CONNECT_SRC = ("'self'",)
-
-# Frame sources (iframes)
-CSP_FRAME_SRC = ("'none'",)
-
-# Object sources (Flash, etc.)
-CSP_OBJECT_SRC = ("'none'",)
-
-# Base URI for relative URLs
-CSP_BASE_URI = ("'self'",)
-
-# Form action targets
-CSP_FORM_ACTION = ("'self'",)
-
-# Frame ancestors (who can embed this page)
-CSP_FRAME_ANCESTORS = ("'none'",)
-
-# Upgrade insecure requests (HTTP to HTTPS)
-# Only enable if using HTTPS
-CSP_UPGRADE_INSECURE_REQUESTS = False
+# Set to False in local_settings.py to enforce CSP (block mode)
+CONTENT_SECURITY_POLICY_REPORT_ONLY = True
 
 EXTERNAL_SETTINGS_PATH = '/app/config/local_settings.py'
 
