@@ -29,10 +29,10 @@ services:
     pull_policy: always
 
     # Port mapping (host:container)
+    # Daphne serves both HTTP and WebSocket on port 8000
     # Change 8000 to your preferred port (e.g., 80, 8080, 3000)
     ports:
-      - "8000:8000"  # HTTP (Gunicorn)
-      - "8001:8001"  # WebSocket (Daphne) - for real-time updates
+      - "8000:8000"  # HTTP + WebSocket (Daphne ASGI server)
 
     # Environment variables (load from .env file)
     env_file:
@@ -41,8 +41,9 @@ services:
     # Alternative: Inline environment variables (not recommended for production)
     # environment:
     #   DB_PATH: /app/db/db.sqlite3
-    #   GUNICORN_WORKERS: 5
     #   AUTO_MIGRATE: "true"
+    #   REDIS_HOST: redis
+    #   REDIS_PORT: 6379
 
     # Persistent volumes - CRITICAL: Map these to your host for backups!
     volumes:
@@ -58,7 +59,7 @@ services:
       # Optional: Media files (user uploads)
       # - ./media:/app/media
 
-      # Optional: Static files (if you want to serve via Nginx)
+      # Optional: Static files (if you want to serve via reverse proxy)
       # - ./static:/app/staticfiles
 
     # Restart policy
@@ -103,10 +104,11 @@ services:
         compress: "true"   # Compress rotated logs
 
   # --------------------------------------------------------------------------
-  # Redis (Optional - for WebSocket scaling)
+  # Redis (Recommended for Production)
   # --------------------------------------------------------------------------
-  # Uncomment this section if you need Redis for WebSocket channel layer
-  # Required for multi-server deployments or high-traffic scenarios
+  # Redis serves as the channel layer for Django Channels WebSocket communication
+  # Recommended for production deployments, required for multi-server setups
+  # If not available, system falls back to InMemoryChannelLayer (development only)
   #
   # redis:
   #   container_name: sweetmoney-redis
@@ -142,33 +144,43 @@ services:
   #       max-file: "2"
 
   # --------------------------------------------------------------------------
-  # Nginx Reverse Proxy (Optional - for HTTPS and static file serving)
+  # PostgreSQL Database (Alternative to SQLite)
   # --------------------------------------------------------------------------
-  # Uncomment this section if you want to use Nginx as reverse proxy
-  # Benefits: HTTPS, static file serving, load balancing, caching
+  # Uncomment this section to use PostgreSQL instead of SQLite
+  # Recommended for production with multiple users or high transaction volume
   #
-  # nginx:
-  #   container_name: sweetmoney-nginx
-  #   image: nginx:alpine
+  # postgres:
+  #   container_name: sweetmoney-postgres
+  #   image: postgres:16-alpine
   #   restart: unless-stopped
   #
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
+  #   environment:
+  #     POSTGRES_DB: sweetmoney
+  #     POSTGRES_USER: sweetmoney
+  #     POSTGRES_PASSWORD: change-this-secure-password
   #
   #   volumes:
-  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-  #     - ./nginx/ssl:/etc/nginx/ssl:ro
-  #     - ./static:/var/www/static:ro
-  #
-  #   depends_on:
-  #     - sweetmoney
+  #     - ./postgres-data:/var/lib/postgresql/data
   #
   #   healthcheck:
-  #     test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
-  #     interval: 30s
+  #     test: ["CMD-SHELL", "pg_isready -U sweetmoney"]
+  #     interval: 10s
   #     timeout: 5s
-  #     retries: 3
+  #     retries: 5
+  #
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "5m"
+  #       max-file: "2"
+  #
+  # NOTE: When using PostgreSQL, also update local_settings.py with DATABASES config
+  # and add these environment variables to the sweetmoney service:
+  #   POSTGRES_DB: sweetmoney
+  #   POSTGRES_USER: sweetmoney
+  #   POSTGRES_PASSWORD: change-this-secure-password
+  #   POSTGRES_HOST: postgres
+  #   POSTGRES_PORT: 5432
 
 # ----------------------------------------------------------------------------
 # Networks (Optional - for advanced networking)

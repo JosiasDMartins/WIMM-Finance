@@ -7,7 +7,7 @@ from .models import Notification
 logger = logging.getLogger(__name__)
 
 #Files version
-VERSION = "1.5.0-beta"
+VERSION = "1.5.0"
 
 #General contect for the entire system
 def database_version(request):

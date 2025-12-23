@@ -295,8 +295,8 @@ CSRF_TRUSTED_ORIGINS = [
 #         'font-src': ("'self'", "cdn.jsdelivr.net"),
 #         'connect-src': (
 #             "'self'",
-#             "ws://localhost:8001",  # Daphne WebSocket
-#             "ws://127.0.0.1:8001",
+#             "ws://localhost:8000",  # Daphne WebSocket (same port as HTTP)
+#             "ws://127.0.0.1:8000",
 #         ),
 #         'frame-src': ("'none'",),
 #         'object-src': ("'none'",),
