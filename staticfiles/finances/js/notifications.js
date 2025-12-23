@@ -140,10 +140,9 @@
             const colorClass = getNotificationColor(notif.type);
 
             html += `
-                <div class="notification-item border-b border-gray-100 dark:border-gray-700" data-notification-id="${notif.id}">
+                <div class="notification-item border-b border-gray-100 dark:border-gray-700" data-notification-id="${notif.id}" data-target-url="${escapeHtml(notif.target_url)}">
                     <a href="${escapeHtml(notif.target_url)}"
-                       class="block px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                       onclick="acknowledgeAndNavigate(event, ${notif.id}, '${escapeHtml(notif.target_url)}')">
+                       class="notification-link block px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                         <div class="flex items-start">
                             <span class="material-symbols-outlined ${colorClass} mr-3 mt-0.5 flex-shrink-0">${iconClass}</span>
                             <div class="flex-1 min-w-0">
@@ -157,6 +156,29 @@
         });
 
         notificationList.innerHTML = html;
+
+        // Add event delegation for notification clicks
+        attachNotificationClickHandlers();
+    }
+
+    // Attach click handlers using event delegation (CSP-safe)
+    function attachNotificationClickHandlers() {
+        // Remove old listeners if any
+        const links = notificationList.querySelectorAll('.notification-link');
+        links.forEach(link => {
+            link.addEventListener('click', handleNotificationClick);
+        });
+    }
+
+    // Handle notification click
+    function handleNotificationClick(event) {
+        event.preventDefault();
+
+        const notificationItem = event.currentTarget.closest('.notification-item');
+        const notificationId = notificationItem.dataset.notificationId;
+        const targetUrl = notificationItem.dataset.targetUrl;
+
+        acknowledgeAndNavigate(notificationId, targetUrl);
     }
 
     // Get icon based on notification type
@@ -205,9 +227,7 @@
     }
 
     // Acknowledge notification and navigate
-    window.acknowledgeAndNavigate = function(event, notificationId, targetUrl) {
-        event.preventDefault();
-
+    function acknowledgeAndNavigate(notificationId, targetUrl) {
         const formData = new FormData();
         formData.append('notification_id', notificationId);
 
@@ -245,7 +265,7 @@
             // Navigate anyway
             window.location.href = targetUrl;
         });
-    };
+    }
 
     // Acknowledge all notifications
     function acknowledgeAllNotifications(e) {
