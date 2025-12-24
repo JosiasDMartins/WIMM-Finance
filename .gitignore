@@ -45,3 +45,4 @@ test_scripts/diagnose_pwa.py
 docker_build/build_scripts/.env.example
 /docker_build
 docker_build/build_scripts/supervisord.conf
+check_config.py

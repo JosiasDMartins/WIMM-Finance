@@ -210,6 +210,7 @@ CONTENT_SECURITY_POLICY_REPORT_ONLY = {
             "'self'",
             "cdn.jsdelivr.net",
             "'unsafe-inline'",  # Allow inline scripts (consider removing after audit)
+            "'unsafe-eval'",  # REQUIRED for Alpine.js to work
         ),
         'style-src': (
             "'self'",
@@ -241,31 +242,47 @@ CONTENT_SECURITY_POLICY_REPORT_ONLY = {
 EXTERNAL_SETTINGS_PATH = '/app/config/local_settings.py'
 
 if os.path.exists(EXTERNAL_SETTINGS_PATH):
-    print(f"*** Loading external settings ***")
+    print(f"*** Loading external settings from {EXTERNAL_SETTINGS_PATH} ***")
     try:
         # Executes the code from the external file in the global context (overwriting the variables above)
         # The external file can redefine ALLOWED_HOSTS, DATABASES, CSRF_TRUSTED_ORIGINS, etc.
-        #It means that SweetMoney is running from a container - Deployment mode
-        exec(open(EXTERNAL_SETTINGS_PATH).read())
+        # It means that SweetMoney is running from a container - Deployment mode
+
+        # IMPORTANT: Use globals() to ensure variables are set in module scope
+        exec(open(EXTERNAL_SETTINGS_PATH).read(), globals())
+        print(f"*** External settings loaded successfully ***")
+
+        # Log important settings for debugging
+        print(f"*** ALLOWED_HOSTS from local_settings.py: {ALLOWED_HOSTS} ***")
+        print(f"*** DEBUG from local_settings.py: {DEBUG} ***")
+        if 'DATABASES' in globals() and DATABASES:
+            db_engine = DATABASES.get('default', {}).get('ENGINE', 'Not set')
+            print(f"*** DATABASES ENGINE from local_settings.py: {db_engine} ***")
+
     except Exception as e:
         print(f"Critical error when loading external settings: {e}")
+        import traceback
+        traceback.print_exc()
 
-
-    DB_PATH = os.environ.get('DB_PATH', '/app/db/db.sqlite3')
-
-    DEBUG = False
-
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            #Django will use this path in the Docker volume.
-            'NAME': DB_PATH,
-            'OPTIONS': {
-                'timeout': 20,  # Aumentar timeout de 5s (padrão) para 20s
-                'init_command': 'PRAGMA journal_mode=WAL;',  # Write-Ahead Logging para melhor concorrência
-            },
+    # Only set default SQLite database if not already configured in local_settings.py
+    if 'DATABASES' not in dir() or not DATABASES:
+        DB_PATH = os.environ.get('DB_PATH', '/app/db/db.sqlite3')
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                # Django will use this path in the Docker volume.
+                'NAME': DB_PATH,
+                'OPTIONS': {
+                    'timeout': 20,
+                    'init_command': 'PRAGMA journal_mode=WAL;',
+                },
+            }
         }
-    }
+        print(f"*** Using default SQLite database at {DB_PATH} ***")
+
+    # Only set DEBUG=False if not already configured in local_settings.py
+    if 'DEBUG' not in dir():
+        DEBUG = False
 
 else:
     # SECURITY WARNING: don't run with debug turned on in production!
@@ -287,9 +304,13 @@ else:
     if os.path.exists(LOCAL_SETTINGS_PATH):
         print(f"*** Loading local development settings from {LOCAL_SETTINGS_PATH} ***")
         try:
-            exec(open(LOCAL_SETTINGS_PATH).read())
+            # IMPORTANT: Use globals() to ensure variables are set in module scope
+            exec(open(LOCAL_SETTINGS_PATH).read(), globals())
+            print(f"*** Local development settings loaded successfully ***")
         except Exception as e:
             print(f"Error loading local settings: {e}")
+            import traceback
+            traceback.print_exc()
 
 # 1. Configura o seu modelo CustomUser como o modelo padrão de usuário
 AUTH_USER_MODEL = 'finances.CustomUser'
