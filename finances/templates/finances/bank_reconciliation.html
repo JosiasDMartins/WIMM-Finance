@@ -75,18 +75,18 @@
                         {% endif %}
                         <td class="px-4 py-3 text-center">
                             <div class="actions-display flex justify-center space-x-2">
-                                <button type="button" onclick="toggleEditBalance('balance-row-{{ balance.id }}', true)" class="p-1 text-slate-500 hover:text-primary">
+                                <button type="button" data-action="edit-balance" data-row-id="balance-row-{{ balance.id }}" class="p-1 text-slate-500 hover:text-primary">
                                     <span class="material-symbols-outlined text-lg">edit</span>
                                 </button>
-                                <button type="button" onclick="deleteBalance('{{ balance.id }}')" class="p-1 text-slate-500 hover:text-red-500">
+                                <button type="button" data-action="delete-balance" data-item-id="{{ balance.id }}" class="p-1 text-slate-500 hover:text-red-500">
                                     <span class="material-symbols-outlined text-lg">delete</span>
                                 </button>
                             </div>
                             <div class="actions-edit hidden flex justify-center space-x-2">
-                                <button type="button" onclick="saveBalance('balance-row-{{ balance.id }}')" class="p-1 text-green-500 hover:text-green-600">
+                                <button type="button" data-action="save-balance" data-row-id="balance-row-{{ balance.id }}" class="p-1 text-green-500 hover:text-green-600">
                                     <span class="material-symbols-outlined text-lg">check</span>
                                 </button>
-                                <button type="button" onclick="toggleEditBalance('balance-row-{{ balance.id }}', false)" class="p-1 text-slate-500 hover:text-red-500">
+                                <button type="button" data-action="cancel-balance" data-row-id="balance-row-{{ balance.id }}" class="p-1 text-slate-500 hover:text-red-500">
                                     <span class="material-symbols-outlined text-lg">close</span>
                                 </button>
                             </div>
@@ -122,10 +122,10 @@
                         {% endif %}
                         <td class="px-4 py-3 text-center">
                             <div class="actions-edit flex justify-center space-x-2">
-                                <button type="button" onclick="saveBalance('new-balance-template')" class="p-1 text-green-500 hover:text-green-600">
+                                <button type="button" data-action="save-balance" data-row-id="new-balance-template" class="p-1 text-green-500 hover:text-green-600">
                                     <span class="material-symbols-outlined text-lg">check</span>
                                 </button>
-                                <button type="button" onclick="cancelNewBalance()" class="p-1 text-slate-500 hover:text-red-500">
+                                <button type="button" data-action="cancel-new-balance" class="p-1 text-slate-500 hover:text-red-500">
                                     <span class="material-symbols-outlined text-lg">close</span>
                                 </button>
                             </div>
@@ -135,7 +135,7 @@
             </table>
 
             <div class="mt-4 flex justify-between items-center">
-                <button type="button" onclick="addNewBalance()" class="flex items-center rounded-lg bg-primary text-white text-sm font-medium px-4 py-2 hover:bg-primary/80 transition-colors">
+                <button type="button" data-action="add-new-balance" class="flex items-center rounded-lg bg-primary text-white text-sm font-medium px-4 py-2 hover:bg-primary/80 transition-colors">
                     <span class="material-symbols-outlined text-lg mr-1">add_circle</span>
                     {% trans "Add Bank Balance" %}
                 </button>
@@ -862,4 +862,7 @@ document.addEventListener('realtime:bankbalance:deleted', function(event) {
 
 console.log('[BankReconciliationRealtime] Loaded successfully');
 </script>
+
+<!-- PHASE 3: Event Delegation Manager -->
+<script src="{% static 'finances/js/event_delegation.js' %}"></script>
 {% endblock %}

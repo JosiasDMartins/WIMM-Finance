@@ -154,7 +154,7 @@
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
                 <div class="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
                     <h2 class="text-xl font-bold text-[#0d171b] dark:text-white">{% trans "Recent Income" %}</h2>
-                    <button type="button" onclick="addNewIncomeRow()" class="flex items-center rounded-lg bg-green-500 text-white text-sm font-medium leading-normal p-2 hover:bg-green-600 transition-colors shadow-sm">
+                    <button type="button" data-action="add-new-row" data-type="income" class="flex items-center rounded-lg bg-green-500 text-white text-sm font-medium leading-normal p-2 hover:bg-green-600 transition-colors shadow-sm">
                         <span class="material-symbols-outlined text-lg mr-1">add_circle</span>
                         {% trans "Add Income" %}
                     </button>
@@ -185,7 +185,7 @@
                                     </td>
 
                                     <td class="py-3 px-2 text-center">
-                                        <button type="button" onclick="alert('{% trans "Only Parents/Admins can change this status" %}')" class="income-realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-not-allowed opacity-60 {% if kids_income.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}" title="{% trans "Only Parents/Admins can change this" %}">
+                                        <button type="button" data-action="show-alert" data-message="{% trans 'Only Parents/Admins can change this status' %}" class="income-realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-not-allowed opacity-60 {% if kids_income.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}" title="{% trans "Only Parents/Admins can change this" %}">
                                             <span class="absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if kids_income.realized %}translate-x-4{% endif %}"></span>
                                         </button>
                                     </td>
@@ -216,7 +216,7 @@
 
                                 <td class="px-2 py-4 text-center drag-handle-cell-income" data-row-id="income-item-{{ transaction.id }}">
                                     <span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle-income cursor-grab active:cursor-grabbing">drag_indicator</span>
-                                    <button type="button" onclick="saveItem('income-item-{{ transaction.id }}')" class="edit-save-icon-income" style="display: none;">
+                                    <button type="button" data-action="save" data-item-id="income-item-{{ transaction.id }}" class="edit-save-icon-income" style="display: none;">
                                         <span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span>
                                     </button>
                                 </td>
@@ -243,29 +243,29 @@
 
                                     <!-- Mobile action buttons (hidden behind row, revealed on swipe) -->
                                     <div class="mobile-actions-btns-income">
-                                        <button type="button" onclick="toggleEditMode('income-item-{{ transaction.id }}', true)" class="mobile-action-btn-income edit-btn-income">
+                                        <button type="button" data-action="edit" data-item-id="income-item-{{ transaction.id }}" class="mobile-action-btn-income edit-btn-income">
                                             <span class="material-symbols-outlined">edit</span>
                                         </button>
-                                        <button type="button" onclick="deleteItem('income-item-{{ transaction.id }}')" class="mobile-action-btn-income delete-btn-income">
+                                        <button type="button" data-action="delete" data-item-id="income-item-{{ transaction.id }}" class="mobile-action-btn-income delete-btn-income">
                                             <span class="material-symbols-outlined">delete</span>
                                         </button>
                                     </div>
                                 </td>
 
                                 <td class="py-3 px-2 text-center mobile-hide-column">
-                                    <button type="button" onclick="toggleIncomeRealized('income-item-{{ transaction.id }}')" class="income-realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-pointer {% if transaction.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}">
+                                    <button type="button" data-toggle="income-realized" data-item-id="income-item-{{ transaction.id }}" class="income-realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-pointer {% if transaction.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}">
                                         <span class="absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if transaction.realized %}translate-x-4{% endif %}"></span>
                                     </button>
                                 </td>
 
                                 <td class="px-2 py-3 text-center whitespace-nowrap mobile-hide-column">
                                         <div class="actions-display flex justify-center gap-1">
-                                            <button type="button" onclick="toggleEditMode('income-item-{{ transaction.id }}', true)" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
-                                            <button type="button" onclick="deleteItem('income-item-{{ transaction.id }}')" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
+                                            <button type="button" data-action="edit" data-item-id="income-item-{{ transaction.id }}" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
+                                            <button type="button" data-action="delete" data-item-id="income-item-{{ transaction.id }}" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
                                         </div>
                                         <div class="actions-edit hidden flex justify-center gap-1">
-                                            <button type="button" onclick="saveItem('income-item-{{ transaction.id }}')" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
-                                            <button type="button" onclick="toggleEditMode('income-item-{{ transaction.id }}', false)" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
+                                            <button type="button" data-action="save" data-item-id="income-item-{{ transaction.id }}" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
+                                            <button type="button" data-action="cancel" data-item-id="income-item-{{ transaction.id }}" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
                                         </div>
                                 </td>
                             </tr>
@@ -321,7 +321,7 @@
                         <tr id="new-income-template" data-item-id="NEW" data-mode="edit" class="swipeable-row-income hover:bg-slate-50 dark:hover:bg-gray-700/50 hidden">
                             <td class="px-2 py-4 text-center drag-handle-cell-income" data-row-id="new-income-template">
                                 <span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle-income cursor-grab active:cursor-grabbing" style="display: none;">drag_indicator</span>
-                                <button type="button" onclick="saveIncomeItem('new-income-template')" class="edit-save-icon-income">
+                                <button type="button" data-action="save-new-income" class="edit-save-icon-income">
                                     <span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span>
                                 </button>
                             </td>
@@ -348,10 +348,10 @@
 
                                 <!-- Mobile action buttons (hidden behind row, revealed on swipe) -->
                                 <div class="mobile-actions-btns-income">
-                                    <button type="button" onclick="saveIncomeItem('new-income-template')" class="mobile-action-btn-income edit-btn-income">
+                                    <button type="button" data-action="save-new-income" class="mobile-action-btn-income edit-btn-income">
                                         <span class="material-symbols-outlined">check</span>
                                     </button>
-                                    <button type="button" onclick="cancelNewIncomeRow('new-income-template')" class="mobile-action-btn-income delete-btn-income">
+                                    <button type="button" data-action="cancel-new-income" class="mobile-action-btn-income delete-btn-income">
                                         <span class="material-symbols-outlined">close</span>
                                     </button>
                                 </div>
@@ -366,8 +366,8 @@
                             <td class="px-2 py-3 text-center whitespace-nowrap mobile-hide-column">
                                 <div class="actions-display" style="display: none;"></div>
                                 <div class="actions-edit flex justify-center gap-1">
-                                    <button type="button" onclick="saveIncomeItem('new-income-template')" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
-                                    <button type="button" onclick="cancelNewIncomeRow('new-income-template')" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
+                                    <button type="button" data-action="save-new-income" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
+                                    <button type="button" data-action="cancel-new-income" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -1103,7 +1103,7 @@
 
                         <td class="px-2 py-4 text-center drag-handle-cell-income" data-row-id="${newRowId}">
                             <span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle-income cursor-grab active:cursor-grabbing">drag_indicator</span>
-                            <button type="button" onclick="saveItem('${newRowId}')" class="edit-save-icon-income" style="display: none;">
+                            <button type="button" data-action="save" data-item-id="${newRowId}" class="edit-save-icon-income" style="display: none;">
                                 <span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span>
                             </button>
                         </td>
@@ -1129,29 +1129,29 @@
                             </div>
 
                             <div class="mobile-actions-btns-income">
-                                <button type="button" onclick="toggleEditMode('${newRowId}', true)" class="mobile-action-btn-income edit-btn-income">
+                                <button type="button" data-action="edit" data-item-id="${newRowId}" class="mobile-action-btn-income edit-btn-income">
                                     <span class="material-symbols-outlined">edit</span>
                                 </button>
-                                <button type="button" onclick="deleteItem('${newRowId}')" class="mobile-action-btn-income delete-btn-income">
+                                <button type="button" data-action="delete" data-item-id="${newRowId}" class="mobile-action-btn-income delete-btn-income">
                                     <span class="material-symbols-outlined">delete</span>
                                 </button>
                             </div>
                         </td>
 
                         <td class="py-3 px-2 text-center mobile-hide-column">
-                            <button type="button" onclick="toggleIncomeRealized('${newRowId}')" class="income-realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-pointer ${data.realized ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}">
+                            <button type="button" data-toggle="income-realized" data-item-id="${newRowId}" class="income-realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-pointer ${data.realized ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}">
                                 <span class="absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full ${data.realized ? 'translate-x-4' : ''}"></span>
                             </button>
                         </td>
 
                         <td class="px-2 py-3 text-center whitespace-nowrap mobile-hide-column">
                             <div class="actions-display flex justify-center gap-1">
-                                <button type="button" onclick="toggleEditMode('${newRowId}', true)" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
-                                <button type="button" onclick="deleteItem('${newRowId}')" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
+                                <button type="button" data-action="edit" data-item-id="${newRowId}" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
+                                <button type="button" data-action="delete" data-item-id="${newRowId}" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
                             </div>
                             <div class="actions-edit hidden flex justify-center gap-1">
-                                <button type="button" onclick="saveItem('${newRowId}')" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
-                                <button type="button" onclick="toggleEditMode('${newRowId}', false)" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
+                                <button type="button" data-action="save" data-item-id="${newRowId}" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
+                                <button type="button" data-action="cancel" data-item-id="${newRowId}" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
                             </div>
                         </td>
                     </tr>`;
@@ -2670,64 +2670,139 @@
             // Format amount
             const formattedAmount = window.RealtimeUI.utils.formatCurrency(data.amount);
 
-            tr.innerHTML = `
-                <td class="px-2 py-4 text-center drag-handle-cell-income" data-row-id="income-item-${data.id}">
-                    <span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle-income cursor-grab active:cursor-grabbing">drag_indicator</span>
-                    <button type="button" onclick="saveItem('income-item-${data.id}')" class="edit-save-icon-income" style="display: none;">
-                        <span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span>
-                    </button>
-                </td>
+            // SECURITY FIX (Phase 2 - Enhanced): Use createElement() to avoid innerHTML completely
+            // This is the SAFEST approach - no string interpolation, no XSS risk
+            const itemId = `income-item-${data.id}`;
 
-                <td class="py-3 px-3 text-sm text-[#0d171b] dark:text-white">
-                    <div class="cell-description-display"></div>
-                    <div class="cell-description-edit hidden">
-                        <input type="text" data-field="description" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs p-1" value="${data.description}">
-                    </div>
-                </td>
+            // Helper function to create elements safely
+            function createEl(tag, classes, content) {
+                const el = document.createElement(tag);
+                if (classes) el.className = classes;
+                if (content) el.textContent = content;
+                return el;
+            }
 
-                <td class="py-3 px-2 text-xs text-gray-500 dark:text-gray-400 text-center">
-                    <div class="cell-date-display">${dateDisplay}</div>
-                    <div class="cell-date-edit hidden">
-                        <input type="date" data-field="date" class="w-full border-b border-primary dark:text-white dark:bg-gray-800 bg-transparent focus:outline-none focus:ring-0 text-xs p-1 date-input-field-income" value="${data.date}">
-                    </div>
-                </td>
+            // TD 1: Drag handle
+            const td1 = createEl('td', 'px-2 py-4 text-center drag-handle-cell-income');
+            td1.dataset.rowId = itemId;
+            const dragIcon = createEl('span', 'material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle-income cursor-grab active:cursor-grabbing', 'drag_indicator');
+            const saveBtn = document.createElement('button');
+            saveBtn.type = 'button';
+            saveBtn.className = 'edit-save-icon-income';
+            saveBtn.style.display = 'none';
+            saveBtn.onclick = () => saveItem(itemId);
+            saveBtn.appendChild(createEl('span', 'material-symbols-outlined text-green-500 text-2xl', 'check_circle'));
+            td1.appendChild(dragIcon);
+            td1.appendChild(saveBtn);
 
-                <td class="py-3 px-3 text-sm text-right ${data.realized ? 'text-green-600 dark:text-green-500' : 'text-gray-400 dark:text-gray-500'} amount-cell-with-actions">
-                    <div class="cell-amount-display">${formattedAmount}</div>
-                    <div class="cell-amount-edit hidden">
-                        <input type="text" inputmode="decimal" data-field="amount" class="w-20 border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs text-right p-1" value="${data.amount}">
-                    </div>
+            // TD 2: Description
+            const td2 = createEl('td', 'py-3 px-3 text-sm text-[#0d171b] dark:text-white');
+            const descDisplay = createEl('div', 'cell-description-display');
+            descDisplay.textContent = data.description;  // SAFE
+            const descEdit = createEl('div', 'cell-description-edit hidden');
+            const descInput = document.createElement('input');
+            descInput.type = 'text';
+            descInput.dataset.field = 'description';
+            descInput.className = 'w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs p-1';
+            descInput.value = data.description;  // SAFE
+            descEdit.appendChild(descInput);
+            td2.appendChild(descDisplay);
+            td2.appendChild(descEdit);
 
-                    <div class="mobile-actions-btns-income">
-                        <button type="button" onclick="toggleEditMode('income-item-${data.id}', true)" class="mobile-action-btn-income edit-btn-income">
-                            <span class="material-symbols-outlined">edit</span>
-                        </button>
-                        <button type="button" onclick="deleteItem('income-item-${data.id}')" class="mobile-action-btn-income delete-btn-income">
-                            <span class="material-symbols-outlined">delete</span>
-                        </button>
-                    </div>
-                </td>
+            // TD 3: Date
+            const td3 = createEl('td', 'py-3 px-2 text-xs text-gray-500 dark:text-gray-400 text-center');
+            const dateDisplayDiv = createEl('div', 'cell-date-display');
+            dateDisplayDiv.textContent = dateDisplay;  // SAFE
+            const dateEdit = createEl('div', 'cell-date-edit hidden');
+            const dateInput = document.createElement('input');
+            dateInput.type = 'date';
+            dateInput.dataset.field = 'date';
+            dateInput.className = 'w-full border-b border-primary dark:text-white dark:bg-gray-800 bg-transparent focus:outline-none focus:ring-0 text-xs p-1 date-input-field-income';
+            dateInput.value = data.date;  // SAFE
+            dateEdit.appendChild(dateInput);
+            td3.appendChild(dateDisplayDiv);
+            td3.appendChild(dateEdit);
 
-                <td class="py-3 px-2 text-center mobile-hide-column">
-                    <button type="button" onclick="toggleIncomeRealized('income-item-${data.id}')" class="income-realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-pointer ${data.realized ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}">
-                        <span class="absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full ${data.realized ? 'translate-x-4' : ''}"></span>
-                    </button>
-                </td>
+            // TD 4: Amount + Mobile Actions
+            const td4 = createEl('td', `py-3 px-3 text-sm text-right ${data.realized ? 'text-green-600 dark:text-green-500' : 'text-gray-400 dark:text-gray-500'} amount-cell-with-actions`);
+            const amountDisplay = createEl('div', 'cell-amount-display');
+            amountDisplay.textContent = formattedAmount;  // SAFE
+            const amountEdit = createEl('div', 'cell-amount-edit hidden');
+            const amountInput = document.createElement('input');
+            amountInput.type = 'text';
+            amountInput.inputMode = 'decimal';
+            amountInput.dataset.field = 'amount';
+            amountInput.className = 'w-20 border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-xs text-right p-1';
+            amountInput.value = data.amount;  // SAFE
+            amountEdit.appendChild(amountInput);
 
-                <td class="px-2 py-3 text-center whitespace-nowrap mobile-hide-column">
-                    <div class="actions-display flex justify-center gap-1">
-                        <button type="button" onclick="toggleEditMode('income-item-${data.id}', true)" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
-                        <button type="button" onclick="deleteItem('income-item-${data.id}')" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
-                    </div>
-                    <div class="actions-edit hidden flex justify-center gap-1">
-                        <button type="button" onclick="saveItem('income-item-${data.id}')" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
-                        <button type="button" onclick="toggleEditMode('income-item-${data.id}', false)" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
-                    </div>
-                </td>
-            `;
+            const mobileActions = createEl('div', 'mobile-actions-btns-income');
+            const mobileEditBtn = document.createElement('button');
+            mobileEditBtn.type = 'button';
+            mobileEditBtn.className = 'mobile-action-btn-income edit-btn-income';
+            mobileEditBtn.onclick = () => toggleEditMode(itemId, true);
+            mobileEditBtn.appendChild(createEl('span', 'material-symbols-outlined', 'edit'));
+            const mobileDeleteBtn = document.createElement('button');
+            mobileDeleteBtn.type = 'button';
+            mobileDeleteBtn.className = 'mobile-action-btn-income delete-btn-income';
+            mobileDeleteBtn.onclick = () => deleteItem(itemId);
+            mobileDeleteBtn.appendChild(createEl('span', 'material-symbols-outlined', 'delete'));
+            mobileActions.appendChild(mobileEditBtn);
+            mobileActions.appendChild(mobileDeleteBtn);
 
-            // Set description using textContent for security
-            tr.querySelector('.cell-description-display').textContent = data.description;
+            td4.appendChild(amountDisplay);
+            td4.appendChild(amountEdit);
+            td4.appendChild(mobileActions);
+
+            // TD 5: Realized Toggle
+            const td5 = createEl('td', 'py-3 px-2 text-center mobile-hide-column');
+            const toggleBtn = document.createElement('button');
+            toggleBtn.type = 'button';
+            toggleBtn.onclick = () => toggleIncomeRealized(itemId);
+            toggleBtn.className = `income-realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-pointer ${data.realized ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`;
+            toggleBtn.appendChild(createEl('span', `absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full ${data.realized ? 'translate-x-4' : ''}`));
+            td5.appendChild(toggleBtn);
+
+            // TD 6: Desktop Actions
+            const td6 = createEl('td', 'px-2 py-3 text-center whitespace-nowrap mobile-hide-column');
+            const actionsDisplay = createEl('div', 'actions-display flex justify-center gap-1');
+            const editBtn = document.createElement('button');
+            editBtn.type = 'button';
+            editBtn.className = 'p-1 text-slate-500 hover:text-primary';
+            editBtn.onclick = () => toggleEditMode(itemId, true);
+            editBtn.appendChild(createEl('span', 'material-symbols-outlined text-lg', 'edit'));
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'p-1 text-slate-500 hover:text-red-500';
+            deleteBtn.onclick = () => deleteItem(itemId);
+            deleteBtn.appendChild(createEl('span', 'material-symbols-outlined text-lg', 'delete'));
+            actionsDisplay.appendChild(editBtn);
+            actionsDisplay.appendChild(deleteBtn);
+
+            const actionsEdit = createEl('div', 'actions-edit hidden flex justify-center gap-1');
+            const saveBtn2 = document.createElement('button');
+            saveBtn2.type = 'button';
+            saveBtn2.className = 'p-1 text-primary hover:text-primary/80';
+            saveBtn2.onclick = () => saveItem(itemId);
+            saveBtn2.appendChild(createEl('span', 'material-symbols-outlined text-lg', 'check'));
+            const cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.className = 'p-1 text-slate-500 hover:text-red-500';
+            cancelBtn.onclick = () => toggleEditMode(itemId, false);
+            cancelBtn.appendChild(createEl('span', 'material-symbols-outlined text-lg', 'close'));
+            actionsEdit.appendChild(saveBtn2);
+            actionsEdit.appendChild(cancelBtn);
+
+            td6.appendChild(actionsDisplay);
+            td6.appendChild(actionsEdit);
+
+            // Assemble the row
+            tr.appendChild(td1);
+            tr.appendChild(td2);
+            tr.appendChild(td3);
+            tr.appendChild(td4);
+            tr.appendChild(td5);
+            tr.appendChild(td6);
 
             return tr;
         },
@@ -2764,24 +2839,50 @@
             const estimatedFormatted = window.RealtimeUI.utils.formatCurrency(flowgroupData.budgeted_amount || '0.00');
             const realizedFormatted = window.RealtimeUI.utils.formatCurrency('0.00');
 
-            newRow.innerHTML = `
-                <td class="px-2 py-4 text-center drag-handle-cell">
-                    <span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle cursor-grab active:cursor-grabbing">drag_indicator</span>
-                </td>
-                <td class="py-4 px-4 text-sm text-[#0d171b] dark:text-white">
-                    <div class="flex flex-col gap-1">
-                        <div class="flex items-center gap-2">
-                            <span>${flowgroupData.name}</span>
-                        </div>
-                    </div>
-                </td>
-                <td class="py-4 px-4 text-sm text-gray-500 dark:text-gray-400 text-right group-estimated" data-value="0.00">
-                    ${estimatedFormatted}
-                </td>
-                <td class="py-4 px-4 text-sm text-red-600 dark:text-red-500 text-right group-realized" data-value="0.00">
-                    ${realizedFormatted}
-                </td>
-            `;
+            // SECURITY FIX (Phase 2 - Enhanced): Use createElement() to avoid innerHTML completely
+            // No string interpolation = No XSS risk
+
+            // Helper function (same as above)
+            function createEl(tag, classes, content) {
+                const el = document.createElement(tag);
+                if (classes) el.className = classes;
+                if (content) el.textContent = content;
+                return el;
+            }
+
+            // TD 1: Drag handle
+            const td1 = createEl('td', 'px-2 py-4 text-center drag-handle-cell');
+            td1.appendChild(createEl('span', 'material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle cursor-grab active:cursor-grabbing', 'drag_indicator'));
+
+            // TD 2: FlowGroup Name
+            const td2 = createEl('td', 'py-4 px-4 text-sm text-[#0d171b] dark:text-white');
+            const flexCol = createEl('div', 'flex flex-col gap-1');
+            const flexRow = createEl('div', 'flex items-center gap-2');
+            const nameSpan = createEl('span');
+            nameSpan.textContent = flowgroupData.name;  // SAFE - prevents XSS
+            flexRow.appendChild(nameSpan);
+            flexCol.appendChild(flexRow);
+            td2.appendChild(flexCol);
+
+            // TD 3: Estimated Amount
+            const td3 = createEl('td', 'py-4 px-4 text-sm text-gray-500 dark:text-gray-400 text-right group-estimated');
+            td3.dataset.value = '0.00';
+            const estimatedSpan = createEl('span');
+            estimatedSpan.textContent = estimatedFormatted;  // SAFE
+            td3.appendChild(estimatedSpan);
+
+            // TD 4: Realized Amount
+            const td4 = createEl('td', 'py-4 px-4 text-sm text-red-600 dark:text-red-500 text-right group-realized');
+            td4.dataset.value = '0.00';
+            const realizedSpan = createEl('span');
+            realizedSpan.textContent = realizedFormatted;  // SAFE
+            td4.appendChild(realizedSpan);
+
+            // Assemble the row
+            newRow.appendChild(td1);
+            newRow.appendChild(td2);
+            newRow.appendChild(td3);
+            newRow.appendChild(td4);
 
             // Insert at the end (before "empty" message row if exists)
             const emptyRow = tbody.querySelector('tr td[colspan]');
@@ -2988,5 +3089,8 @@
     console.log('[Dashboard RT] Real-time updates initialized');
 })();
 </script>
+
+<!-- PHASE 3: Event Delegation Manager -->
+<script src="{% static 'finances/js/event_delegation.js' %}"></script>
 
 {% endblock content %}

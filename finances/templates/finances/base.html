@@ -214,7 +214,7 @@
                     <div class="flex items-center space-x-3">
 
                         {% if not is_child and is_dashboard %}
-                        <button onclick="openCreatePeriodModal()"
+                        <button data-modal-action="open" data-modal="create-period"
                                 class="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                                 title="{% trans 'Create New Period' %}">
                             <span class="material-symbols-outlined text-sm">add</span>
@@ -222,7 +222,7 @@
                         </button>
 
                         <button type="button"
-                                onclick="openDeletePeriodModal()"
+                                data-modal-action="open" data-modal="delete-period"
                                 style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background-color: #dc2626; color: white; border-radius: 8px; border: none; cursor: pointer; line-height: 1.25rem;"
                                 title="{% trans 'Delete Current Period' %}">
 
@@ -387,7 +387,7 @@
             <div class="p-6">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-xl font-semibold text-gray-900 dark:text-white">{% trans "Create New Period" %}</h3>
-                    <button onclick="closeCreatePeriodModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <button data-modal-action="close" data-modal="create-period" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                         <span class="material-symbols-outlined">close</span>
                     </button>
                 </div>
@@ -420,7 +420,7 @@
                     </div>
 
                     <div class="flex space-x-3 pt-4">
-                        <button type="button" onclick="closeCreatePeriodModal()"
+                        <button type="button" data-modal-action="close" data-modal="create-period"
                                 class="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
                             {% trans "Cancel" %}
                         </button>
@@ -442,7 +442,7 @@
                         <span class="material-symbols-outlined inline align-text-bottom mr-2">warning</span>
                         {% trans "Delete Period" %}
                     </h3>
-                    <button onclick="closeDeletePeriodModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <button data-modal-action="close" data-modal="delete-period" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                         <span class="material-symbols-outlined">close</span>
                     </button>
                 </div>
@@ -525,11 +525,11 @@
                             </div>
 
                             <div class="flex space-x-3">
-                                <button type="button" onclick="closeDeletePeriodModal()"
+                                <button type="button" data-modal-action="close" data-modal="delete-period"
                                         class="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
                                     {% trans "Cancel" %}
                                 </button>
-                                <button type="button" onclick="confirmDeletePeriod()" id="confirmDeleteBtn" disabled
+                                <button type="button" data-action="confirm-delete-period" id="confirmDeleteBtn" disabled
                                         style="background-color: #d1d5db; color: #6b7280; cursor: not-allowed; transition: all 0.2s;"
                                         class="flex-1 px-4 py-2 rounded-lg shadow-sm flex items-center justify-center font-medium">
                                     <span id="deleteButtonText">{% trans "Delete Period" %}</span>
@@ -1226,7 +1226,7 @@
                                 💡 <strong>Tip:</strong> Your data is safe on the server. Reinstalling won't affect your financial records.
                             </p>
                         </div>
-                        <button onclick="updateInstalledVersion('${newVersion}')"
+                        <button data-action="update-version" data-version="${newVersion}"
                                 class="w-full mt-4 bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg">
                             I'll Do It Later
                         </button>
@@ -1370,5 +1370,8 @@
         });
     </script>
     {% endif %}
+
+    <!-- PHASE 3: Event Delegation Manager -->
+    <script src="{% static 'finances/js/event_delegation.js' %}"></script>
 </body>
 </html>
