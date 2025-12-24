@@ -1,38 +1,21 @@
 {% load i18n %}
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% trans "Logged Out | WIMM" %}</title>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    
+
+    <!-- Local fonts and styles -->
+    <link rel="stylesheet" href="{% static 'finances/css/fonts.css' %}">
+    <link rel="stylesheet" href="{% static 'finances/css/tailwind.css' %}">
+
     <style>
         body {
             font-family: 'Manrope', sans-serif;
         }
-        .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-        }
     </style>
-    
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'primary': '#0D9488',
-                    }
-                }
-            }
-        }
-    </script>
 </head>
 <body class="bg-slate-50">
     <div class="flex items-center justify-center min-h-screen">

@@ -208,23 +208,18 @@ CONTENT_SECURITY_POLICY_REPORT_ONLY = {
         'default-src': ("'self'",),
         'script-src': (
             "'self'",
-            "cdn.jsdelivr.net",
             "'unsafe-inline'",  # Allow inline scripts (consider removing after audit)
             "'unsafe-eval'",  # REQUIRED for Alpine.js to work
         ),
         'style-src': (
             "'self'",
-            "cdn.jsdelivr.net",
             "'unsafe-inline'",  # Required for inline styles
         ),
         'img-src': (
             "'self'",
             "data:",  # Allow data: URIs for images
         ),
-        'font-src': (
-            "'self'",
-            "cdn.jsdelivr.net",
-        ),
+        'font-src': ("'self'",),
         'connect-src': ("'self'",),  # Configure in local_settings.py for WebSocket
         'frame-src': ("'none'",),
         'object-src': ("'none'",),
