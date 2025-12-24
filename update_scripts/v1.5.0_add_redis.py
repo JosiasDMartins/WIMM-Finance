@@ -31,6 +31,9 @@ def run():
     """
     Main update process - called by the update manager
     This function is required by the update system
+
+    Returns:
+        dict: {'success': bool, 'message': str}
     """
     log("Starting update to v1.5.0 (Redis + WebSocket Support)")
 
@@ -56,20 +59,31 @@ def run():
         log("- Unified Daphne ASGI server (single port for HTTP + WebSocket)")
         log("- Enhanced real-time updates")
         log("- Security improvements (CSP, logging)")
+        log("- Chart.js loading fix (defer attribute)")
+        log("- Alpine.js CSP fix (unsafe-eval)")
         log("=" * 70)
 
-        return True
+        return {
+            'success': True,
+            'message': 'Successfully updated to v1.5.0 - Redis, WebSocket, and security improvements applied'
+        }
 
     except Exception as e:
-        log(f"Error updating system version: {str(e)}")
+        error_msg = f"Error updating system version: {str(e)}"
+        log(error_msg)
         import traceback
         traceback.print_exc()
-        return False
+
+        return {
+            'success': False,
+            'message': error_msg
+        }
 
 
 def main():
     """Legacy main function for standalone execution"""
-    return run()
+    result = run()
+    return result['success']
 
 
 if __name__ == '__main__':

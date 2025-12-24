@@ -243,37 +243,41 @@ CSRF_TRUSTED_ORIGINS = [
 # ============================================================================
 # SECTION 5: CONTENT SECURITY POLICY (CSP)
 # ============================================================================
-# CSP protects against XSS attacks by controlling resource loading
+# CSP settings are now MANAGED IN settings.py and cannot be overridden here.
+# This ensures consistent security configuration across all deployments.
 #
-# SECURITY PHASES (Incremental Approach):
-# Phase 0 (Current): 40% security - Report-only mode (settings.py default)
-# Phase 1 (Quick Win): 60% security - Block mode with 'unsafe-inline'
-# Phase 2 (High Risk): 75% security - Protected critical areas
-# Phase 3 (Templates): 85% security - Most inline handlers removed
-# Phase 4 (Strict CSP): 100% security - Full CSP enforcement
+# CSP protects against XSS attacks by controlling resource loading.
+# Current configuration is in report-only mode for monitoring.
+#
+# ⚠️ ADVANCED USERS ONLY: If you need to customize CSP (at your own risk),
+# you can override these settings below. However, this is NOT recommended
+# and may introduce security vulnerabilities.
+#
+# Default CSP Configuration (in settings.py):
+# - Report-only mode enabled (monitors but doesn't block)
+# - Allows: self, cdn.jsdelivr.net, unsafe-inline, unsafe-eval (Alpine.js)
+# - Blocks: external frames, objects, form submissions to other domains
 #
 # Documentation: DOC/security/TODO_Sec.md
+# Wiki: https://github.com/yourusername/sweetmoney/wiki/Security
 # ============================================================================
 
 # ----------------------------------------------------------------------------
-# RECOMMENDED: Phase 1 CSP Block Mode (Production-Ready)
+# OVERRIDE CSP (ADVANCED - NOT RECOMMENDED)
 # ----------------------------------------------------------------------------
-# This is the recommended configuration for immediate production deployment
-# Security Improvement: 40% → 60% (+20%)
-# Risk: LOW - Zero functionality breakage
-# Deploy: Ready for immediate production use
-
+# Uncomment ONLY if you have specific CSP requirements and understand the risks
+#
 # PRODUCTION (with HTTPS):
 # CONTENT_SECURITY_POLICY = {
 #     'DIRECTIVES': {
 #         'default-src': ("'self'",),
-#         'script-src': ("'self'", "cdn.jsdelivr.net", "'unsafe-inline'"),  # Phase 1
+#         'script-src': ("'self'", "cdn.jsdelivr.net", "'unsafe-inline'", "'unsafe-eval'"),
 #         'style-src': ("'self'", "cdn.jsdelivr.net", "'unsafe-inline'"),
 #         'img-src': ("'self'", "data:"),
 #         'font-src': ("'self'", "cdn.jsdelivr.net"),
 #         'connect-src': (
 #             "'self'",
-#             "wss://sweetmoney.yourdomain.com",  # Replace with your domain
+#             "wss://sweetmoney.yourdomain.com",  # Replace with your WebSocket domain
 #         ),
 #         'frame-src': ("'none'",),
 #         'object-src': ("'none'",),
@@ -283,19 +287,19 @@ CSRF_TRUSTED_ORIGINS = [
 #         'upgrade-insecure-requests': True,
 #     }
 # }
-# CONTENT_SECURITY_POLICY_REPORT_ONLY = None  # Enable enforcement
-
+# CONTENT_SECURITY_POLICY_REPORT_ONLY = None  # Disable report-only, enable enforcement
+#
 # DEVELOPMENT (without HTTPS):
 # CONTENT_SECURITY_POLICY = {
 #     'DIRECTIVES': {
 #         'default-src': ("'self'",),
-#         'script-src': ("'self'", "cdn.jsdelivr.net", "'unsafe-inline'"),
+#         'script-src': ("'self'", "cdn.jsdelivr.net", "'unsafe-inline'", "'unsafe-eval'"),
 #         'style-src': ("'self'", "cdn.jsdelivr.net", "'unsafe-inline'"),
 #         'img-src': ("'self'", "data:"),
 #         'font-src': ("'self'", "cdn.jsdelivr.net"),
 #         'connect-src': (
 #             "'self'",
-#             "ws://localhost:8000",  # Daphne WebSocket (same port as HTTP)
+#             "ws://localhost:8000",
 #             "ws://127.0.0.1:8000",
 #         ),
 #         'frame-src': ("'none'",),
@@ -306,25 +310,7 @@ CSRF_TRUSTED_ORIGINS = [
 #         'upgrade-insecure-requests': False,
 #     }
 # }
-# CONTENT_SECURITY_POLICY_REPORT_ONLY = None  # Enable enforcement
-
-# ----------------------------------------------------------------------------
-# ALTERNATIVE: Report-Only Mode (Testing Only - NOT for Production)
-# ----------------------------------------------------------------------------
-# Use ONLY for testing CSP before enforcement
-# Logs violations without blocking them - provides NO actual security
-# CONTENT_SECURITY_POLICY_REPORT_ONLY = {
-#     'DIRECTIVES': {
-#         'default-src': ("'self'",),
-#         'script-src': ("'self'", "cdn.jsdelivr.net", "'unsafe-inline'"),
-#         'style-src': ("'self'", "cdn.jsdelivr.net", "'unsafe-inline'"),
-#         'img-src': ("'self'", "data:"),
-#         'font-src': ("'self'", "cdn.jsdelivr.net"),
-#         'connect-src': ("'self'",),
-#         'frame-src': ("'none'",),
-#         'object-src': ("'none'",),
-#     }
-# }
+# CONTENT_SECURITY_POLICY_REPORT_ONLY = None  # Disable report-only, enable enforcement
 
 # ============================================================================
 # SECTION 6: EMAIL CONFIGURATION
