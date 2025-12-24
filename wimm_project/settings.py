@@ -201,9 +201,9 @@ LOGGING = {
 # These can be overridden in local_settings.py
 # CSP helps prevent XSS, clickjacking, and other code injection attacks
 
-# Report-only mode (recommended for initial deployment)
-# Logs violations without blocking - safe for testing
-CONTENT_SECURITY_POLICY_REPORT_ONLY = {
+# Enforcement mode (actively blocks CSP violations)
+# CSP is now in enforcement mode to actively protect against XSS and injection attacks
+CONTENT_SECURITY_POLICY = {
     'DIRECTIVES': {
         'default-src': ("'self'",),
         'script-src': (
@@ -230,9 +230,8 @@ CONTENT_SECURITY_POLICY_REPORT_ONLY = {
     }
 }
 
-# For block mode (enforcement), use CONTENT_SECURITY_POLICY instead:
-# CONTENT_SECURITY_POLICY = { 'DIRECTIVES': { ... } }
-# And set CONTENT_SECURITY_POLICY_REPORT_ONLY = None
+# Disable report-only mode (we're using enforcement mode above)
+CONTENT_SECURITY_POLICY_REPORT_ONLY = None
 
 EXTERNAL_SETTINGS_PATH = '/app/config/local_settings.py'
 
