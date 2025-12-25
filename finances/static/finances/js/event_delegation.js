@@ -115,6 +115,23 @@ class EventDelegationManager {
             // Offline/Setup page actions
             'retry-connection': () => retryConnection(),
             'reload-page': () => window.location.reload(),
+
+            // FlowGroup actions
+            'delete-flowgroup': () => deleteFlowGroup(),
+            'history-back': () => history.back(),
+            'toggle-flowgroup-recurring': () => toggleFlowGroupRecurring(),
+            'toggle-kids-realized': () => {
+                const currentState = button.dataset.currentState === 'true';
+                toggleKidsGroupRealized(currentState);
+            },
+            'toggle-creditcard-closed': () => {
+                const currentState = button.dataset.currentState === 'true';
+                toggleCreditCardClosed(currentState);
+            },
+            'toggle-fixed': () => toggleTransactionFixed(button.dataset.itemId),
+            'toggle-new-item-fixed': () => toggleNewItemFixed(button.dataset.itemId),
+            'cancel-new-row': () => cancelNewRow(button.dataset.itemId),
+            'add-new-row': () => addNewRow(),
         };
 
         const handler = actions[action];

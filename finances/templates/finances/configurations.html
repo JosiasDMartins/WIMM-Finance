@@ -8,21 +8,19 @@
         <h1 class="text-[#0d171b] dark:text-white text-2xl font-bold tracking-[-0.015em] mb-8">{% trans "Application Settings" %}</h1>
 
         <!-- Navigation Tabs -->
-        <div x-data="{ activeTab: '{{ tab|default:"configuration" }}' }" class="mb-6">
+        <div class="mb-6" data-tab-container>
             <div class="border-b border-gray-200 dark:border-gray-700">
                 <nav class="-mb-px flex space-x-8">
-                    <button @click="activeTab = 'configuration'"
-                            :class="activeTab === 'configuration' ? 'border-primary text-primary' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
-                            class="border-b-2 py-4 px-1 text-sm font-medium transition-colors">
+                    <button data-tab="configuration"
+                            class="tab-button border-b-2 py-4 px-1 text-sm font-medium transition-colors">
                         <span class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-lg">settings</span>
                             {% trans "Configuration" %}
                         </span>
                     </button>
 
-                    <button @click="activeTab = 'members'"
-                            :class="activeTab === 'members' ? 'border-primary text-primary' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
-                            class="border-b-2 py-4 px-1 text-sm font-medium transition-colors">
+                    <button data-tab="members"
+                            class="tab-button border-b-2 py-4 px-1 text-sm font-medium transition-colors">
                         <span class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-lg">group</span>
                             {% trans "Members" %}
@@ -30,18 +28,16 @@
                     </button>
 
                     {% if is_admin %}
-                    <button @click="activeTab = 'backup'"
-                            :class="activeTab === 'backup' ? 'border-primary text-primary' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
-                            class="border-b-2 py-4 px-1 text-sm font-medium transition-colors">
+                    <button data-tab="backup"
+                            class="tab-button border-b-2 py-4 px-1 text-sm font-medium transition-colors">
                         <span class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-lg">backup</span>
                             {% trans "Backup & Restore" %}
                         </span>
                     </button>
 
-                    <button @click="activeTab = 'updates'"
-                            :class="activeTab === 'updates' ? 'border-primary text-primary' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
-                            class="border-b-2 py-4 px-1 text-sm font-medium transition-colors">
+                    <button data-tab="updates"
+                            class="tab-button border-b-2 py-4 px-1 text-sm font-medium transition-colors">
                         <span class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-lg">cloud_sync</span>
                             {% trans "Updates" %}
@@ -52,7 +48,7 @@
             </div>
             
             <!-- Configuration Tab -->
-            <div x-show="activeTab === 'configuration'" class="mt-6" x-cloak>
+            <div data-tab-content="configuration" class="mt-6 hidden">
                 {% if is_child %}
                 <!-- Child User Restriction Message -->
                 <div class="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 p-6 rounded-lg">
@@ -141,7 +137,7 @@
             </div>
 
             <!-- Members Tab -->
-            <div x-show="activeTab === 'members'" class="mt-6" x-cloak x-data="{ editMemberId: null, editUsername: '', editEmail: '', editRole: '', showPasswordModal: false, passwordMemberId: null, showDeleteModal: false, deleteMemberId: null, deleteMemberUsername: '' }">
+            <div data-tab-content="members" class="mt-6 hidden">
                 {% if is_admin or is_parent %}
                 <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm mb-10 border border-primary/20">
                     <h2 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">{% trans "Add New Member" %}</h2>
@@ -241,7 +237,11 @@
                                     <div class="flex justify-center gap-2">
                                         {% if item.can_edit %}
                                         <button type="button"
-                                                @click="editMemberId = {{ item.member.id }}; editUsername = '{{ item.member.user.username }}'; editEmail = '{{ item.member.user.email }}'; editRole = '{{ item.member.role }}'"
+                                                data-action="edit-member"
+                                                data-member-id="{{ item.member.id }}"
+                                                data-member-username="{{ item.member.user.username }}"
+                                                data-member-email="{{ item.member.user.email }}"
+                                                data-member-role="{{ item.member.role }}"
                                                 class="p-1 text-slate-500 hover:text-primary"
                                                 title="{% trans 'Edit' %}">
                                             <span class="material-symbols-outlined text-lg">edit</span>
@@ -250,7 +250,8 @@
 
                                         {% if item.can_change_password %}
                                         <button type="button"
-                                                @click="passwordMemberId = {{ item.member.id }}; showPasswordModal = true"
+                                                data-action="change-password"
+                                                data-member-id="{{ item.member.id }}"
                                                 class="p-1 text-slate-500 hover:text-blue-500"
                                                 title="{% trans 'Change Password' %}">
                                             <span class="material-symbols-outlined text-lg">key</span>
@@ -259,7 +260,9 @@
 
                                         {% if item.can_delete %}
                                         <button type="button"
-                                                @click="showDeleteModal = true; deleteMemberId = {{ item.member.id }}; deleteMemberUsername = '{{ item.member.user.username }}'"
+                                                data-action="delete-member"
+                                                data-member-id="{{ item.member.id }}"
+                                                data-member-username="{{ item.member.user.username }}"
                                                 class="p-1 text-slate-500 hover:text-red-500"
                                                 title="{% trans 'Remove' %}">
                                             <span class="material-symbols-outlined text-lg">delete</span>
@@ -282,52 +285,45 @@
                 </div>
 
                 <!-- Edit Member Modal -->
-                <div x-show="editMemberId !== null"
-                     x-transition:enter="transition ease-out duration-300"
-                     x-transition:enter-start="opacity-0"
-                     x-transition:enter-end="opacity-100"
-                     x-transition:leave="transition ease-in duration-200"
-                     x-transition:leave-start="opacity-100"
-                     x-transition:leave-end="opacity-0"
-                     class="fixed inset-0 z-50 overflow-y-auto"
-                     style="display: none;">
+                <div id="edit-member-modal" data-modal="edit-member" class="fixed inset-0 z-50 overflow-y-auto hidden">
                     <div class="flex items-center justify-center min-h-screen px-4">
-                        <div class="fixed inset-0 bg-black opacity-50" @click="editMemberId = null"></div>
+                        <div class="fixed inset-0 bg-black opacity-50" data-action="close-modal" data-modal-name="edit-member"></div>
 
                         <div class="relative bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 z-10">
                             <h3 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">{% trans "Edit Member" %}</h3>
 
-                            <form method="POST" :action="`/members/edit/${editMemberId}/{% if selected_period %}?period={{ selected_period }}{% endif %}`">
+                            <form method="POST" id="edit-member-form">
                                 {% csrf_token %}
                                 <input type="hidden" name="action" value="update_info">
+                                <input type="hidden" id="edit-member-id" name="member_id">
 
                                 <div class="space-y-4">
                                     <div>
                                         <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{% trans "Username" %}</label>
-                                        <input type="text" name="username" x-model="editUsername" class="w-full border rounded-lg bg-white dark:bg-gray-700 border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-gray-900 dark:text-white p-2" required>
+                                        <input type="text" name="username" id="edit-member-username" class="w-full border rounded-lg bg-white dark:bg-gray-700 border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-gray-900 dark:text-white p-2" required>
                                     </div>
 
                                     <div>
                                         <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{% trans "Email" %}</label>
-                                        <input type="email" name="email" x-model="editEmail" class="w-full border rounded-lg bg-white dark:bg-gray-700 border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-gray-900 dark:text-white p-2">
+                                        <input type="email" name="email" id="edit-member-email" class="w-full border rounded-lg bg-white dark:bg-gray-700 border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-gray-900 dark:text-white p-2">
                                     </div>
 
                                     {% if is_admin %}
                                     <div>
                                         <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{% trans "Role" %}</label>
-                                        <select name="role" x-model="editRole" class="w-full border rounded-lg bg-white dark:bg-gray-700 border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-gray-900 dark:text-white p-2">
+                                        <select name="role" id="edit-member-role" class="w-full border rounded-lg bg-white dark:bg-gray-700 border-slate-300 dark:border-slate-700 focus:ring-primary focus:border-primary text-gray-900 dark:text-white p-2">
                                             <option value="ADMIN">{% trans "Admin" %}</option>
                                             <option value="PARENT">{% trans "Parent" %}</option>
                                             <option value="CHILD">{% trans "Child" %}</option>
                                         </select>
                                     </div>
                                     {% else %}
-                                    <input type="hidden" name="role" x-model="editRole">
+                                    <input type="hidden" name="role" id="edit-member-role">
                                     {% endif %}
                                 </div>
 
                                 <div class="mt-6 flex justify-end space-x-3">
-                                    <button type="button" @click="editMemberId = null" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                    <button type="button" data-action="close-modal" data-modal-name="edit-member" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
                                         {% trans "Cancel" %}
                                     </button>
                                     <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">
@@ -340,24 +336,17 @@
                 </div>
 
                 <!-- Change Password Modal -->
-                <div x-show="showPasswordModal"
-                     x-transition:enter="transition ease-out duration-300"
-                     x-transition:enter-start="opacity-0"
-                     x-transition:enter-end="opacity-100"
-                     x-transition:leave="transition ease-in duration-200"
-                     x-transition:leave-start="opacity-100"
-                     x-transition:leave-end="opacity-0"
-                     class="fixed inset-0 z-50 overflow-y-auto"
-                     style="display: none;">
+                <div id="password-modal" data-modal="password" class="fixed inset-0 z-50 overflow-y-auto hidden">
                     <div class="flex items-center justify-center min-h-screen px-4">
-                        <div class="fixed inset-0 bg-black opacity-50" @click="showPasswordModal = false"></div>
+                        <div class="fixed inset-0 bg-black opacity-50" data-action="close-modal" data-modal-name="password"></div>
 
                         <div class="relative bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 z-10">
                             <h3 class="text-xl font-bold text-[#0d171b] dark:text-white mb-4">{% trans "Change Password" %}</h3>
 
-                            <form method="POST" :action="`/members/edit/${passwordMemberId}/{% if selected_period %}?period={{ selected_period }}{% endif %}`">
+                            <form method="POST" id="password-form">
                                 {% csrf_token %}
                                 <input type="hidden" name="action" value="change_password">
+                                <input type="hidden" id="password-member-id" name="member_id">
 
                                 <div class="space-y-4">
                                     <div>
@@ -372,7 +361,7 @@
                                 </div>
 
                                 <div class="mt-6 flex justify-end space-x-3">
-                                    <button type="button" @click="showPasswordModal = false; passwordMemberId = null" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                    <button type="button" data-action="close-modal" data-modal-name="password" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
                                         {% trans "Cancel" %}
                                     </button>
                                     <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">
@@ -385,17 +374,9 @@
                 </div>
 
                 <!-- Delete Confirmation Modal -->
-                <div x-show="showDeleteModal"
-                     x-transition:enter="transition ease-out duration-300"
-                     x-transition:enter-start="opacity-0"
-                     x-transition:enter-end="opacity-100"
-                     x-transition:leave="transition ease-in duration-200"
-                     x-transition:leave-start="opacity-100"
-                     x-transition:leave-end="opacity-0"
-                     class="fixed inset-0 z-50 overflow-y-auto"
-                     style="display: none;">
+                <div id="delete-member-modal" data-modal="delete-member" class="fixed inset-0 z-50 overflow-y-auto hidden">
                     <div class="flex items-center justify-center min-h-screen px-4">
-                        <div class="fixed inset-0 bg-black opacity-50" @click="showDeleteModal = false"></div>
+                        <div class="fixed inset-0 bg-black opacity-50" data-action="close-modal" data-modal-name="delete-member"></div>
 
                         <div class="relative bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 z-10">
                             <div class="flex items-center gap-3 mb-4">
@@ -404,17 +385,18 @@
                             </div>
 
                             <p class="text-gray-600 dark:text-gray-300 mb-6">
-                                {% trans "Are you sure you want to remove" %} <strong x-text="deleteMemberUsername"></strong> {% trans "from the family?" %}
+                                {% trans "Are you sure you want to remove" %} <strong id="delete-member-username"></strong> {% trans "from the family?" %}
                             </p>
 
                             <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
                                 {% trans "This action cannot be undone. The user account and all associated data will be permanently deleted." %}
                             </p>
 
-                            <form method="POST" :action="`/members/remove/${deleteMemberId}/{% if selected_period %}?period={{ selected_period }}&tab=members{% else %}?tab=members{% endif %}`">
+                            <form method="POST" id="delete-member-form">
                                 {% csrf_token %}
+                                <input type="hidden" id="delete-member-id" name="member_id">
                                 <div class="flex justify-end space-x-3">
-                                    <button type="button" @click="showDeleteModal = false; deleteMemberId = null" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                    <button type="button" data-action="close-modal" data-modal-name="delete-member" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
                                         {% trans "Cancel" %}
                                     </button>
                                     <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
@@ -429,7 +411,7 @@
 
             <!-- Backup & Restore Tab -->
             {% if is_admin %}
-            <div x-show="activeTab === 'backup'" class="mt-6 space-y-6" x-cloak>
+            <div data-tab-content="backup" class="mt-6 space-y-6 hidden">
                 <!-- Database Backup Section -->
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
                     <div class="p-6">
@@ -514,7 +496,7 @@
 
             <!-- Updates Tab -->
             {% if is_admin %}
-            <div x-show="activeTab === 'updates'" class="mt-6 space-y-6" x-cloak>
+            <div data-tab-content="updates" class="mt-6 space-y-6 hidden">
                 <!-- Current Version Info -->
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
                     <div class="p-6">
@@ -1193,6 +1175,183 @@ if (addMemberForm) {
 
 console.log('[ConfigurationRealtime] Loaded successfully');
 console.log('[MembersRealtime] Loaded successfully');
+
+// ==========================================
+// PHASE 4: Tab and Modal Management (Vanilla JS - replaces Alpine.js)
+// ==========================================
+
+class TabManager {
+    constructor() {
+        this.activeTab = this.getInitialTab();
+        this.init();
+    }
+
+    getInitialTab() {
+        // Get tab from URL query parameter or default to 'configuration'
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get('tab') || 'configuration';
+    }
+
+    init() {
+        // Setup tab button listeners
+        document.querySelectorAll('[data-tab]').forEach(btn => {
+            btn.addEventListener('click', () => this.switchTab(btn.dataset.tab));
+        });
+
+        // Show initial tab
+        this.switchTab(this.activeTab);
+    }
+
+    switchTab(tabName) {
+        this.activeTab = tabName;
+
+        // Update button states
+        document.querySelectorAll('[data-tab]').forEach(btn => {
+            if (btn.dataset.tab === tabName) {
+                btn.classList.add('border-primary', 'text-primary');
+                btn.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+            } else {
+                btn.classList.remove('border-primary', 'text-primary');
+                btn.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+            }
+        });
+
+        // Show/hide tab content
+        document.querySelectorAll('[data-tab-content]').forEach(content => {
+            if (content.dataset.tabContent === tabName) {
+                content.classList.remove('hidden');
+            } else {
+                content.classList.add('hidden');
+            }
+        });
+    }
+}
+
+class MemberModals {
+    constructor() {
+        this.init();
+    }
+
+    init() {
+        // Edit member buttons
+        document.querySelectorAll('[data-action="edit-member"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.showEditModal({
+                    id: btn.dataset.memberId,
+                    username: btn.dataset.memberUsername,
+                    email: btn.dataset.memberEmail,
+                    role: btn.dataset.memberRole
+                });
+            });
+        });
+
+        // Change password buttons
+        document.querySelectorAll('[data-action="change-password"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.showPasswordModal(btn.dataset.memberId);
+            });
+        });
+
+        // Delete member buttons
+        document.querySelectorAll('[data-action="delete-member"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.showDeleteModal({
+                    id: btn.dataset.memberId,
+                    username: btn.dataset.memberUsername
+                });
+            });
+        });
+
+        // Close modal buttons
+        document.querySelectorAll('[data-action="close-modal"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.closeModal(btn.dataset.modalName);
+            });
+        });
+
+        // Form submissions
+        this.setupFormSubmissions();
+    }
+
+    setupFormSubmissions() {
+        const editForm = document.getElementById('edit-member-form');
+        const passwordForm = document.getElementById('password-form');
+        const deleteForm = document.getElementById('delete-member-form');
+
+        if (editForm) {
+            editForm.addEventListener('submit', (e) => {
+                const memberId = document.getElementById('edit-member-id').value;
+                const periodParam = new URLSearchParams(window.location.search).get('period');
+                const url = `/members/edit/${memberId}/${periodParam ? '?period=' + periodParam : ''}`;
+                editForm.action = url;
+            });
+        }
+
+        if (passwordForm) {
+            passwordForm.addEventListener('submit', (e) => {
+                const memberId = document.getElementById('password-member-id').value;
+                const periodParam = new URLSearchParams(window.location.search).get('period');
+                const url = `/members/edit/${memberId}/${periodParam ? '?period=' + periodParam : ''}`;
+                passwordForm.action = url;
+            });
+        }
+
+        if (deleteForm) {
+            deleteForm.addEventListener('submit', (e) => {
+                const memberId = document.getElementById('delete-member-id').value;
+                const periodParam = new URLSearchParams(window.location.search).get('period');
+                const tabParam = 'tab=members';
+                const url = `/members/remove/${memberId}/${periodParam ? '?period=' + periodParam + '&' + tabParam : '?' + tabParam}`;
+                deleteForm.action = url;
+            });
+        }
+    }
+
+    showEditModal(member) {
+        const modal = document.getElementById('edit-member-modal');
+        document.getElementById('edit-member-id').value = member.id;
+        document.getElementById('edit-member-username').value = member.username;
+        document.getElementById('edit-member-email').value = member.email || '';
+        document.getElementById('edit-member-role').value = member.role;
+        modal.classList.remove('hidden');
+    }
+
+    showPasswordModal(memberId) {
+        const modal = document.getElementById('password-modal');
+        document.getElementById('password-member-id').value = memberId;
+        modal.classList.remove('hidden');
+    }
+
+    showDeleteModal(member) {
+        const modal = document.getElementById('delete-member-modal');
+        document.getElementById('delete-member-id').value = member.id;
+        document.getElementById('delete-member-username').textContent = member.username;
+        modal.classList.remove('hidden');
+    }
+
+    closeModal(modalName) {
+        const modal = document.getElementById(`${modalName}-modal`);
+        if (modal) {
+            modal.classList.add('hidden');
+
+            // Clear form fields
+            if (modalName === 'edit-member') {
+                document.getElementById('edit-member-form').reset();
+            } else if (modalName === 'password') {
+                document.getElementById('password-form').reset();
+            }
+        }
+    }
+}
+
+// Initialize on DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+    window.tabManager = new TabManager();
+    window.memberModals = new MemberModals();
+
+    console.log('[Phase4-TabManager] Initialized');
+    console.log('[Phase4-MemberModals] Initialized');
+});
 
 </script>
 {% endblock %}

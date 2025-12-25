@@ -76,7 +76,7 @@
         }
     </style>
 
-    <script defer src="{% static 'finances/js/alpine.min.js' %}"></script>
+    <!-- Alpine.js REMOVED in Phase 4 - Replaced with vanilla JavaScript UIComponents class -->
 
     <!-- Auto-scale adjustment for high DPI displays -->
     <script>
@@ -113,11 +113,11 @@
         })();
     </script>
 </head>
-<body class="h-full bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200" x-data="{ sidebarOpen: false }">
+<body class="h-full bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200">
 
 
     <div class="flex h-full">
-        <aside :class="{'translate-x-0': sidebarOpen, '-translate-x-full': !sidebarOpen}" 
+        <aside id="mobile-sidebar"
                class="fixed inset-y-0 left-0 z-30 flex flex-col w-64 px-4 py-8 bg-white dark:bg-gray-800 border-r dark:border-gray-700 transform -translate-x-full transition-transform duration-300 ease-in-out md:translate-x-0 md:static">
             
             <div class="flex items-center justify-between">
@@ -128,7 +128,7 @@
                         <span class="text-2xl font-bold text-gray-800 dark:text-white">SweetMoney</span>
                     </div>
                 </a>
-                <button @click="sidebarOpen = false" class="md:hidden text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white">
+                <button data-action="close-sidebar" class="md:hidden text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white">
                     <span class="material-symbols-outlined">close</span>
                 </button>
             </div>
@@ -206,7 +206,7 @@
         <div class="flex-1 flex flex-col overflow-hidden">
             <header class="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border-b dark:border-gray-700 w-full">
 
-                <button @click="sidebarOpen = true" class="md:hidden text-gray-600 dark:text-gray-400">
+                <button data-action="open-sidebar" class="md:hidden text-gray-600 dark:text-gray-400">
                     <span class="material-symbols-outlined">menu</span>
                 </button>
 
@@ -234,24 +234,16 @@
                         </button>
                         {% endif %}
 
-                        <div x-data="{ periodDropdownOpen: false }" class="relative">
-                            <button @click="{% if is_dashboard %}periodDropdownOpen = !periodDropdownOpen{% endif %}"
+                        <div class="relative" data-dropdown-container="period">
+                            <button {% if is_dashboard %}data-action="toggle-period-dropdown"{% endif %}
                                     class="flex items-center space-x-2 px-3 py-2 bg-primary/10 text-primary rounded-lg {% if is_dashboard %}hover:bg-primary/20 cursor-pointer{% else %}cursor-default opacity-70{% endif %} transition-colors">
                                 <span class="material-symbols-outlined text-sm">calendar_month</span>
                                 <span class="text-sm font-medium">{{ current_period_label }}</span>
                                 {% if is_dashboard %}<span class="material-symbols-outlined text-sm">expand_more</span>{% endif %}
                             </button>
-                            
-                            <div x-show="periodDropdownOpen" 
-                                 @click.away="periodDropdownOpen = false"
-                                 x-transition:enter="transition ease-out duration-100"
-                                 x-transition:enter-start="transform opacity-0 scale-95"
-                                 x-transition:enter-end="transform opacity-100 scale-100"
-                                 x-transition:leave="transition ease-in duration-75"
-                                 x-transition:leave-start="transform opacity-100 scale-100"
-                                 x-transition:leave-end="transform opacity-0 scale-95"
-                                 class="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
-                                 style="display: none;">
+
+                            <div id="period-dropdown-menu"
+                                 class="hidden absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 transition-opacity duration-100">
                                  <div class="py-1">
                                     {% for period in available_periods %}
                                     <a href="?period={{ period.value }}" 
@@ -1373,5 +1365,90 @@
 
     <!-- PHASE 3: Event Delegation Manager -->
     <script src="{% static 'finances/js/event_delegation.js' %}"></script>
+
+    <!-- PHASE 4: UI Components (replaces Alpine.js) -->
+    <script>
+    (function() {
+        'use strict';
+
+        /**
+         * UI Components Manager - Replaces Alpine.js
+         * Handles sidebar toggle and period dropdown
+         */
+        class UIComponents {
+            constructor() {
+                this.sidebarOpen = false;
+                this.periodDropdownOpen = false;
+                this.init();
+            }
+
+            init() {
+                // Sidebar toggle buttons
+                document.querySelector('[data-action="open-sidebar"]')?.addEventListener('click', () => {
+                    this.openSidebar();
+                });
+
+                document.querySelector('[data-action="close-sidebar"]')?.addEventListener('click', () => {
+                    this.closeSidebar();
+                });
+
+                // Period dropdown
+                const dropdownBtn = document.querySelector('[data-action="toggle-period-dropdown"]');
+                if (dropdownBtn) {
+                    dropdownBtn.addEventListener('click', () => this.togglePeriodDropdown());
+
+                    // Click outside to close
+                    document.addEventListener('click', (e) => {
+                        const container = e.target.closest('[data-dropdown-container="period"]');
+                        if (!container && this.periodDropdownOpen) {
+                            this.closePeriodDropdown();
+                        }
+                    });
+                }
+
+                console.log('[UIComponents] Initialized (Phase 4)');
+            }
+
+            openSidebar() {
+                this.sidebarOpen = true;
+                const sidebar = document.getElementById('mobile-sidebar');
+                if (sidebar) {
+                    sidebar.classList.remove('-translate-x-full');
+                    sidebar.classList.add('translate-x-0');
+                }
+            }
+
+            closeSidebar() {
+                this.sidebarOpen = false;
+                const sidebar = document.getElementById('mobile-sidebar');
+                if (sidebar) {
+                    sidebar.classList.remove('translate-x-0');
+                    sidebar.classList.add('-translate-x-full');
+                }
+            }
+
+            togglePeriodDropdown() {
+                this.periodDropdownOpen = !this.periodDropdownOpen;
+                const dropdown = document.getElementById('period-dropdown-menu');
+                if (dropdown) {
+                    dropdown.classList.toggle('hidden', !this.periodDropdownOpen);
+                }
+            }
+
+            closePeriodDropdown() {
+                this.periodDropdownOpen = false;
+                const dropdown = document.getElementById('period-dropdown-menu');
+                if (dropdown) {
+                    dropdown.classList.add('hidden');
+                }
+            }
+        }
+
+        // Initialize on DOM ready
+        document.addEventListener('DOMContentLoaded', () => {
+            window.uiComponents = new UIComponents();
+        });
+    })();
+    </script>
 </body>
 </html>

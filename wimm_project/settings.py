@@ -208,8 +208,8 @@ CONTENT_SECURITY_POLICY = {
         'default-src': ("'self'",),
         'script-src': (
             "'self'",
-            "'unsafe-inline'",  # Allow inline scripts (consider removing after audit)
-            "'unsafe-eval'",  # REQUIRED for Alpine.js to work
+            # 'unsafe-inline' REMOVED in Phase 3 - All inline handlers refactored to event delegation
+            # 'unsafe-eval' REMOVED in Phase 4 - Alpine.js replaced with vanilla JavaScript
         ),
         'style-src': (
             "'self'",

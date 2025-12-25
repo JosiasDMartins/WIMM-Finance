@@ -17,12 +17,12 @@
 
         <div class="flex space-x-4">
             {% if not is_new and can_edit_group %}
-            <button type="button" onclick="deleteFlowGroup()" class="rounded-lg border border-red-500 text-red-500 text-base font-medium p-3 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center">
+            <button type="button" data-action="delete-flowgroup" class="rounded-lg border border-red-500 text-red-500 text-base font-medium p-3 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center">
                 <span class="material-symbols-outlined text-lg mr-2">delete</span>
                 {% trans "Group" %}
             </button>
             {% endif %}
-            <button type="button" onclick="history.back()" class="rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-base font-medium p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <button type="button" data-action="history-back" class="rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-base font-medium p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                 {% trans "Discard" %}
             </button>
             <button type="submit" form="flow-group-form" class="rounded-lg bg-primary text-white text-base font-medium p-3 hover:bg-primary/90 transition-colors shadow-lg flex items-center">
@@ -49,7 +49,7 @@
                     {% if not is_new and current_member.role != 'CHILD' %}
                     <!-- Recurring Button -->
                     <button type="button"
-                            onclick="toggleFlowGroupRecurring()"
+                            data-action="toggle-flowgroup-recurring"
                             id="recurring-btn"
                             class="recurring-btn inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 {% if flow_group.is_recurring %}bg-blue-600 text-white hover:bg-blue-700{% else %}bg-blue-600/30 text-blue-600 dark:text-blue-400 hover:bg-blue-600/50{% endif %}"
                             title="{% trans 'Mark this group as recurring to automatically copy it to new periods' %}">
@@ -67,7 +67,7 @@
                     <div class="flex items-center gap-3 p-3 border-2 border-green-500/50 dark:border-green-500/30 rounded-lg bg-green-50 dark:bg-green-900/20">
                         <span class="text-sm font-medium text-slate-700 dark:text-slate-300">{% trans "Budget Given:" %}</span>
                         <button type="button"
-                                onclick="toggleKidsGroupRealized({{ flow_group.realized|yesno:'true,false' }})"
+                                data-action="toggle-kids-realized" data-current-state="{{ flow_group.realized|yesno:'true,false' }}"
                                 {% if current_member.role == 'CHILD' %}disabled{% endif %}
                                 class="kids-group-realized-toggle relative inline-block w-12 h-7 transition duration-200 ease-in-out rounded-full {% if current_member.role == 'CHILD' %}cursor-not-allowed opacity-60{% else %}cursor-pointer{% endif %} {% if flow_group.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}"
                                 title="{% if current_member.role == 'CHILD' %}Only Parents/Admins can change this{% else %}Click to toggle if budget was given to child{% endif %}">
@@ -86,7 +86,7 @@
                     {% if flow_group.is_credit_card and not is_new %}
                     <!-- Closed Button -->
                     <button type="button"
-                            onclick="toggleCreditCardClosed({{ flow_group.closed|yesno:'true,false' }})"
+                            data-action="toggle-creditcard-closed" data-current-state="{{ flow_group.closed|yesno:'true,false' }}"
                             id="closed-btn"
                             {% if current_member.role == 'CHILD' %}disabled{% endif %}
                             class="inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200"
@@ -131,7 +131,7 @@
                     {% if not is_new and current_member.role != 'CHILD' %}
                     <!-- Recurring Button -->
                     <button type="button"
-                            onclick="toggleFlowGroupRecurring()"
+                            data-action="toggle-flowgroup-recurring"
                             id="recurring-btn-mobile"
                             class="recurring-btn inline-flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 {% if flow_group.is_recurring %}bg-blue-600 text-white hover:bg-blue-700{% else %}bg-blue-600/30 text-blue-600 dark:text-blue-400 hover:bg-blue-600/50{% endif %}"
                             title="{% trans 'Mark this group as recurring to automatically copy it to new periods' %}">
@@ -148,7 +148,7 @@
                     {% if flow_group.is_credit_card and not is_new %}
                     <!-- Closed Button -->
                     <button type="button"
-                            onclick="toggleCreditCardClosed({{ flow_group.closed|yesno:'true,false' }})"
+                            data-action="toggle-creditcard-closed" data-current-state="{{ flow_group.closed|yesno:'true,false' }}"
                             id="closed-btn-mobile"
                             {% if current_member.role == 'CHILD' %}disabled{% endif %}
                             class="inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200"
@@ -308,7 +308,7 @@
                                 {% if current_member.role != 'CHILD' %}
                                 <div class="mobile-fixed-btn-container">
                                     <button type="button"
-                                            onclick="toggleTransactionFixed('item-{{ transaction.id }}')"
+                                            data-action="toggle-fixed" data-item-id="item-{{ transaction.id }}"
                                             class="mobile-fixed-btn {% if transaction.is_fixed %}active{% endif %}"
                                             title="{% trans 'Mark as recurring expense' %}">
                                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -319,7 +319,7 @@
                                 </div>
                                 {% endif %}
                                 <span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle cursor-grab active:cursor-grabbing">drag_indicator</span>
-                                <button type="button" onclick="saveItem('item-{{ transaction.id }}')" class="edit-save-icon" style="display: none;">
+                                <button type="button" data-action="save" data-item-id="item-{{ transaction.id }}" class="edit-save-icon" style="display: none;">
                                     <span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span>
                                 </button>
                             </td>
@@ -351,7 +351,7 @@
 
                             <td class="px-6 py-4 text-center mobile-hide-column">
                                 <div class="flex items-center justify-center">
-                                    <button type="button" onclick="toggleRealized('item-{{ transaction.id }}', {{ transaction.realized|yesno:'true,false' }})" class="realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-pointer {% if transaction.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}">
+                                    <button type="button" data-toggle="realized" data-item-id="item-{{ transaction.id }}" data-current-state="{{ transaction.realized|yesno:'true,false' }}" class="realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-pointer {% if transaction.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}">
                                         <span class="absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if transaction.realized %}translate-x-4{% endif %}"></span>
                                     </button>
                                 </div>
@@ -361,7 +361,7 @@
                                 <div class="flex items-center justify-center">
                                     {% if current_member.role != 'CHILD' %}
                                     <button type="button"
-                                            onclick="toggleTransactionFixed('item-{{ transaction.id }}')"
+                                            data-action="toggle-fixed" data-item-id="item-{{ transaction.id }}"
                                             class="fixed-toggle-btn inline-flex items-center justify-center w-8 h-8 rounded transition-all duration-200 {% if transaction.is_fixed %}bg-blue-600 text-white hover:bg-blue-700{% else %}bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 hover:bg-blue-200 dark:hover:bg-blue-900/30{% endif %}"
                                             title="{% trans 'Mark as recurring expense' %}">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -377,10 +377,10 @@
                                 {{ transaction.amount|intcomma }}
                                 <!-- Mobile action buttons (hidden behind row, revealed on swipe) -->
                                 <div class="mobile-actions-btns">
-                                    <button type="button" onclick="toggleEditMode('item-{{ transaction.id }}', true)" class="mobile-action-btn edit-btn">
+                                    <button type="button" data-action="edit" data-item-id="item-{{ transaction.id }}" class="mobile-action-btn edit-btn">
                                         <span class="material-symbols-outlined">edit</span>
                                     </button>
-                                    <button type="button" onclick="deleteItem('item-{{ transaction.id }}')" class="mobile-action-btn delete-btn">
+                                    <button type="button" data-action="delete" data-item-id="item-{{ transaction.id }}" class="mobile-action-btn delete-btn">
                                         <span class="material-symbols-outlined">delete</span>
                                     </button>
                                 </div>
@@ -391,12 +391,12 @@
 
                             <td class="px-6 py-4 text-center whitespace-nowrap mobile-hide-column">
                                 <div class="actions-display">
-                                    <button type="button" onclick="toggleEditMode('item-{{ transaction.id }}', true)" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
-                                    <button type="button" onclick="deleteItem('item-{{ transaction.id }}')" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
+                                    <button type="button" data-action="edit" data-item-id="item-{{ transaction.id }}" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
+                                    <button type="button" data-action="delete" data-item-id="item-{{ transaction.id }}" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
                                 </div>
                                 <div class="actions-edit hidden space-x-2">
-                                    <button type="button" onclick="saveItem('item-{{ transaction.id }}')" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
-                                    <button type="button" onclick="toggleEditMode('item-{{ transaction.id }}', false)" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
+                                    <button type="button" data-action="save" data-item-id="item-{{ transaction.id }}" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
+                                    <button type="button" data-action="cancel" data-item-id="item-{{ transaction.id }}" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -410,7 +410,7 @@
                         
                         <tr id="new-item-template" data-item-id="NEW" data-mode="edit" class="swipeable-row hover:bg-slate-50 dark:hover:bg-gray-700/50 hidden">
                             <td class="px-2 py-4 text-center drag-handle-cell">
-                                <button type="button" onclick="saveItem('new-item-template')" class="edit-save-icon">
+                                <button type="button" data-action="save" data-item-id="new-item-template" class="edit-save-icon">
                                     <span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span>
                                 </button>
                             </td>
@@ -447,7 +447,7 @@
                                 <div class="flex items-center justify-center">
                                     {% if current_member.role != 'CHILD' %}
                                     <div class="fixed-toggle-new relative inline-flex items-center justify-center w-8 h-8 rounded transition-all duration-200 bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/30"
-                                         onclick="toggleNewItemFixed('new-item-template')"
+                                         data-action="toggle-new-item-fixed" data-item-id="new-item-template"
                                          data-is-fixed="false"
                                          title="{% trans 'Mark as recurring expense' %}">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -467,8 +467,8 @@
                             <td class="px-6 py-4 text-center whitespace-nowrap mobile-hide-column">
                                 <div class="actions-display hidden"></div>
                                 <div class="actions-edit space-x-2">
-                                    <button type="button" onclick="saveItem('new-item-template')" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
-                                    <button type="button" onclick="cancelNewRow('new-item-template')" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
+                                    <button type="button" data-action="save" data-item-id="new-item-template" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
+                                    <button type="button" data-action="cancel-new-row" data-item-id="new-item-template" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
                                 </div>
                             </td>
                         </tr>
@@ -476,7 +476,7 @@
                 </table>
                 
                 <div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50">
-                    <button type="button" onclick="addNewRow()" class="flex items-center text-primary hover:text-primary/80 text-sm font-medium">
+                    <button type="button" data-action="add-new-row" class="flex items-center text-primary hover:text-primary/80 text-sm font-medium">
                         <span class="material-symbols-outlined text-lg mr-1">add_circle</span>
                         {% trans "Add New Item" %}
                     </button>
@@ -1641,7 +1641,7 @@
                                 const isFixed = data.is_fixed;
                                 const activeClass = isFixed ? 'active' : '';
                                 mobileFixedBtnHtml = '<div class="mobile-fixed-btn-container">' +
-                                    '<button type="button" onclick="toggleTransactionFixed(\'item-' + data.transaction_id + '\')" ' +
+                                    '<button type="button" data-action="toggle-fixed" data-item-id="item-' + data.transaction_id + '" ' +
                                     'class="mobile-fixed-btn ' + activeClass + '" title="Mark as recurring expense">' +
                                     '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
                                     '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8m0-5v5h5" />' +
@@ -1650,7 +1650,7 @@
 
                             dragHandle.innerHTML = mobileFixedBtnHtml +
                                 '<span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle cursor-grab active:cursor-grabbing">drag_indicator</span>' +
-                                '<button type="button" onclick="saveItem(\'item-' + data.transaction_id + '\')" class="edit-save-icon" style="display: none;">' +
+                                '<button type="button" data-action="save" data-item-id="item-' + data.transaction_id + '" class="edit-save-icon" style="display: none;">' +
                                 '<span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span></button>';
                         }
 
@@ -1659,9 +1659,9 @@
                         const actionsDisplay = newRow.querySelector('.actions-display');
                         if (actionsDisplay) {
                             actionsDisplay.innerHTML =
-                                '<button type="button" onclick="toggleEditMode(\'item-' + data.transaction_id + '\', true)" class="p-1 text-slate-500 hover:text-primary">' +
+                                '<button type="button" data-action="edit" data-item-id="item-' + data.transaction_id + '" class="p-1 text-slate-500 hover:text-primary">' +
                                 '<span class="material-symbols-outlined text-lg">edit</span></button>' +
-                                '<button type="button" onclick="deleteItem(\'item-' + data.transaction_id + '\')" class="p-1 text-slate-500 hover:text-red-500">' +
+                                '<button type="button" data-action="delete" data-item-id="item-' + data.transaction_id + '" class="p-1 text-slate-500 hover:text-red-500">' +
                                 '<span class="material-symbols-outlined text-lg">delete</span></button>';
                             actionsDisplay.classList.remove('hidden');
                         }
@@ -1718,7 +1718,7 @@
                             const bgClass = isFixed ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 hover:bg-blue-200 dark:hover:bg-blue-900/30';
                             fixedCell.innerHTML =
                                 '<div class="flex items-center justify-center">' +
-                                '<button type="button" onclick="toggleTransactionFixed(\'item-' + data.transaction_id + '\')" ' +
+                                '<button type="button" data-action="toggle-fixed" data-item-id="item-' + data.transaction_id + '" ' +
                                 'class="fixed-toggle-btn inline-flex items-center justify-center w-8 h-8 rounded transition-all duration-200 ' + bgClass + '" ' +
                                 'title="Mark as recurring expense">' +
                                 '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
@@ -1759,9 +1759,9 @@
                             }
 
                             mobileActionsDiv.innerHTML =
-                                '<button type="button" onclick="toggleEditMode(\'item-' + data.transaction_id + '\', true)" class="mobile-action-btn edit-btn">' +
+                                '<button type="button" data-action="edit" data-item-id="item-' + data.transaction_id + '" class="mobile-action-btn edit-btn">' +
                                 '<span class="material-symbols-outlined">edit</span></button>' +
-                                '<button type="button" onclick="deleteItem(\'item-' + data.transaction_id + '\')" class="mobile-action-btn delete-btn">' +
+                                '<button type="button" data-action="delete" data-item-id="item-' + data.transaction_id + '" class="mobile-action-btn delete-btn">' +
                                 '<span class="material-symbols-outlined">delete</span></button>';
                         }
 
