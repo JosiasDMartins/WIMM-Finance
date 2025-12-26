@@ -322,6 +322,23 @@
         </div>
     </div>
 
+    <!-- Translation strings for base.html JavaScript -->
+    <script>
+    window.BASE_I18N = {
+        errorLoadingPeriodDetails: "{% trans 'Error loading period details:' %}",
+        errorLoadingPeriod: "{% trans 'An error occurred while loading period details' %}",
+        pwaNewVersionTitle: "{% trans 'New SweetMoney version available!' %}",
+        pwaInstalled: "{% trans 'Installed:' %}",
+        pwaAvailable: "{% trans 'Available:' %}",
+        pwaUpdateInstructions: "{% trans 'To update, please reinstall the app.' %}",
+        pwaClickToDismiss: "{% trans 'Click OK to dismiss this message.' %}",
+        pwaIosInstructions: "{% trans 'To install this app on your iPhone/iPad:' %}",
+        pwaIosStep1: "{% trans 'Tap the Share button (square with arrow)' %}",
+        pwaIosStep2: "{% trans 'Scroll down and tap \"Add to Home Screen\"' %}",
+        pwaIosStep3: "{% trans 'Tap \"Add\" to install' %}"
+    };
+    </script>
+
     <!-- Admin Warning Modal -->
     {% if is_admin and not admin_warning_seen %}
     <div id="admin-warning-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" style="z-index: 9999;">
@@ -751,13 +768,13 @@
                         document.getElementById('deletePeriodLoading').classList.add('hidden');
                         document.getElementById('deletePeriodDetails').classList.remove('hidden');
                     } else {
-                        alert('Error loading period details: ' + data.error);
+                        alert((window.BASE_I18N?.errorLoadingPeriodDetails || 'Error loading period details:') + ' ' + data.error);
                         closeDeletePeriodModal();
                     }
                 })
                 .catch(error => {
                     console.error('Error fetching period details:', error);
-                    alert('An error occurred while loading period details');
+                    alert(window.BASE_I18N?.errorLoadingPeriod || 'An error occurred while loading period details');
                     closeDeletePeriodModal();
                 });
         }
@@ -1227,7 +1244,13 @@
                 window.showModal(title, content);
             } else {
                 // Fallback: console + alert
-                if (confirm(`New SweetMoney version available!\n\nInstalled: v${oldVersion}\nAvailable: v${newVersion}\n\nTo update, please reinstall the app.\n\nClick OK to dismiss this message.`)) {
+                const title = window.BASE_I18N?.pwaNewVersionTitle || 'New SweetMoney version available!';
+                const installed = window.BASE_I18N?.pwaInstalled || 'Installed:';
+                const available = window.BASE_I18N?.pwaAvailable || 'Available:';
+                const instructions = window.BASE_I18N?.pwaUpdateInstructions || 'To update, please reinstall the app.';
+                const dismiss = window.BASE_I18N?.pwaClickToDismiss || 'Click OK to dismiss this message.';
+
+                if (confirm(`${title}\n\n${installed} v${oldVersion}\n${available} v${newVersion}\n\n${instructions}\n\n${dismiss}`)) {
                     localStorage.setItem('pwa_installed_version', newVersion);
                 }
             }

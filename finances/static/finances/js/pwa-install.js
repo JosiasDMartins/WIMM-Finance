@@ -87,12 +87,17 @@
     function showIOSInstallInstructions() {
         // Check if modal functions exist
         if (typeof window.showModal !== 'function') {
-            // Fallback: alert
+            // Fallback: alert with i18n support
+            const title = window.BASE_I18N?.pwaIosInstructions || 'To install this app on your iPhone/iPad:';
+            const step1 = window.BASE_I18N?.pwaIosStep1 || 'Tap the Share button (square with arrow)';
+            const step2 = window.BASE_I18N?.pwaIosStep2 || 'Scroll down and tap "Add to Home Screen"';
+            const step3 = window.BASE_I18N?.pwaIosStep3 || 'Tap "Add" to install';
+
             alert(
-                'To install this app on your iPhone/iPad:\n\n' +
-                '1. Tap the Share button (square with arrow)\n' +
-                '2. Scroll down and tap "Add to Home Screen"\n' +
-                '3. Tap "Add" to install'
+                `${title}\n\n` +
+                `1. ${step1}\n` +
+                `2. ${step2}\n` +
+                `3. ${step3}`
             );
             return;
         }

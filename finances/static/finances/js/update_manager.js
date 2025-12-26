@@ -612,13 +612,13 @@ class UpdateManager {
             
             if (data.success) {
                 window.location.href = `/download-backup/${data.filename}/`;
-                alert('Backup created successfully! File will be downloaded.');
+                alert(window.UPDATE_I18N?.backupCreatedSuccessfully || 'Backup created successfully! File will be downloaded.');
             } else {
-                alert('Failed to create backup: ' + data.error);
+                alert((window.UPDATE_I18N?.failedToCreateBackup || 'Failed to create backup: ') + data.error);
             }
         } catch (error) {
             console.error('[UpdateManager] Error creating backup:', error);
-            alert('Failed to create backup: ' + error.message);
+            alert((window.UPDATE_I18N?.failedToCreateBackup || 'Failed to create backup: ') + error.message);
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalText;
@@ -626,11 +626,11 @@ class UpdateManager {
     }
     
     async skipLocalUpdate() {
-        alert('Local updates cannot be skipped. They are required for the system to function correctly.');
+        alert(window.UPDATE_I18N?.localUpdatesCannotBeSkipped || 'Local updates cannot be skipped. They are required for the system to function correctly.');
     }
-    
+
     async skipUpdate() {
-        if (!confirm('Are you sure you want to skip this update? You won\'t be notified about this version again until a newer version is released.')) {
+        if (!confirm(window.UPDATE_I18N?.confirmSkipUpdate || 'Are you sure you want to skip this update? You won\'t be notified about this version again until a newer version is released.')) {
             return;
         }
 
@@ -652,7 +652,7 @@ class UpdateManager {
             if (data.success) {
                 document.getElementById('update-modal').classList.add('hidden');
             } else {
-                alert('Failed to skip update: ' + (data.error || 'Unknown error'));
+                alert((window.UPDATE_I18N?.failedToSkipUpdate2 || 'Failed to skip update: ') + (data.error || window.UPDATE_I18N?.unknownError || 'Unknown error'));
             }
         } catch (error) {
             console.error('[UpdateManager] Error skipping update:', error);
@@ -855,13 +855,13 @@ class UpdateManager {
 
         if (!logsModal) {
             console.error('[UpdateManager] logs-modal element not found!');
-            alert('Logs modal element not found in the page.');
+            alert(window.UPDATE_I18N?.logsModalNotFound || 'Logs modal element not found in the page.');
             return;
         }
 
         if (!logsContent) {
             console.error('[UpdateManager] logs-content element not found!');
-            alert('Logs content element not found in the page.');
+            alert(window.UPDATE_I18N?.logsContentNotFound || 'Logs content element not found in the page.');
             return;
         }
 

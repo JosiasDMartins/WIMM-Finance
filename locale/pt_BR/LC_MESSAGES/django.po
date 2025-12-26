@@ -1307,6 +1307,7 @@ msgstr "Criando backup..."
 
 #: .\finances\templates\finances\configurations.html:683
 #: .\finances\templates\finances\configurations.html:687
+#: .\finances\templates\finances\update_modal.html:49
 msgid "Failed to create backup:"
 msgstr "Falha ao criar backup:"
 
@@ -2010,6 +2011,7 @@ msgid "Restore failed:"
 msgstr "Falha na restauração:"
 
 #: .\finances\templates\finances\setup.html:643
+#: .\finances\templates\finances\update_modal.html:57
 msgid "Unknown error"
 msgstr "Erro desconhecido"
 
@@ -2133,6 +2135,74 @@ msgstr "clique aqui para recarregar"
 #: .\finances\templates\finances\update_modal.html:45
 msgid "No logs available yet. Please apply an update first."
 msgstr "Nenhum registro disponível ainda. Aplique uma atualização primeiro."
+
+#: .\finances\templates\finances\update_modal.html:48
+msgid "Backup created successfully! File will be downloaded."
+msgstr "Backup criado com sucesso! O arquivo será baixado."
+
+#: .\finances\templates\finances\update_modal.html:52
+msgid "Local updates cannot be skipped. They are required for the system to function correctly."
+msgstr "As atualizações locais não podem ser ignoradas. Elas são necessárias para o sistema funcionar corretamente."
+
+#: .\finances\templates\finances\update_modal.html:53
+msgid "Are you sure you want to skip this update? You won't be notified about this version again until a newer version is released."
+msgstr "Tem certeza de que deseja ignorar esta atualização? Você não será notificado sobre esta versão novamente até que uma versão mais recente seja lançada."
+
+#: .\finances\templates\finances\update_modal.html:54
+msgid "Failed to skip update:"
+msgstr "Falha ao ignorar atualização:"
+
+#: .\finances\templates\finances\update_modal.html:58
+msgid "Logs modal element not found in the page."
+msgstr "Elemento modal de logs não encontrado na página."
+
+#: .\finances\templates\finances\update_modal.html:59
+msgid "Logs content element not found in the page."
+msgstr "Elemento de conteúdo de logs não encontrado na página."
+
+#: .\finances\templates\finances\base.html:328
+msgid "Error loading period details:"
+msgstr "Erro ao carregar detalhes do período:"
+
+#: .\finances\templates\finances\base.html:329
+msgid "An error occurred while loading period details"
+msgstr "Ocorreu um erro ao carregar os detalhes do período"
+
+#: .\finances\templates\finances\base.html:330
+msgid "New SweetMoney version available!"
+msgstr "Nova versão do SweetMoney disponível!"
+
+#: .\finances\templates\finances\base.html:331
+msgid "Installed:"
+msgstr "Instalado:"
+
+#: .\finances\templates\finances\base.html:332
+msgid "Available:"
+msgstr "Disponível:"
+
+#: .\finances\templates\finances\base.html:333
+msgid "To update, please reinstall the app."
+msgstr "Para atualizar, reinstale o aplicativo."
+
+#: .\finances\templates\finances\base.html:334
+msgid "Click OK to dismiss this message."
+msgstr "Clique em OK para dispensar esta mensagem."
+
+#: .\finances\templates\finances\base.html:335
+msgid "To install this app on your iPhone/iPad:"
+msgstr "Para instalar este aplicativo no seu iPhone/iPad:"
+
+#: .\finances\templates\finances\base.html:336
+msgid "Tap the Share button (square with arrow)"
+msgstr "Toque no botão Compartilhar (quadrado com seta)"
+
+#: .\finances\templates\finances\base.html:337
+msgid "Scroll down and tap \"Add to Home Screen\""
+msgstr "Role para baixo e toque em \"Adicionar à Tela de Início\""
+
+#: .\finances\templates\finances\base.html:338
+msgid "Tap \"Add\" to install"
+msgstr "Toque em \"Adicionar\" para instalar"
 
 #: .\finances\templates\finances\update_modal.html:57
 msgid "System Update Available"
