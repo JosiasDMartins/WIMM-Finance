@@ -158,9 +158,29 @@ def check_postgres_database_exists():
 # PostgreSQL Backup Functions
 # ============================================================
 
-def create_postgres_backup():
+def create_postgres_backup(family_id=None):
     """
-    Create a backup of PostgreSQL database using pg_dump.
+    Create a backup of PostgreSQL database.
+
+    If family_id is provided, creates a family-isolated backup containing only
+    data for that specific family. Otherwise, creates a full database backup.
+
+    Args:
+        family_id (int, optional): ID of the family to backup. If None, backs up entire database.
+
+    Returns:
+        dict: {'success': bool, 'backup_path': str, 'filename': str, 'size': int, 'error': str}
+    """
+    if family_id is not None:
+        return _create_family_isolated_postgres_backup(family_id)
+    else:
+        return _create_full_postgres_backup()
+
+
+def _create_full_postgres_backup():
+    """
+    Create a FULL backup of PostgreSQL database using pg_dump.
+    This backs up the entire database with all families.
 
     Returns:
         dict: {'success': bool, 'backup_path': str, 'filename': str, 'error': str}
@@ -182,10 +202,10 @@ def create_postgres_backup():
 
         # Generate backup filename with timestamp
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        backup_filename = f'backup_{timestamp}.dump'
+        backup_filename = f'backup_full_{timestamp}.dump'
         backup_path = backups_dir / backup_filename
 
-        logger.info(f"[PGSQL_BACKUP] Creating PostgreSQL backup: {backup_path}")
+        logger.info(f"[PGSQL_BACKUP] Creating FULL PostgreSQL backup: {backup_path}")
 
         # Build pg_dump command
         # Using custom format (-Fc) which is compressed and suitable for pg_restore
@@ -228,7 +248,7 @@ def create_postgres_backup():
             }
 
         file_size = backup_path.stat().st_size
-        logger.info(f"[PGSQL_BACKUP] PostgreSQL backup created successfully ({file_size} bytes)")
+        logger.info(f"[PGSQL_BACKUP] FULL PostgreSQL backup created successfully ({file_size} bytes)")
 
         return {
             'success': True,
@@ -251,6 +271,282 @@ def create_postgres_backup():
         }
     except Exception as e:
         logger.error(f"[PGSQL_BACKUP] PostgreSQL backup failed: {e}", exc_info=True)
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
+def _create_family_isolated_postgres_backup(family_id):
+    """
+    Create a family-isolated PostgreSQL backup containing only data for a specific family.
+
+    This creates a SQL dump file with:
+    - Schema (CREATE TABLE statements)
+    - Only the specified family's data
+    - All users that are members of that family
+    - All periods, transactions, flow groups, etc. for that family
+
+    Args:
+        family_id (int): ID of the family to backup
+
+    Returns:
+        dict: {'success': bool, 'backup_path': str, 'filename': str, 'size': int, 'family_name': str, 'error': str}
+    """
+    try:
+        from finances.models import Family, FamilyMember
+
+        # Get family name
+        try:
+            family = Family.objects.get(id=family_id)
+            family_name = family.name
+        except Family.DoesNotExist:
+            return {
+                'success': False,
+                'error': _('Family with ID %(family_id)s not found') % {'family_id': family_id}
+            }
+
+        # Get database connection parameters
+        db_config = settings.DATABASES['default']
+        db_name = db_config.get('NAME')
+        db_user = db_config.get('USER')
+        db_password = db_config.get('PASSWORD')
+        db_host = db_config.get('HOST', 'localhost')
+        db_port = db_config.get('PORT', '5432')
+
+        # Create backups directory
+        base_dir = Path(settings.BASE_DIR)
+        backups_dir = base_dir / 'db' / 'backups'
+        backups_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate backup filename
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        safe_family_name = "".join(c for c in family_name if c.isalnum() or c in (' ', '-', '_')).strip()
+        safe_family_name = safe_family_name.replace(' ', '_')
+        backup_filename = f'backup_{safe_family_name}_{timestamp}.sql'
+        backup_path = backups_dir / backup_filename
+
+        logger.info(f"[PGSQL_FAMILY_BACKUP] Creating family-isolated backup for '{family_name}' (ID: {family_id})")
+        logger.info(f"[PGSQL_FAMILY_BACKUP] Backup file: {backup_path}")
+
+        # Get all user IDs and member IDs for this family
+        user_ids = list(FamilyMember.objects.filter(family_id=family_id).values_list('user_id', flat=True))
+        member_ids = list(FamilyMember.objects.filter(family_id=family_id).values_list('id', flat=True))
+
+        logger.info(f"[PGSQL_FAMILY_BACKUP] Found {len(user_ids)} users, {len(member_ids)} members")
+
+        # Connect to PostgreSQL
+        conn = psycopg2.connect(
+            dbname=db_name,
+            user=db_user,
+            password=db_password,
+            host=db_host,
+            port=db_port
+        )
+        cursor = conn.cursor()
+
+        # Open backup file for writing
+        with open(backup_path, 'w', encoding='utf-8') as backup_file:
+            # Write header
+            backup_file.write("-- SweetMoney Family-Isolated Backup\n")
+            backup_file.write(f"-- Family: {family_name} (ID: {family_id})\n")
+            backup_file.write(f"-- Generated: {datetime.now().isoformat()}\n")
+            backup_file.write(f"-- Users: {len(user_ids)}\n")
+            backup_file.write("--\n")
+            backup_file.write("-- This backup contains ONLY data for the specified family.\n")
+            backup_file.write("-- It can be restored to a fresh SweetMoney instance.\n")
+            backup_file.write("--\n\n")
+
+            backup_file.write("BEGIN;\n\n")
+
+            # STEP 1: Export schema for all tables
+            logger.info(f"[PGSQL_FAMILY_BACKUP] Exporting schema...")
+            backup_file.write("-- ==============================================\n")
+            backup_file.write("-- SCHEMA\n")
+            backup_file.write("-- ==============================================\n\n")
+
+            # Get schema using pg_dump for schema only
+            schema_cmd = [
+                'pg_dump',
+                '--username', db_user,
+                '--host', db_host,
+                '--port', str(db_port),
+                '--dbname', db_name,
+                '--schema-only',  # Only schema, no data
+                '--no-owner',  # Don't include ownership commands
+                '--no-privileges'  # Don't include privilege commands
+            ]
+
+            env = os.environ.copy()
+            env['PGPASSWORD'] = db_password
+
+            schema_result = subprocess.run(
+                schema_cmd,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=120
+            )
+
+            if schema_result.returncode == 0:
+                backup_file.write(schema_result.stdout)
+                backup_file.write("\n\n")
+            else:
+                logger.error(f"[PGSQL_FAMILY_BACKUP] Schema dump failed: {schema_result.stderr}")
+                cursor.close()
+                conn.close()
+                return {
+                    'success': False,
+                    'error': _('Failed to dump schema: %(error)s') % {'error': schema_result.stderr}
+                }
+
+            # STEP 2: Export data for family-specific tables
+            logger.info(f"[PGSQL_FAMILY_BACKUP] Exporting family data...")
+            backup_file.write("-- ==============================================\n")
+            backup_file.write("-- DATA\n")
+            backup_file.write("-- ==============================================\n\n")
+
+            # Disable triggers during data import
+            backup_file.write("SET session_replication_role = 'replica';\n\n")
+
+            total_rows_copied = 0
+
+            # Define tables and their WHERE clauses
+            tables_to_export = [
+                # Core user and family tables
+                ('finances_customuser', f'id IN ({",".join(map(str, user_ids))})' if user_ids else '1=0'),
+                ('finances_family', f'id = {family_id}'),
+                ('finances_familymember', f'family_id = {family_id}'),
+                ('finances_familyconfiguration', f'family_id = {family_id}'),
+
+                # Period and flow groups
+                ('finances_period', f'family_id = {family_id}'),
+                ('finances_flowgroup', f'family_id = {family_id}'),
+
+                # Transactions (via member)
+                ('finances_transaction', f'member_id IN ({",".join(map(str, member_ids))})' if member_ids else '1=0'),
+
+                # History and access
+                ('finances_familymemberrolehistory', f'member_id IN ({",".join(map(str, member_ids))})' if member_ids else '1=0'),
+                ('finances_flowgroupaccess', f'member_id IN ({",".join(map(str, member_ids))})' if member_ids else '1=0'),
+
+                # Investments and balances
+                ('finances_investment', f'family_id = {family_id}'),
+                ('finances_bankbalance', f'family_id = {family_id}'),
+
+                # Notifications
+                ('finances_notification', f'family_id = {family_id}'),
+            ]
+
+            for table_name, where_clause in tables_to_export:
+                try:
+                    # Get column names
+                    cursor.execute(f"""
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_name = %s
+                        ORDER BY ordinal_position
+                    """, (table_name,))
+                    columns = [row[0] for row in cursor.fetchall()]
+
+                    if not columns:
+                        logger.debug(f"[PGSQL_FAMILY_BACKUP] Table {table_name} not found, skipping")
+                        continue
+
+                    columns_str = ', '.join([f'"{col}"' for col in columns])
+
+                    # Select data
+                    query = f"SELECT {columns_str} FROM {table_name} WHERE {where_clause}"
+                    cursor.execute(query)
+                    rows = cursor.fetchall()
+
+                    if rows:
+                        backup_file.write(f"-- Table: {table_name} ({len(rows)} rows)\n")
+
+                        # Write COPY statement for efficient bulk insert
+                        copy_columns = ', '.join([f'"{col}"' for col in columns])
+                        backup_file.write(f"COPY {table_name} ({copy_columns}) FROM stdin;\n")
+
+                        for row in rows:
+                            # Convert row to PostgreSQL COPY format (tab-separated)
+                            row_data = []
+                            for value in row:
+                                if value is None:
+                                    row_data.append('\\N')
+                                elif isinstance(value, bool):
+                                    row_data.append('t' if value else 'f')
+                                elif isinstance(value, (datetime, )):
+                                    row_data.append(str(value))
+                                else:
+                                    # Escape special characters for COPY format
+                                    str_value = str(value).replace('\\', '\\\\').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t')
+                                    row_data.append(str_value)
+
+                            backup_file.write('\t'.join(row_data) + '\n')
+
+                        backup_file.write('\\.\n\n')
+                        total_rows_copied += len(rows)
+                        logger.info(f"[PGSQL_FAMILY_BACKUP] Exported {len(rows)} rows from {table_name}")
+
+                except Exception as e:
+                    logger.warning(f"[PGSQL_FAMILY_BACKUP] Error exporting {table_name}: {e}")
+                    continue
+
+            # Re-enable triggers
+            backup_file.write("SET session_replication_role = 'origin';\n\n")
+
+            # Update sequences to correct values
+            backup_file.write("-- ==============================================\n")
+            backup_file.write("-- UPDATE SEQUENCES\n")
+            backup_file.write("-- ==============================================\n\n")
+
+            cursor.execute("""
+                SELECT sequence_name, table_name, column_name
+                FROM information_schema.sequences
+                WHERE sequence_schema = 'public'
+            """)
+            sequences = cursor.fetchall()
+
+            for seq_name, _, _ in sequences:
+                backup_file.write(f"SELECT setval('{seq_name}', COALESCE((SELECT MAX(id) FROM {seq_name.replace('_id_seq', '')}), 1));\n")
+
+            backup_file.write("\n")
+            backup_file.write("COMMIT;\n")
+
+        cursor.close()
+        conn.close()
+
+        file_size = backup_path.stat().st_size
+        logger.info(f"[PGSQL_FAMILY_BACKUP] Family-isolated backup created successfully")
+        logger.info(f"[PGSQL_FAMILY_BACKUP] Family: {family_name}")
+        logger.info(f"[PGSQL_FAMILY_BACKUP] File size: {file_size} bytes")
+        logger.info(f"[PGSQL_FAMILY_BACKUP] Total rows: {total_rows_copied}")
+
+        return {
+            'success': True,
+            'backup_path': str(backup_path),
+            'filename': backup_filename,
+            'size': file_size,
+            'family_name': family_name,
+            'family_id': family_id,
+            'users_count': len(user_ids),
+            'rows_copied': total_rows_copied
+        }
+
+    except subprocess.TimeoutExpired:
+        logger.error(f"[PGSQL_FAMILY_BACKUP] Schema dump timed out")
+        return {
+            'success': False,
+            'error': _('Backup operation timed out')
+        }
+    except FileNotFoundError:
+        logger.error(f"[PGSQL_FAMILY_BACKUP] pg_dump command not found")
+        return {
+            'success': False,
+            'error': _('pg_dump command not found. Please ensure PostgreSQL client tools are installed.')
+        }
+    except Exception as e:
+        logger.error(f"[PGSQL_FAMILY_BACKUP] Family backup failed: {e}", exc_info=True)
         return {
             'success': False,
             'error': str(e)

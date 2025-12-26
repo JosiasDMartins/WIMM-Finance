@@ -118,9 +118,29 @@ def sqlite_has_data(sqlite_path):
 # SQLite Backup Functions
 # ============================================================
 
-def create_sqlite_backup():
+def create_sqlite_backup(family_id=None):
     """
-    Create a backup of SQLite database using native backup API.
+    Create a backup of SQLite database.
+
+    If family_id is provided, creates a family-isolated backup containing only
+    data for that specific family. Otherwise, creates a full database backup.
+
+    Args:
+        family_id (int, optional): ID of the family to backup. If None, backs up entire database.
+
+    Returns:
+        dict: {'success': bool, 'backup_path': str, 'filename': str, 'size': int, 'error': str}
+    """
+    if family_id is not None:
+        return _create_family_isolated_backup(family_id)
+    else:
+        return _create_full_sqlite_backup()
+
+
+def _create_full_sqlite_backup():
+    """
+    Create a FULL backup of SQLite database using native backup API.
+    This backs up the entire database with all families.
 
     Returns:
         dict: {'success': bool, 'backup_path': str, 'filename': str, 'error': str}
@@ -141,10 +161,10 @@ def create_sqlite_backup():
 
         # Generate backup filename with timestamp
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        backup_filename = f'backup_{timestamp}.sqlite3'
+        backup_filename = f'backup_full_{timestamp}.sqlite3'
         backup_path = backups_dir / backup_filename
 
-        logger.info(f"[SQLITE_BACKUP] Creating SQLite backup: {backup_path}")
+        logger.info(f"[SQLITE_BACKUP] Creating FULL SQLite backup: {backup_path}")
 
         # Use SQLite backup API for transactional backup
         source_conn = sqlite3.connect(str(db_path))
@@ -164,7 +184,7 @@ def create_sqlite_backup():
             }
 
         file_size = backup_path.stat().st_size
-        logger.info(f"[SQLITE_BACKUP] SQLite backup created successfully ({file_size} bytes)")
+        logger.info(f"[SQLITE_BACKUP] FULL SQLite backup created successfully ({file_size} bytes)")
 
         return {
             'success': True,
@@ -174,7 +194,247 @@ def create_sqlite_backup():
         }
 
     except Exception as e:
-        logger.error(f"[SQLITE_BACKUP] SQLite backup failed: {e}", exc_info=True)
+        logger.error(f"[SQLITE_BACKUP] FULL SQLite backup failed: {e}", exc_info=True)
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
+def _create_family_isolated_backup(family_id):
+    """
+    Create a family-isolated backup containing only data for a specific family.
+
+    This creates a new SQLite database file with:
+    - Only the specified family's data
+    - All users that are members of that family
+    - All periods, transactions, flow groups, etc. for that family
+    - Proper schema structure that can be restored to a fresh SweetMoney instance
+
+    Args:
+        family_id (int): ID of the family to backup
+
+    Returns:
+        dict: {'success': bool, 'backup_path': str, 'filename': str, 'size': int, 'family_name': str, 'error': str}
+    """
+    try:
+        from django.db import connection
+
+        # Get database path
+        db_path = Path(settings.DATABASES['default']['NAME'])
+
+        if not db_path.exists():
+            return {
+                'success': False,
+                'error': _('Database file not found')
+            }
+
+        # Create backups directory
+        backups_dir = db_path.parent / 'backups'
+        backups_dir.mkdir(parents=True, exist_ok=True)
+
+        # Get family name for logging and filename
+        from finances.models import Family
+        try:
+            family = Family.objects.get(id=family_id)
+            family_name = family.name
+        except Family.DoesNotExist:
+            return {
+                'success': False,
+                'error': _('Family with ID %(family_id)s not found') % {'family_id': family_id}
+            }
+
+        # Generate backup filename with timestamp and family name
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        # Sanitize family name for filename (remove special chars)
+        safe_family_name = "".join(c for c in family_name if c.isalnum() or c in (' ', '-', '_')).strip()
+        safe_family_name = safe_family_name.replace(' ', '_')
+        backup_filename = f'backup_{safe_family_name}_{timestamp}.sqlite3'
+        backup_path = backups_dir / backup_filename
+
+        logger.info(f"[SQLITE_FAMILY_BACKUP] Creating family-isolated backup for '{family_name}' (ID: {family_id})")
+        logger.info(f"[SQLITE_FAMILY_BACKUP] Backup file: {backup_path}")
+
+        # STEP 1: Create new empty SQLite database with same schema
+        backup_conn = sqlite3.connect(str(backup_path))
+        backup_cursor = backup_conn.cursor()
+
+        # Get schema from source database
+        source_conn = sqlite3.connect(str(db_path))
+        source_cursor = source_conn.cursor()
+
+        # Copy schema (CREATE TABLE statements)
+        source_cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+        tables_sql = source_cursor.fetchall()
+
+        for (table_sql,) in tables_sql:
+            if table_sql:  # Skip None values
+                backup_cursor.execute(table_sql)
+                logger.debug(f"[SQLITE_FAMILY_BACKUP] Created table from schema")
+
+        # Copy indexes
+        source_cursor.execute("SELECT sql FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%' AND sql IS NOT NULL")
+        indexes_sql = source_cursor.fetchall()
+
+        for (index_sql,) in indexes_sql:
+            try:
+                backup_cursor.execute(index_sql)
+            except sqlite3.OperationalError as e:
+                # Some indexes might fail if they're auto-created with tables
+                logger.debug(f"[SQLITE_FAMILY_BACKUP] Skipped index (might be auto-created): {e}")
+
+        backup_conn.commit()
+        logger.info(f"[SQLITE_FAMILY_BACKUP] Schema created in backup database")
+
+        # STEP 2: Get all user IDs that are members of this family
+        source_cursor.execute("""
+            SELECT DISTINCT user_id
+            FROM finances_familymember
+            WHERE family_id = ?
+        """, (family_id,))
+        user_ids = [row[0] for row in source_cursor.fetchall()]
+        user_ids_str = ','.join('?' * len(user_ids))
+
+        logger.info(f"[SQLITE_FAMILY_BACKUP] Found {len(user_ids)} users in family")
+
+        # STEP 3: Get all family member IDs for this family
+        source_cursor.execute("""
+            SELECT id
+            FROM finances_familymember
+            WHERE family_id = ?
+        """, (family_id,))
+        member_ids = [row[0] for row in source_cursor.fetchall()]
+        member_ids_str = ','.join('?' * len(member_ids))
+
+        logger.info(f"[SQLITE_FAMILY_BACKUP] Found {len(member_ids)} family memberships")
+
+        # STEP 4: Copy data table by table (in correct order to respect FK constraints)
+
+        # Disable FK constraints temporarily for faster insertion
+        backup_cursor.execute("PRAGMA foreign_keys = OFF")
+
+        # Order matters! Tables without FK first, then tables that depend on them
+        tables_to_copy = [
+            # Core user and family tables
+            ('finances_customuser', f'id IN ({user_ids_str})', user_ids),
+            ('finances_family', 'id = ?', [family_id]),
+            ('finances_familymember', 'family_id = ?', [family_id]),
+            ('finances_familyconfiguration', 'family_id = ?', [family_id]),
+
+            # Period and flow groups
+            ('finances_period', 'family_id = ?', [family_id]),
+            ('finances_flowgroup', 'family_id = ?', [family_id]),
+
+            # Transactions (via member)
+            ('finances_transaction', f'member_id IN ({member_ids_str})' if member_ids else '1=0', member_ids if member_ids else []),
+
+            # History and access
+            ('finances_familymemberrolehistory', f'member_id IN ({member_ids_str})' if member_ids else '1=0', member_ids if member_ids else []),
+            ('finances_flowgroupaccess', f'member_id IN ({member_ids_str})' if member_ids else '1=0', member_ids if member_ids else []),
+
+            # Investments and balances
+            ('finances_investment', 'family_id = ?', [family_id]),
+            ('finances_bankbalance', 'family_id = ?', [family_id]),
+
+            # Notifications
+            ('finances_notification', 'family_id = ?', [family_id]),
+        ]
+
+        total_rows_copied = 0
+
+        for table_name, where_clause, params in tables_to_copy:
+            try:
+                # Get column names
+                source_cursor.execute(f"PRAGMA table_info({table_name})")
+                columns_info = source_cursor.fetchall()
+                column_names = [col[1] for col in columns_info]
+                columns_str = ', '.join(column_names)
+                placeholders = ', '.join(['?'] * len(column_names))
+
+                # Select data from source
+                query = f"SELECT {columns_str} FROM {table_name} WHERE {where_clause}"
+                source_cursor.execute(query, params)
+                rows = source_cursor.fetchall()
+
+                # Insert into backup
+                if rows:
+                    insert_query = f"INSERT INTO {table_name} ({columns_str}) VALUES ({placeholders})"
+                    backup_cursor.executemany(insert_query, rows)
+                    backup_conn.commit()
+                    total_rows_copied += len(rows)
+                    logger.info(f"[SQLITE_FAMILY_BACKUP] Copied {len(rows)} rows from {table_name}")
+                else:
+                    logger.debug(f"[SQLITE_FAMILY_BACKUP] No rows to copy from {table_name}")
+
+            except sqlite3.OperationalError as e:
+                # Table might not exist in this installation
+                logger.warning(f"[SQLITE_FAMILY_BACKUP] Skipped table {table_name}: {e}")
+                continue
+
+        # Re-enable FK constraints
+        backup_cursor.execute("PRAGMA foreign_keys = ON")
+        backup_conn.commit()
+
+        logger.info(f"[SQLITE_FAMILY_BACKUP] Total rows copied: {total_rows_copied}")
+
+        # STEP 5: Copy Django migrations and other system tables
+        system_tables = [
+            'django_migrations',
+            'django_content_type',
+            'auth_permission',
+            'django_admin_log',
+            'django_session',
+        ]
+
+        for table_name in system_tables:
+            try:
+                source_cursor.execute(f"SELECT * FROM {table_name}")
+                rows = source_cursor.fetchall()
+
+                if rows:
+                    # Get column count
+                    placeholders = ', '.join(['?'] * len(rows[0]))
+                    backup_cursor.executemany(f"INSERT INTO {table_name} VALUES ({placeholders})", rows)
+                    backup_conn.commit()
+                    logger.debug(f"[SQLITE_FAMILY_BACKUP] Copied {len(rows)} rows from system table {table_name}")
+
+            except sqlite3.OperationalError as e:
+                logger.debug(f"[SQLITE_FAMILY_BACKUP] Skipped system table {table_name}: {e}")
+                continue
+
+        # Close connections
+        source_cursor.close()
+        source_conn.close()
+        backup_cursor.close()
+        backup_conn.close()
+
+        # Verify backup file
+        if not backup_path.exists():
+            return {
+                'success': False,
+                'error': _('Backup file was not created')
+            }
+
+        file_size = backup_path.stat().st_size
+        logger.info(f"[SQLITE_FAMILY_BACKUP] Family-isolated backup created successfully")
+        logger.info(f"[SQLITE_FAMILY_BACKUP] Family: {family_name}")
+        logger.info(f"[SQLITE_FAMILY_BACKUP] File size: {file_size} bytes")
+        logger.info(f"[SQLITE_FAMILY_BACKUP] Users: {len(user_ids)}")
+        logger.info(f"[SQLITE_FAMILY_BACKUP] Total rows: {total_rows_copied}")
+
+        return {
+            'success': True,
+            'backup_path': str(backup_path),
+            'filename': backup_filename,
+            'size': file_size,
+            'family_name': family_name,
+            'family_id': family_id,
+            'users_count': len(user_ids),
+            'rows_copied': total_rows_copied
+        }
+
+    except Exception as e:
+        logger.error(f"[SQLITE_FAMILY_BACKUP] Family backup failed: {e}", exc_info=True)
         return {
             'success': False,
             'error': str(e)

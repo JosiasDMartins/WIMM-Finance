@@ -14,12 +14,14 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin
+# Django admin is disabled - SweetMoney uses a custom family-based permission system
+# from django.contrib import admin
 from django.urls import path, include
 from django.conf.urls.i18n import i18n_patterns
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    # Django admin disabled - not used by SweetMoney
+    # path('admin/', admin.site.urls),
 
     #Authentication routes (login, logout, password_reset and etc)
     path('', include('django.contrib.auth.urls')),

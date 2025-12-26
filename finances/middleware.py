@@ -102,8 +102,8 @@ class SetupRequiredMiddleware:
         # Get current path
         current_path = request.path
 
-        # Always allow static files and admin
-        if current_path.startswith('/static/') or current_path.startswith('/admin/'):
+        # Always allow static files
+        if current_path.startswith('/static/'):
             return self.get_response(request)
 
         # Always allow health-check endpoint (used by updater to verify server is running)

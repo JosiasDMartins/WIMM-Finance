@@ -22,30 +22,66 @@ def create_backup(request):
 
     Automatically detects database backend (SQLite or PostgreSQL)
     and uses the appropriate backup strategy.
+
+    IMPORTANT: This creates a FAMILY-ISOLATED backup containing ONLY the current user's family data.
+    This allows families to export their data and import it into their own self-hosted instance.
     """
     # Block backups in demo mode
     if getattr(settings, 'DEMO_MODE', False):
         return JsonResponse({'success': False, 'error': _('Database backups are disabled in demo mode.')}, status=403)
 
     try:
+        # Get current user's family ID
+        from finances.models import FamilyMember
+
+        user = request.user
+        logger.info(f"[CREATE_BACKUP] Backup requested by user: {user.username}")
+
+        # Get the user's family (assuming user belongs to one family)
+        try:
+            family_member = FamilyMember.objects.filter(user=user).first()
+            if not family_member:
+                logger.error(f"[CREATE_BACKUP] User {user.username} is not a member of any family")
+                return JsonResponse({
+                    'success': False,
+                    'error': _('You are not a member of any family. Cannot create backup.')
+                }, status=400)
+
+            family_id = family_member.family_id
+            family_name = family_member.family.name
+            logger.info(f"[CREATE_BACKUP] Creating FAMILY-ISOLATED backup for family: {family_name} (ID: {family_id})")
+
+        except Exception as e:
+            logger.error(f"[CREATE_BACKUP] Error getting user's family: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': _('Error determining your family. Please contact an administrator.')
+            }, status=500)
+
         # Use centralized backup function that handles both SQLite and PostgreSQL
         from finances.utils.db_backup import create_database_backup as create_db_backup
 
-        logger.info(f"[CREATE_BACKUP] Starting backup creation")
-        result = create_db_backup()
+        # Create FAMILY-ISOLATED backup
+        result = create_db_backup(family_id=family_id)
 
         if result['success']:
             backup_path = Path(result['backup_path'])
             filename = result['filename']
 
-            logger.info(f"[CREATE_BACKUP] Backup created successfully: {filename}")
+            logger.info(f"[CREATE_BACKUP] Family-isolated backup created successfully: {filename}")
+            logger.info(f"[CREATE_BACKUP] Family: {result.get('family_name')}")
+            logger.info(f"[CREATE_BACKUP] Users: {result.get('users_count')}")
+            logger.info(f"[CREATE_BACKUP] Rows: {result.get('rows_copied')}")
 
             return JsonResponse({
                 'success': True,
-                'message': _('Backup created successfully'),
+                'message': _('Family backup created successfully for %(family)s') % {'family': family_name},
                 'filename': filename,
                 'download_url': f'/download-backup/{filename}/',
-                'size': result.get('size', 0)
+                'size': result.get('size', 0),
+                'family_name': result.get('family_name'),
+                'users_count': result.get('users_count'),
+                'rows_copied': result.get('rows_copied')
             })
         else:
             error_msg = result.get('error', 'Unknown error creating backup')

@@ -32,7 +32,7 @@ SECRET_KEY = 'django-insecure-@+@#^v(s25&0t6yvx5)tm$3!ug(f*thk==-_b4v=v7pieqk0z_
 
 INSTALLED_APPS = [
     'daphne',  # Must be first for async support
-    'django.contrib.admin',
+    # 'django.contrib.admin',  # DISABLED: Not used - SweetMoney uses custom family-based permission system
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
