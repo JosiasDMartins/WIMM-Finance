@@ -55,31 +55,39 @@ pip install py-moneyed==3.0
 pip install requests
 pip install whitenoise
 pip install django-pwa
+pip install channels>=4.0.0
+pip install channels-redis>=4.1.0
+pip install daphne>=4.0.0
+pip install supervisor
+pip install psycopg2-binary
+pip install bleach>=6.0.0
+pip install django-csp>=3.8
+
 ```
 
 Or install all at once:
 
 ```bash
-pip install Django python-dateutil django-money==3.4.1 py-moneyed==3.0 requests whitenoise django-pwa
+pip install Django python-dateutil django-money==3.4.1 py-moneyed==3.0 requests whitenoise django-pwa channels>=4.0.0 channels-redis>=4.1.0 daphne>=4.0.0 supervisor psycopg2-binary bleach>=6.0.0 django-csp>=3.8
 ```
 
 ### Running Locally
 
 1. Clone the repository
 2. Install dependencies (see above)
-3. Run migrations:
+3. Run make migrations:
+   ```bash
+   python manage.py makemigrations
+   ```
+4. Run migrations:
    ```bash
    python manage.py migrate
-   ```
-4. Create a superuser:
-   ```bash
-   python manage.py createsuperuser
    ```
 5. Start the development server:
    ```bash
    python manage.py runserver
    ```
-6. Access the application at `http://localhost:8000`
+6. Access the application at `http://localhost:8000` and proceed with admin user setup
 
 ### Production Deployment
 
