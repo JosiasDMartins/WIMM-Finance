@@ -75,19 +75,19 @@ pip install Django python-dateutil django-money==3.4.1 py-moneyed==3.0 requests 
 
 1. Clone the repository
 2. Install dependencies (see above)
-3. Run migrations:
+3. Run make migrations:
+   ```bash
+   python manage.py makemigrations
+   ```
+4. Run migrations:
    ```bash
    python manage.py migrate
-   ```
-4. Create a superuser:
-   ```bash
-   python manage.py createsuperuser
    ```
 5. Start the development server:
    ```bash
    python manage.py runserver
    ```
-6. Access the application at `http://localhost:8000`
+6. Access the application at `http://localhost:8000` and proceed with admin user setup
 
 ### Production Deployment
 
