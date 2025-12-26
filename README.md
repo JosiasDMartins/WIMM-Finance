@@ -55,6 +55,14 @@ pip install py-moneyed==3.0
 pip install requests
 pip install whitenoise
 pip install django-pwa
+pip install channels>=4.0.0
+pip install channels-redis>=4.1.0
+pip install daphne>=4.0.0
+pip install supervisor
+pip install psycopg2-binary
+pip install bleach>=6.0.0
+pip install django-csp>=3.8
+
 ```
 
 Or install all at once:
