@@ -68,7 +68,7 @@ pip install django-csp>=3.8
 Or install all at once:
 
 ```bash
-pip install Django python-dateutil django-money==3.4.1 py-moneyed==3.0 requests whitenoise django-pwa
+pip install Django python-dateutil django-money==3.4.1 py-moneyed==3.0 requests whitenoise django-pwa channels>=4.0.0 channels-redis>=4.1.0 daphne>=4.0.0 supervisor psycopg2-binary bleach>=6.0.0 django-csp>=3.8
 ```
 
 ### Running Locally
