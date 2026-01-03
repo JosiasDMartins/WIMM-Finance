@@ -32,7 +32,8 @@ from .views_utils import (
     get_currency_symbol,
     get_thousand_separator,
     get_decimal_separator,
-    get_balance_summary
+    get_balance_summary,
+    get_year_to_date_metrics
 )
 
 
@@ -285,6 +286,7 @@ def delete_flow_item_ajax(request):
         family_id = transaction.flow_group.family.id
         flow_group = transaction.flow_group
         is_investment = transaction.flow_group.is_investment
+        is_income = transaction.flow_group.group_type == 'INCOME'
 
         transaction.delete()
 
@@ -294,6 +296,7 @@ def delete_flow_item_ajax(request):
                 transaction_id=transaction_id,
                 family_id=family_id,
                 is_investment=is_investment,
+                is_income=is_income,
                 actor_user=request.user
             )
 
@@ -1197,6 +1200,46 @@ def get_balance_summary_ajax(request):
 
 
 @login_required
+def get_ytd_metrics_ajax(request):
+    """
+    AJAX: Returns updated YTD metrics (income, savings, investments).
+    Used by dashboard to refresh YTD metrics after income/expense changes in real-time.
+    """
+    try:
+        family, current_member, family_members = get_family_context(request.user)
+        if not family:
+            return JsonResponse({'status': 'error', 'error': _('User not in family')}, status=403)
+
+        # Get period from query parameter
+        query_period = request.GET.get('period')
+        start_date, end_date, _unused = get_current_period_dates(family, query_period)
+
+        # Get YTD metrics (using end_date as current_period_end)
+        ytd_data = get_year_to_date_metrics(family, end_date, current_member)
+
+        # Get currency symbol for formatting
+        period_currency = get_period_currency(family, start_date)
+        currency_symbol = get_currency_symbol(period_currency)
+
+        # Return formatted values as strings
+        return JsonResponse({
+            'status': 'success',
+            'ytd_metrics': {
+                'ytd_income': str(ytd_data['ytd_income']),
+                'ytd_savings': str(ytd_data['ytd_savings']),
+                'ytd_investments': str(ytd_data['ytd_investments']),
+                'currency_symbol': currency_symbol
+            }
+        })
+
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"[ERROR] Error in get_ytd_metrics_ajax: {error_trace}")
+        return JsonResponse({'status': 'error', 'error': str(e)}, status=500)
+
+
+@login_required
 @require_POST
 def toggle_flowgroup_recurring_ajax(request):
     """
@@ -1230,13 +1273,29 @@ def toggle_flowgroup_recurring_ajax(request):
         # Check if trying to unmark a group that has fixed transactions
         if flow_group.is_recurring:
             # User is trying to unmark as recurring
-            fixed_transactions_count = flow_group.transactions.filter(is_fixed=True).count()
-            if fixed_transactions_count > 0:
-                return JsonResponse({
-                    'status': 'error',
-                    'error': _('Cannot unmark group as recurring while it has fixed transactions. Please unmark all fixed transactions first.'),
-                    'fixed_count': fixed_transactions_count
-                }, status=400)
+            # Automatically unmark all fixed transactions since recurring is being disabled
+            fixed_transactions = flow_group.transactions.filter(is_fixed=True)
+            fixed_count = fixed_transactions.count()
+
+            if fixed_count > 0:
+                # Get list of transactions before updating (for WebSocket broadcast)
+                transactions_to_update = list(fixed_transactions)
+
+                # Unmark all fixed transactions
+                fixed_transactions.update(is_fixed=False)
+                print(f"[FlowGroup] Unmarked {fixed_count} fixed transactions when disabling recurring")
+
+                # Broadcast WebSocket update for each unmarked transaction
+                for transaction in transactions_to_update:
+                    try:
+                        # Refresh from DB to get updated is_fixed value
+                        transaction.refresh_from_db()
+                        WebSocketBroadcaster.broadcast_transaction_updated(
+                            transaction=transaction,
+                            actor_user=request.user
+                        )
+                    except Exception as e:
+                        print(f"[WebSocket] Error broadcasting transaction {transaction.id} update: {e}")
 
         # Toggle the recurring status
         flow_group.is_recurring = not flow_group.is_recurring

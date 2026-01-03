@@ -177,7 +177,7 @@
                                        id="id_is_shared"
                                        name="is_shared"
                                        type="checkbox"
-                                       onchange="handleSharedChange()"
+                                       data-change-action="handle-shared-change"
                                        {% if flow_group.is_shared or flow_group.is_kids_group %}checked{% endif %}>
                                 <span class="ml-2 text-sm font-medium text-slate-700 dark:text-slate-300">{% trans "Shared Group" %}</span>
                             </label>
@@ -202,7 +202,7 @@
                                        id="id_is_kids_group"
                                        name="is_kids_group"
                                        type="checkbox"
-                                       onchange="handleKidsChange()"
+                                       data-change-action="handle-kids-change"
                                        {% if flow_group.is_kids_group %}checked{% endif %}>
                                 <span class="ml-2 text-sm font-medium text-slate-700 dark:text-slate-300">{% trans "Kids" %}</span>
                             </label>
@@ -236,7 +236,7 @@
                                    id="id_is_credit_card"
                                    name="is_credit_card"
                                    type="checkbox"
-                                   onchange="handleCreditCardChange()"
+                                   data-change-action="handle-creditcard-change"
                                    {% if flow_group.is_credit_card %}checked{% endif %}>
                             <span class="ml-2 text-sm font-medium text-slate-700 dark:text-slate-300">{% trans "Credit Card" %}</span>
                         </label>
@@ -281,14 +281,14 @@
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead>
                         <tr>
-                            <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 40px;"></th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" style="width: 40px;"></th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Description" %}</th>
-                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider date-header-mobile">{% trans "Date" %}</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Member" %}</th>
-                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mobile-hide-column">{% trans "Realized" %}</th>
-                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mobile-hide-column">{% trans "Fixed" %}</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Amount" %}</th>
-                            <th class="px-6 py-3 text-center w-24 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mobile-hide-column">{% trans "Actions" %}</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider date-header-mobile">{% trans "Date" %}</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider member-header-mobile">{% trans "Member" %}</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mobile-hide-column">{% trans "Realized" %}</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mobile-hide-column">{% trans "Fixed" %}</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{% trans "Amount" %}</th>
+                            <th class="px-6 py-3 text-left w-24 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mobile-hide-column">{% trans "Actions" %}</th>
                         </tr>
                     </thead>
                     <tbody id="expense-items-body" class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -297,7 +297,7 @@
                             data-item-id="{{ transaction.id }}"
                             data-mode="display"
                             data-realized="{{ transaction.realized|yesno:'true,false' }}"
-                            data-is-fixed="{{ transaction.is_fixed|yesno:'true,false' }}"
+                            data-fixed="{{ transaction.is_fixed|yesno:'true,false' }}"
                             data-amount="{{ transaction.amount.amount|default:transaction.amount|default:'0.00' }}"
                             data-order="{{ forloop.counter }}"
                             draggable="true"
@@ -308,7 +308,7 @@
                                 {% if current_member.role != 'CHILD' %}
                                 <div class="mobile-fixed-btn-container">
                                     <button type="button"
-                                            data-action="toggle-fixed" data-item-id="item-{{ transaction.id }}"
+                                            data-action="toggle-transaction-fixed" data-row-id="item-{{ transaction.id }}"
                                             class="mobile-fixed-btn {% if transaction.is_fixed %}active{% endif %}"
                                             title="{% trans 'Mark as recurring expense' %}">
                                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -319,7 +319,7 @@
                                 </div>
                                 {% endif %}
                                 <span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle cursor-grab active:cursor-grabbing">drag_indicator</span>
-                                <button type="button" data-action="save" data-item-id="item-{{ transaction.id }}" class="edit-save-icon" style="display: none;">
+                                <button type="button" data-action="save" data-row-id="item-{{ transaction.id }}" class="edit-save-icon" style="display: none;">
                                     <span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span>
                                 </button>
                             </td>
@@ -349,16 +349,16 @@
                                 </select>
                             </td>
 
-                            <td class="px-6 py-4 text-center mobile-hide-column">
-                                <div class="flex items-center justify-center">
+                            <td class="px-6 py-4 mobile-hide-column">
+                                <div class="flex items-center">
                                     <button type="button" data-toggle="realized" data-item-id="item-{{ transaction.id }}" data-current-state="{{ transaction.realized|yesno:'true,false' }}" class="realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-pointer {% if transaction.realized %}bg-green-500{% else %}bg-gray-300 dark:bg-gray-600{% endif %}">
                                         <span class="absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full {% if transaction.realized %}translate-x-4{% endif %}"></span>
                                     </button>
                                 </div>
                             </td>
 
-                            <td class="px-6 py-4 text-center mobile-hide-column">
-                                <div class="flex items-center justify-center">
+                            <td class="px-6 py-4 mobile-hide-column">
+                                <div class="flex items-center">
                                     {% if current_member.role != 'CHILD' %}
                                     <button type="button"
                                             data-action="toggle-fixed" data-item-id="item-{{ transaction.id }}"
@@ -377,10 +377,10 @@
                                 {{ transaction.amount|intcomma }}
                                 <!-- Mobile action buttons (hidden behind row, revealed on swipe) -->
                                 <div class="mobile-actions-btns">
-                                    <button type="button" data-action="edit" data-item-id="item-{{ transaction.id }}" class="mobile-action-btn edit-btn">
+                                    <button type="button" data-action="edit" data-row-id="item-{{ transaction.id }}" class="mobile-action-btn edit-btn">
                                         <span class="material-symbols-outlined">edit</span>
                                     </button>
-                                    <button type="button" data-action="delete" data-item-id="item-{{ transaction.id }}" class="mobile-action-btn delete-btn">
+                                    <button type="button" data-action="delete" data-row-id="item-{{ transaction.id }}" class="mobile-action-btn delete-btn">
                                         <span class="material-symbols-outlined">delete</span>
                                     </button>
                                 </div>
@@ -389,19 +389,19 @@
                                 <input type="text" inputmode="decimal" value="{{ transaction.amount.amount|default:transaction.amount|default:'0.00'|floatformat:2 }}" data-field="amount" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm text-right p-1">
                             </td>
 
-                            <td class="px-6 py-4 text-center whitespace-nowrap mobile-hide-column">
+                            <td class="px-6 py-4 whitespace-nowrap mobile-hide-column">
                                 <div class="actions-display">
-                                    <button type="button" data-action="edit" data-item-id="item-{{ transaction.id }}" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
-                                    <button type="button" data-action="delete" data-item-id="item-{{ transaction.id }}" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
+                                    <button type="button" data-action="edit" data-row-id="item-{{ transaction.id }}" class="p-1 text-slate-500 hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
+                                    <button type="button" data-action="delete" data-row-id="item-{{ transaction.id }}" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">delete</span></button>
                                 </div>
                                 <div class="actions-edit hidden space-x-2">
-                                    <button type="button" data-action="save" data-item-id="item-{{ transaction.id }}" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
-                                    <button type="button" data-action="cancel" data-item-id="item-{{ transaction.id }}" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
+                                    <button type="button" data-action="save" data-row-id="item-{{ transaction.id }}" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
+                                    <button type="button" data-action="cancel" data-row-id="item-{{ transaction.id }}" class="p-1 text-slate-500 hover:text-red-500"><span class="material-symbols-outlined text-lg">close</span></button>
                                 </div>
                             </td>
                         </tr>
                         {% empty %}
-                        <tr>
+                        <tr id="empty-state-row">
                             <td colspan="8" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                                 {% trans "No transactions found for this Flow Group." %}
                             </td>
@@ -435,20 +435,20 @@
                                 </select>
                             </td>
 
-                            <td class="px-6 py-4 text-center mobile-hide-column">
-                                <div class="flex items-center justify-center">
+                            <td class="px-6 py-4 mobile-hide-column">
+                                <div class="flex items-center">
                                     <div class="realized-toggle-new relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full bg-gray-300 dark:bg-gray-600">
                                         <span class="absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full"></span>
                                     </div>
                                 </div>
                             </td>
 
-                            <td class="px-6 py-4 text-center mobile-hide-column">
-                                <div class="flex items-center justify-center">
+                            <td class="px-6 py-4 mobile-hide-column">
+                                <div class="flex items-center">
                                     {% if current_member.role != 'CHILD' %}
                                     <div class="fixed-toggle-new relative inline-flex items-center justify-center w-8 h-8 rounded transition-all duration-200 bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/30"
                                          data-action="toggle-new-item-fixed" data-item-id="new-item-template"
-                                         data-is-fixed="false"
+                                         data-fixed="false"
                                          title="{% trans 'Mark as recurring expense' %}">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -460,11 +460,19 @@
                             </td>
 
                             <td class="px-6 py-4 text-right text-primary cell-budget-display hidden"></td>
-                            <td class="px-6 py-4 text-right text-primary cell-budget-edit">
+                            <td class="px-6 py-4 text-right text-primary cell-budget-edit amount-cell-with-actions">
                                 <input type="text" inputmode="decimal" data-field="amount" class="w-full border-b border-primary bg-transparent focus:outline-none focus:ring-0 text-sm text-right p-1" value="0{{ decimal_separator }}00">
+                                <div class="mobile-actions-btns">
+                                    <button type="button" data-action="save" data-row-id="new-item-template" class="mobile-action-btn edit-btn">
+                                        <span class="material-symbols-outlined">check</span>
+                                    </button>
+                                    <button type="button" data-action="cancel-new-row" data-row-id="new-item-template" class="mobile-action-btn delete-btn">
+                                        <span class="material-symbols-outlined">close</span>
+                                    </button>
+                                </div>
                             </td>
 
-                            <td class="px-6 py-4 text-center whitespace-nowrap mobile-hide-column">
+                            <td class="px-6 py-4 whitespace-nowrap mobile-hide-column">
                                 <div class="actions-display hidden"></div>
                                 <div class="actions-edit space-x-2">
                                     <button type="button" data-action="save" data-item-id="new-item-template" class="p-1 text-primary hover:text-primary/80"><span class="material-symbols-outlined text-lg">check</span></button>
@@ -472,15 +480,68 @@
                                 </div>
                             </td>
                         </tr>
+
+                        <!-- Totals Row with Add New Item button -->
+                        <tr id="totals-row" class="bg-gray-50 dark:bg-gray-800 border-t-2 border-gray-300 dark:border-gray-600 font-semibold">
+                            <td colspan="2" class="px-4 py-3">
+                                <button type="button" data-action="add-new-row" data-type="expense" class="totals-add-btn flex items-center text-sm font-medium">
+                                    <span class="material-symbols-outlined text-lg mr-1">add_circle</span>
+                                    {% trans "Add New Item" %}
+                                </button>
+                            </td>
+                            <!-- Date column -->
+                            <td class="px-6 py-3"></td>
+                            <!-- Member column - shows LABELS on MOBILE only -->
+                            <td class="px-2 py-3 text-right totals-member-col">
+                                <div class="flex flex-col gap-1">
+                                    <div class="text-sm">
+                                        <span class="totals-label text-xs uppercase">{% trans "Total:" %}</span>
+                                    </div>
+                                    <div class="text-sm">
+                                        <span class="totals-label text-xs uppercase">{% trans "Realized:" %}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <!-- Realized column (hidden on mobile) -->
+                            <td class="px-6 py-3 mobile-hide-column"></td>
+                            <!-- Fixed column - Desktop: Shows LABELS, Mobile: Hidden -->
+                            <td class="px-2 py-3 text-right mobile-hide-column totals-fixed-col">
+                                <div class="flex flex-col gap-1">
+                                    <div class="text-sm">
+                                        <span class="totals-label text-xs uppercase">{% trans "Total:" %}</span>
+                                    </div>
+                                    <div class="text-sm">
+                                        <span class="totals-label text-xs uppercase">{% trans "Realized:" %}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <!-- Amount column - Desktop: Values only, Mobile: Values only -->
+                            <td class="py-3 text-right totals-amount-col">
+                                <!-- Desktop: Values only -->
+                                <div class="totals-amount-desktop flex flex-col gap-1 pl-2 pr-6">
+                                    <div class="text-sm">
+                                        <span id="total-expenses-desktop" class="totals-value font-bold">{{ currency_symbol }} {{ total_estimated|floatformat:2|intcomma }}</span>
+                                    </div>
+                                    <div class="text-sm">
+                                        <span id="total-realized-desktop" class="totals-realized font-bold">{{ currency_symbol }} {{ total_realized|floatformat:2|intcomma }}</span>
+                                    </div>
+                                </div>
+                                <!-- Mobile: Values only -->
+                                <div class="totals-amount-mobile flex flex-col gap-1 px-6">
+                                    <div class="text-sm">
+                                        <span id="total-expenses-mobile" class="totals-value font-bold">{{ currency_symbol }} {{ total_estimated|floatformat:2|intcomma }}</span>
+                                    </div>
+                                    <div class="text-sm">
+                                        <span id="total-realized-mobile" class="totals-realized font-bold">{{ currency_symbol }} {{ total_realized|floatformat:2|intcomma }}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <!-- Actions column - Empty on both desktop and mobile -->
+                            <td class="px-6 py-3 mobile-hide-column totals-actions-col">
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
-                
-                <div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50">
-                    <button type="button" data-action="add-new-row" class="flex items-center text-primary hover:text-primary/80 text-sm font-medium">
-                        <span class="material-symbols-outlined text-lg mr-1">add_circle</span>
-                        {% trans "Add New Item" %}
-                    </button>
-                </div>
 
             </div>
         </form>
@@ -488,2319 +549,68 @@
     {% endif %}
 </div>
 
-<script>
-    // Utility for getting CSRF token
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-    const csrftoken = getCookie('csrftoken');
+<!-- PHASE 3 CSP Compliance: Configuration for FlowGroup.js -->
+<div id="flowgroup-config" style="display: none;"
+     data-decimal-separator="{{ decimal_separator }}"
+     data-thousand-separator="{{ thousand_separator }}"
+     data-currency-symbol="{{ currency_symbol|default:'$' }}"
+     data-member-role-for-period="{{ member_role_for_period }}"
+     data-selected-period="{{ selected_period|default:'' }}"
+     data-flow-group-id="{{ flow_group.id|default:'NEW' }}"
+     data-is-credit-card="{% if flow_group.is_credit_card %}true{% else %}false{% endif %}"
+     data-is-closed="{% if flow_group.is_credit_card and flow_group.closed %}true{% else %}false{% endif %}"
+
+     data-url-toggle-kids-group-realized="{% url 'toggle_kids_group_realized_ajax' %}"
+     data-url-toggle-flowgroup-recurring="{% url 'toggle_flowgroup_recurring_ajax' %}"
+     data-url-toggle-credit-card-closed="{% url 'toggle_credit_card_closed_ajax' %}"
+     data-url-toggle-transaction-fixed="{% url 'toggle_transaction_fixed_ajax' %}"
+     data-url-save-flow-item="{% url 'save_flow_item_ajax' %}"
+     data-url-delete-flow-item="{% url 'delete_flow_item_ajax' %}"
+     data-url-reorder-flow-items="{% url 'reorder_flow_items_ajax' %}"
+     data-url-delete-flow-group="{% url 'delete_flow_group' flow_group.id|default:0 %}"
+     data-url-dashboard="{% url 'dashboard' %}{% if selected_period %}?period={{ selected_period }}{% endif %}"
+
+     data-i18n-estimated-expenses="{% trans 'Estimated expenses' %}"
+     data-i18n-exceed-budget="{% trans 'exceed the budgeted amount' %}"
+     data-i18n-marked-as-given="{% trans '✓ Marked as given' %}"
+     data-i18n-not-given-yet="{% trans 'Not given yet' %}"
+     data-i18n-budget-marked-as-given="{% trans 'Budget marked as given to child' %}"
+     data-i18n-budget-marked-as-not-given="{% trans 'Budget marked as not given' %}"
+     data-i18n-error-updating-status="{% trans 'Error updating status:' %}"
+     data-i18n-network-error="{% trans 'A network error occurred.' %}"
+     data-i18n-group-marked-recurring="{% trans 'Group marked as recurring - will be copied to new periods' %}"
+     data-i18n-group-not-recurring="{% trans 'Group is no longer recurring' %}"
+     data-i18n-error-updating-recurring="{% trans 'Error updating recurring status:' %}"
+     data-i18n-bill-closed="{% trans 'Bill Closed' %}"
+     data-i18n-bill-marked-closed="{% trans 'Bill marked as closed and paid' %}"
+     data-i18n-bill-marked-not-closed="{% trans 'Bill marked as not closed' %}"
+     data-i18n-bill-open="{% trans 'Bill Open' %}"
+     data-i18n-items-marked-realized="{% trans 'items marked as realized' %}"
+     data-i18n-please-save-flow-group-before-closed="{% trans 'Please save the Flow Group first before marking it as closed.' %}"
+     data-i18n-please-save-flow-group-before-realized="{% trans 'Please save the Flow Group first before marking it as realized.' %}"
+     data-i18n-please-save-flow-group-before-recurring="{% trans 'Please save the Flow Group first before marking it as recurring.' %}"
+     data-i18n-please-save-transaction-before-fixed="{% trans 'Please save the transaction first before marking it as fixed.' %}"
+     data-i18n-realized="{% trans 'Realized' %}"
+     data-i18n-not-realized="{% trans 'Not Realized' %}"
+     data-i18n-recurring="{% trans 'Recurring' %}"
+     data-i18n-not-recurring="{% trans 'Not Recurring' %}"
+     data-i18n-transaction-marked-fixed="{% trans 'Transaction marked as fixed - will be copied to new periods' %}"
+     data-i18n-transaction-not-fixed="{% trans 'Transaction is no longer fixed' %}"
+     data-i18n-deletion-warning="{% trans 'WARNING: All transactions in this group for the current period will be permanently deleted. This action cannot be undone.' %}"
+     data-i18n-confirm-delete="{% trans 'Are you sure you want to delete this Flow Group?' %}"
+     data-i18n-flow-group-deleted="{% trans 'Flow Group deleted successfully' %}"
+     data-i18n-error-deleting-flow-group="{% trans 'Error deleting Flow Group:' %}"
+     data-i18n-confirm-delete-item="{% trans 'Are you sure you want to delete this item?' %}"
+     data-i18n-description-amount-date-required="{% trans 'Description, Amount, and Date are required.' %}"
+     data-i18n-duplicate-name="{% trans 'Duplicate Name' %}"
+     data-i18n-another-user="{% trans 'another user' %}"
+     data-i18n-flow-group-deleted-by-user="{% trans 'This FlowGroup was deleted by' %}"
+     data-i18n-flow-group-deleted-title="{% trans 'FlowGroup Deleted' %}"
+     data-i18n-flow-group-deleted-success="{% trans 'FlowGroup Deleted Successfully' %}"
+     data-i18n-ok="{% trans 'OK' %}"
+     data-i18n-network-error-saving-order="{% trans 'A network error occurred while saving order.' %}"
+></div>
 
-    // Locale-specific separators from backend
-    const decimalSeparator = "{{ decimal_separator }}";
-    const thousandSeparator = "{{ thousand_separator }}";
-
-    // Translated strings for budget warning
-    const txtEstimatedExpenses = "{% trans 'Estimated expenses' %}";
-    const txtExceedBudget = "{% trans 'exceed the budgeted amount' %}";
-
-    // Member role (for conditional logic)
-    const memberRoleForPeriod = "{{ member_role_for_period }}";
-
-    // Obter o símbolo da moeda do backend (fallback para '$')
-    const currencySymbol = "{{ currency_symbol|default:'$' }}";
-
-    // Function to toggle Kids Group realized status (Parents/Admins only)
-    function toggleKidsGroupRealized(currentStatus) {
-        const flowGroupId = document.getElementById('flow-group-form').getAttribute('data-flow-group-id');
-        
-        if (flowGroupId === 'NEW') {
-            alert('{% trans "Please save the Flow Group first before marking it as realized." %}');
-            return;
-        }
-        
-        const newStatus = !currentStatus;
-        
-        fetch("{% url 'toggle_kids_group_realized_ajax' %}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrftoken,
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-                'flow_group_id': flowGroupId,
-                'realized': newStatus
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                // Update toggle visual state
-                const toggleBtn = document.querySelector('.kids-group-realized-toggle');
-                const toggleCircle = toggleBtn.querySelector('span');
-                const statusText = toggleBtn.parentElement.querySelector('.text-xs');
-                
-                if (data.realized) {
-                    toggleBtn.classList.remove('bg-gray-300', 'dark:bg-gray-600');
-                    toggleBtn.classList.add('bg-green-500');
-                    toggleCircle.classList.add('translate-x-5');
-                    statusText.textContent = '{% trans "✓ Marked as given" %}';
-                    toggleBtn.setAttribute('onclick', `toggleKidsGroupRealized(true)`);
-                } else {
-                    toggleBtn.classList.remove('bg-green-500');
-                    toggleBtn.classList.add('bg-gray-300', 'dark:bg-gray-600');
-                    toggleCircle.classList.remove('translate-x-5');
-                    statusText.textContent = '{% trans "Not given yet" %}';
-                    toggleBtn.setAttribute('onclick', `toggleKidsGroupRealized(false)`);
-                }
-                
-                // Show success message
-                const messageDiv = document.createElement('div');
-                messageDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-                messageDiv.textContent = data.realized ? '{% trans "Budget marked as given to child" %}' : '{% trans "Budget marked as not given" %}';
-                document.body.appendChild(messageDiv);
-                
-                setTimeout(() => {
-                    messageDiv.remove();
-                }, 3000);
-            } else {
-                alert('{% trans "Error updating status:" %} ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Fetch Error:', error);
-            alert('{% trans "A network error occurred." %}');
-        });
-    }
-
-    // Function to toggle FlowGroup recurring status (Parents/Admins only)
-    function toggleFlowGroupRecurring() {
-        const flowGroupId = document.getElementById('flow-group-form').getAttribute('data-flow-group-id');
-
-        if (flowGroupId === 'NEW') {
-            alert('{% trans "Please save the Flow Group first before marking it as recurring." %}');
-            return;
-        }
-
-        fetch("{% url 'toggle_flowgroup_recurring_ajax' %}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrftoken,
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-                'flow_group_id': flowGroupId
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                // Update button visual state (desktop and mobile)
-                const recurringBtn = document.getElementById('recurring-btn');
-                const recurringBtnMobile = document.getElementById('recurring-btn-mobile');
-
-                // Update desktop button
-                if (recurringBtn) {
-                    const iconContainer = recurringBtn.querySelector('span:last-child');
-                    if (data.is_recurring) {
-                        recurringBtn.classList.remove('bg-blue-600/30', 'text-blue-600', 'dark:text-blue-400', 'hover:bg-blue-600/50');
-                        recurringBtn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
-                        iconContainer.classList.remove('bg-blue-700/50');
-                        iconContainer.classList.add('bg-blue-800');
-                    } else {
-                        recurringBtn.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700');
-                        recurringBtn.classList.add('bg-blue-600/30', 'text-blue-600', 'dark:text-blue-400', 'hover:bg-blue-600/50');
-                        iconContainer.classList.remove('bg-blue-800');
-                        iconContainer.classList.add('bg-blue-700/50');
-                    }
-                }
-
-                // Update mobile button
-                if (recurringBtnMobile) {
-                    const iconContainerMobile = recurringBtnMobile.querySelector('span:last-child');
-                    if (data.is_recurring) {
-                        recurringBtnMobile.classList.remove('bg-blue-600/30', 'text-blue-600', 'dark:text-blue-400', 'hover:bg-blue-600/50');
-                        recurringBtnMobile.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
-                        iconContainerMobile.classList.remove('bg-blue-700/50');
-                        iconContainerMobile.classList.add('bg-blue-800');
-                    } else {
-                        recurringBtnMobile.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700');
-                        recurringBtnMobile.classList.add('bg-blue-600/30', 'text-blue-600', 'dark:text-blue-400', 'hover:bg-blue-600/50');
-                        iconContainerMobile.classList.remove('bg-blue-800');
-                        iconContainerMobile.classList.add('bg-blue-700/50');
-                    }
-                }
-
-                // Show success message
-                const messageDiv = document.createElement('div');
-                messageDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-                messageDiv.textContent = data.is_recurring
-                    ? '{% trans "Group marked as recurring - will be copied to new periods" %}'
-                    : '{% trans "Group is no longer recurring" %}';
-                document.body.appendChild(messageDiv);
-
-                setTimeout(() => {
-                    messageDiv.remove();
-                }, 3000);
-            } else {
-                alert('{% trans "Error updating recurring status:" %} ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Fetch Error:', error);
-            alert('{% trans "A network error occurred." %}');
-        });
-    }
-
-    // Handle Kids checkbox change
-    function handleKidsChange() {
-        const kidsCheckbox = document.getElementById('id_is_kids_group');
-        const sharedCheckbox = document.getElementById('id_is_shared');
-        const childrenContainer = document.getElementById('children-selection-container');
-        const membersContainer = document.getElementById('members-selection-container');
-        
-        if (kidsCheckbox.checked) {
-            // Auto-check Shared when Kids is checked
-            sharedCheckbox.checked = true;
-            sharedCheckbox.disabled = true;
-            // Show children selection, hide members selection
-            childrenContainer.style.display = 'flex';
-            membersContainer.style.display = 'none';
-        } else {
-            // Enable Shared checkbox when Kids is unchecked
-            sharedCheckbox.disabled = false;
-            // Hide children selection
-            childrenContainer.style.display = 'none';
-            // Show members selection if Shared is
-            if (sharedCheckbox.checked) {
-                membersContainer.style.display = 'flex';
-            }
-        }
-    }
-    
-    // Handle Shared checkbox change
-    function handleSharedChange() {
-        const sharedCheckbox = document.getElementById('id_is_shared');
-        const kidsCheckbox = document.getElementById('id_is_kids_group');
-        const membersContainer = document.getElementById('members-selection-container');
-
-        // Only show members selection if Shared is checked AND Kids is NOT checked
-        if (sharedCheckbox.checked && !kidsCheckbox.checked) {
-            membersContainer.style.display = 'flex';
-        } else {
-            membersContainer.style.display = 'none';
-        }
-    }
-
-    // Handle Credit Card checkbox change
-    function handleCreditCardChange() {
-        // Currently no special handling needed on checkbox change
-        // The toggle will appear after the group is saved
-    }
-
-    // Function to block/unblock all fields when bill is closed/opened
-    function blockAllFields(shouldBlock) {
-        console.log('[Block Fields] shouldBlock:', shouldBlock);
-
-        // Block/unblock budget input
-        const budgetInput = document.querySelector('input[name="budgeted_amount"]');
-        if (budgetInput) {
-            budgetInput.disabled = shouldBlock;
-            if (shouldBlock) {
-                budgetInput.style.backgroundColor = '#f3f4f6';
-                budgetInput.style.color = '#9ca3af';
-                budgetInput.style.cursor = 'not-allowed';
-            } else {
-                budgetInput.style.backgroundColor = '';
-                budgetInput.style.color = '';
-                budgetInput.style.cursor = '';
-            }
-        }
-
-        // Block/unblock group name input
-        const nameInput = document.querySelector('input[name="name"]');
-        if (nameInput) {
-            nameInput.disabled = shouldBlock;
-            if (shouldBlock) {
-                nameInput.style.backgroundColor = '#f3f4f6';
-                nameInput.style.color = '#9ca3af';
-                nameInput.style.cursor = 'not-allowed';
-            } else {
-                nameInput.style.backgroundColor = '';
-                nameInput.style.color = '';
-                nameInput.style.cursor = '';
-            }
-        }
-
-        // Block/unblock all expense item fields and buttons
-        const tbody = document.getElementById('expense-items-body');
-        if (tbody) {
-            const rows = tbody.querySelectorAll('tr[id^="item-"]');
-            console.log('[Block Fields] Found rows:', rows.length);
-
-            rows.forEach(row => {
-                const itemId = row.id.replace('item-', '');
-                if (itemId !== 'NEW' && itemId !== 'new-item-template') {
-                    console.log('[Block Fields] Processing row:', itemId);
-
-                    // Block ALL input fields (description, date, amount, member)
-                    const allInputs = row.querySelectorAll('input, select');
-                    allInputs.forEach(input => {
-                        input.disabled = shouldBlock;
-                        if (shouldBlock) {
-                            input.style.backgroundColor = '#f3f4f6';
-                            input.style.color = '#9ca3af';
-                            input.style.cursor = 'not-allowed';
-                            input.style.opacity = '0.6';
-                        } else {
-                            input.style.backgroundColor = '';
-                            input.style.color = '';
-                            input.style.cursor = '';
-                            input.style.opacity = '';
-                        }
-                    });
-
-                    // Block realized toggle button
-                    const realizedToggle = row.querySelector('.realized-toggle');
-                    if (realizedToggle) {
-                        if (shouldBlock) {
-                            realizedToggle.style.opacity = '0.4';
-                            realizedToggle.style.cursor = 'not-allowed';
-                            realizedToggle.style.pointerEvents = 'none';
-                        } else {
-                            realizedToggle.style.opacity = '';
-                            realizedToggle.style.cursor = 'pointer';
-                            realizedToggle.style.pointerEvents = '';
-                        }
-                    }
-
-                    // Block fixed toggle button (desktop)
-                    const fixedToggle = row.querySelector('.fixed-toggle-btn');
-                    if (fixedToggle) {
-                        fixedToggle.disabled = shouldBlock;
-                        if (shouldBlock) {
-                            fixedToggle.style.opacity = '0.4';
-                            fixedToggle.style.cursor = 'not-allowed';
-                            fixedToggle.style.pointerEvents = 'none';
-                        } else {
-                            fixedToggle.style.opacity = '';
-                            fixedToggle.style.cursor = '';
-                            fixedToggle.style.pointerEvents = '';
-                        }
-                    }
-
-                    // Block ALL action buttons (edit, delete, save, cancel)
-                    const actionButtons = row.querySelectorAll('button[onclick*="toggleEditMode"], button[onclick*="deleteItem"], button[onclick*="saveItem"]');
-                    actionButtons.forEach(btn => {
-                        btn.disabled = shouldBlock;
-                        if (shouldBlock) {
-                            btn.style.opacity = '0.3';
-                            btn.style.cursor = 'not-allowed';
-                            btn.style.pointerEvents = 'none';
-                        } else {
-                            btn.style.opacity = '';
-                            btn.style.cursor = '';
-                            btn.style.pointerEvents = '';
-                        }
-                    });
-
-                    // Block mobile action buttons
-                    const mobileActions = row.querySelectorAll('.mobile-action-btn');
-                    mobileActions.forEach(btn => {
-                        btn.disabled = shouldBlock;
-                        if (shouldBlock) {
-                            btn.style.opacity = '0.3';
-                            btn.style.cursor = 'not-allowed';
-                            btn.style.pointerEvents = 'none';
-                        } else {
-                            btn.style.opacity = '';
-                            btn.style.cursor = '';
-                            btn.style.pointerEvents = '';
-                        }
-                    });
-
-                    // Block mobile fixed button
-                    const mobileFixedBtn = row.querySelector('.mobile-fixed-btn');
-                    if (mobileFixedBtn) {
-                        mobileFixedBtn.disabled = shouldBlock;
-                        if (shouldBlock) {
-                            mobileFixedBtn.style.opacity = '0.3';
-                            mobileFixedBtn.style.cursor = 'not-allowed';
-                            mobileFixedBtn.style.pointerEvents = 'none';
-                        } else {
-                            mobileFixedBtn.style.opacity = '';
-                            mobileFixedBtn.style.cursor = '';
-                            mobileFixedBtn.style.pointerEvents = '';
-                        }
-                    }
-
-                    // Disable dragging
-                    if (shouldBlock) {
-                        row.setAttribute('draggable', 'false');
-                        row.style.cursor = 'default';
-                    } else {
-                        row.setAttribute('draggable', 'true');
-                        row.style.cursor = '';
-                    }
-                }
-            });
-
-            // Block "Add New Item" row template
-            const newItemTemplate = document.getElementById('new-item-template');
-            if (newItemTemplate) {
-                if (shouldBlock) {
-                    newItemTemplate.style.display = 'none';
-                } else {
-                    // Don't force show, let normal logic handle it
-                }
-            }
-        }
-
-        // Block the "+ Add New Item" button at the bottom
-        const addButtons = document.querySelectorAll('button[onclick*="showNewItemRow"], button[onclick*="addNewExpenseRow"]');
-        addButtons.forEach(btn => {
-            btn.disabled = shouldBlock;
-            if (shouldBlock) {
-                btn.style.opacity = '0.3';
-                btn.style.cursor = 'not-allowed';
-                btn.style.pointerEvents = 'none';
-            } else {
-                btn.style.opacity = '';
-                btn.style.cursor = '';
-                btn.style.pointerEvents = '';
-            }
-        });
-
-        console.log('[Block Fields] All fields', shouldBlock ? 'blocked' : 'unblocked');
-    }
-
-    // Function to toggle Credit Card closed status (Parents/Admins only)
-    function toggleCreditCardClosed(currentStatus) {
-        const flowGroupId = document.getElementById('flow-group-form').getAttribute('data-flow-group-id');
-
-        if (flowGroupId === 'NEW') {
-            alert('{% trans "Please save the Flow Group first before marking it as closed." %}');
-            return;
-        }
-
-        const newStatus = !currentStatus;
-
-        fetch("{% url 'toggle_credit_card_closed_ajax' %}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrftoken,
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-                'flow_group_id': flowGroupId,
-                'closed': newStatus
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                // Update button visual state (desktop and mobile)
-                const closedBtn = document.getElementById('closed-btn');
-                const closedBtnMobile = document.getElementById('closed-btn-mobile');
-
-                if (data.closed) {
-                    // Update desktop button
-                    if (closedBtn) {
-                        const iconContainer = closedBtn.querySelector('span:last-child');
-                        closedBtn.style.backgroundColor = '#dc2626';
-                        closedBtn.style.color = 'white';
-                        closedBtn.style.border = 'none';
-                        iconContainer.style.backgroundColor = '#991b1b';
-                        closedBtn.setAttribute('onclick', `toggleCreditCardClosed(true)`);
-                    }
-
-                    // Update mobile button
-                    if (closedBtnMobile) {
-                        const iconContainerMobile = closedBtnMobile.querySelector('span:last-child');
-                        closedBtnMobile.style.backgroundColor = '#dc2626';
-                        closedBtnMobile.style.color = 'white';
-                        closedBtnMobile.style.border = 'none';
-                        iconContainerMobile.style.backgroundColor = '#991b1b';
-                        closedBtnMobile.setAttribute('onclick', `toggleCreditCardClosed(true)`);
-                    }
-
-                    // Update all transaction toggles to realized=true
-                    const tbody = document.getElementById('expense-items-body');
-                    console.log('[Credit Card Toggle] Looking for tbody:', tbody);
-                    if (tbody) {
-                        const rows = tbody.querySelectorAll('tr[id^="item-"]');
-                        console.log('[Credit Card Toggle] Found rows:', rows.length);
-                        rows.forEach(row => {
-                            const itemId = row.id.replace('item-', '');
-                            console.log('[Credit Card Toggle] Processing item:', itemId);
-                            if (itemId !== 'NEW') {
-                                // Update data attribute
-                                row.setAttribute('data-realized', 'true');
-
-                                // Update toggle button visual state
-                                const itemToggle = row.querySelector('.realized-toggle');
-                                console.log('[Credit Card Toggle] Found toggle for item', itemId, ':', itemToggle);
-                                if (itemToggle) {
-                                    const itemToggleCircle = itemToggle.querySelector('span');
-                                    console.log('[Credit Card Toggle] Found toggle circle:', itemToggleCircle);
-
-                                    // Remove gray and add green
-                                    itemToggle.classList.remove('bg-gray-300', 'dark:bg-gray-600');
-                                    itemToggle.classList.add('bg-green-500');
-
-                                    // Move the circle
-                                    if (itemToggleCircle) {
-                                        itemToggleCircle.classList.add('translate-x-4');
-                                    }
-
-                                    // Update onclick
-                                    itemToggle.setAttribute('onclick', `toggleRealized('item-${itemId}', true)`);
-                                }
-
-                                // Update mobile row visual state
-                                row.classList.remove('row-not-realized');
-                                row.classList.add('row-realized');
-                            }
-                        });
-                    } else {
-                        console.error('[Credit Card Toggle] tbody not found!');
-                    }
-
-                    // Update budget field with actual total from backend
-                    const budgetInput = document.querySelector('input[name="budgeted_amount"]');
-                    if (budgetInput && data.budget) {
-                        budgetInput.value = data.budget;
-                        console.log('[Credit Card Toggle] Updated budget to:', data.budget);
-                    }
-
-                    // Block all fields when bill is closed
-                    blockAllFields(true);
-                } else {
-                    // Update desktop button
-                    if (closedBtn) {
-                        const iconContainer = closedBtn.querySelector('span:last-child');
-                        closedBtn.style.backgroundColor = 'rgba(220, 38, 38, 0.3)';
-                        closedBtn.style.color = '#dc2626';
-                        closedBtn.style.border = 'none';
-                        iconContainer.style.backgroundColor = 'rgba(185, 28, 28, 0.5)';
-                        closedBtn.setAttribute('onclick', `toggleCreditCardClosed(false)`);
-                    }
-                    // Update mobile button
-                    if (closedBtnMobile) {
-                        const iconContainer = closedBtnMobile.querySelector('span:last-child');
-                        closedBtnMobile.style.backgroundColor = 'rgba(220, 38, 38, 0.3)';
-                        closedBtnMobile.style.color = '#dc2626';
-                        closedBtnMobile.style.border = 'none';
-                        iconContainer.style.backgroundColor = 'rgba(185, 28, 28, 0.5)';
-                        closedBtnMobile.setAttribute('onclick', `toggleCreditCardClosed(false)`);
-                    }
-
-                    // Unblock all fields when bill is reopened
-                    blockAllFields(false);
-                }
-
-                // Show success message
-                const messageDiv = document.createElement('div');
-                messageDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-                if (data.closed) {
-                    messageDiv.textContent = '{% trans "Bill marked as closed and paid" %}' + (data.transactions_updated > 0 ? ` (${data.transactions_updated} {% trans "items marked as realized" %})` : '');
-                } else {
-                    messageDiv.textContent = '{% trans "Bill marked as not closed" %}';
-                }
-                document.body.appendChild(messageDiv);
-
-                setTimeout(() => {
-                    messageDiv.remove();
-                }, 3000);
-            } else {
-                alert('{% trans "Error updating status:" %} ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Fetch Error:', error);
-            alert('{% trans "A network error occurred." %}');
-        });
-    }
-
-    // Function to apply money mask - input from right to left starting with cents
-    function applyMoneyMask(event) {
-        const input = event.target;
-        
-        // 1. Save cursor position and original value
-        const originalCursorPos = input.selectionStart;
-        const originalValue = input.value;
-
-        let value = input.value;
-
-        // Remove all non-digit characters
-        value = value.replace(/\D/g, '');
-
-        // If empty, set to 0. This case is simple.
-        if (value === '') {
-            input.value = '0' + decimalSeparator + '00';
-            // Position cursor at end for the default zero value
-            setTimeout(function() {
-                input.setSelectionRange(input.value.length, input.value.length);
-            }, 0);
-            return;
-        }
-
-        // Convert to integer (cents)
-        let cents = parseInt(value, 10);
-
-        // Format as currency with 2 decimal places
-        let integerPart = Math.floor(cents / 100).toString();
-        let decimalPart = (cents % 100).toString().padStart(2, '0');
-
-        // Add thousand separators to integer part
-        integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, thousandSeparator);
-
-        // Set the new formatted value
-        input.value = integerPart + decimalSeparator + decimalPart;
-
-        // 3. Calculate and restore cursor position
-        const newLength = input.value.length;
-        const oldLength = originalValue.length;
-        let newCursorPos = originalCursorPos + (newLength - oldLength);
-
-        // Ensure cursor doesn't go to a negative position (can happen on delete)
-        if (newCursorPos < 0) {
-            newCursorPos = 0;
-        }
-        
-        input.setSelectionRange(newCursorPos, newCursorPos);
-    }
-
-    // Function to get raw value from masked input (for sending to backend)
-    function getRawValue(maskedValue) {
-        // Remove thousand separators and replace decimal separator with dot
-        let value = maskedValue.replace(new RegExp('\\' + thousandSeparator, 'g'), '');
-        value = value.replace(decimalSeparator, '.');
-        return value;
-    }
-
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        // Set initial state based on existing values
-        handleKidsChange();
-        // Initialize drag and drop
-        initializeDragAndDrop();
-        // Initialize toggle for new item
-        initializeNewItemToggle();
-
-        // Check if bill is closed and block fields accordingly
-        {% if flow_group.is_credit_card and flow_group.closed %}
-        blockAllFields(true);
-        console.log('[DOMContentLoaded] Bill is closed, fields blocked');
-        {% endif %}
-
-        // Add money mask to all amount fields using event delegation
-        // This ensures new dynamically added fields also get the mask
-        document.addEventListener('input', function(event) {
-            if (event.target.matches('input[data-field="amount"]')) {
-                applyMoneyMask(event);
-            }
-        });
-
-        // CORREÇÃO: Cursor orientado à direita apenas no primeiro clique/foco
-        // Após o primeiro foco, permitir seleção livre
-        document.addEventListener('focus', function(event) {
-            if (event.target.matches('input[data-field="amount"]')) {
-                // Verificar se é o primeiro foco (campo não tem flag de já focado)
-                if (!event.target.hasAttribute('data-first-focus-done')) {
-                    // Primeiro foco: mover cursor para o final
-                    event.target.setAttribute('data-first-focus-done', 'true');
-                    setTimeout(function() {
-                        event.target.setSelectionRange(event.target.value.length, event.target.value.length);
-                    }, 0);
-                }
-                // Cliques subsequentes: permitir seleção livre (não fazer nada)
-            }
-        }, true);
-
-
-        // CORREÇÃO: Resetar flags quando o campo perde o foco
-        // Isso garante que ao voltar ao campo, será tratado como primeiro foco novamente
-        document.addEventListener('blur', function(event) {
-            if (event.target.matches('input[data-field="amount"]')) {
-                event.target.removeAttribute('data-first-focus-done');
-            }
-        }, true);
-
-        // CORREÇÃO: Remover bloqueio de teclas de navegação
-        // Agora o usuário pode usar setas para navegar livremente após o primeiro foco
-        // (Código de bloqueio de arrow keys REMOVIDO)
-
-        // Initialize existing amount fields with money mask on page load
-        document.querySelectorAll('input[data-field="amount"]').forEach(function(input) {
-            if (input.value && input.value.trim() !== '') {
-                // Parse existing decimal value (e.g., "23.58" or "23,58")
-                let value = input.value.replace(',', '.');
-                let num = parseFloat(value);
-                if (!isNaN(num)) {
-                    // Convert to cents
-                    let cents = Math.round(num * 100);
-                    // Format with mask
-                    let integerPart = Math.floor(cents / 100).toString();
-                    let decimalPart = (cents % 100).toString().padStart(2, '0');
-                    integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, thousandSeparator);
-                    input.value = integerPart + decimalSeparator + decimalPart;
-                } else {
-                    input.value = '0' + decimalSeparator + '00';
-                }
-            } else {
-                // Set default value for empty fields
-                input.value = '0' + decimalSeparator + '00';
-            }
-        });
-    });
-
-    // Function to format amount values with user's locale decimal separator
-    function formatAmountForInput(amount) {
-        // Convert to number and format with 2 decimals
-        const num = parseFloat(amount);
-        if (isNaN(num)) return amount;
-
-        // Format to 2 decimal places and replace decimal separator
-        // decimalSeparator comes from backend template context
-        return num.toFixed(2).replace('.', decimalSeparator);
-    }
-
-    // Function to format number as currency for display
-    function formatCurrency(amount) {
-        // Parse the amount to ensure it's a number
-        const num = parseFloat(amount);
-        if (isNaN(num)) return amount;
-
-        // Format to 2 decimal places
-        const parts = num.toFixed(2).split('.');
-        const integerPart = parts[0];
-        const decimalPart = parts[1];
-
-        // Add thousand separators to integer part
-        const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, thousandSeparator);
-
-        // Combine with decimal separator
-        return formattedInteger + decimalSeparator + decimalPart;
-    }
-
-    // Function to update budget warning display
-    function updateBudgetWarning() {
-        const warningContainer = document.getElementById('budget-warning-container');
-        const warningText = document.getElementById('budget-warning-text');
-
-        // If elements don't exist, just return (page might not have budget warning section)
-        if (!warningContainer || !warningText) return;
-
-        // Get budget amount from the form
-        const budgetInput = document.querySelector('input[name="budgeted_amount"]');
-        if (!budgetInput) {
-            console.log('[updateBudgetWarning] Budget input not found');
-            return;
-        }
-
-        // Parse budget value using getRawValue to handle money mask format
-        const budgetedAmount = parseFloat(getRawValue(budgetInput.value)) || 0;
-
-        console.log('[updateBudgetWarning] Budget input value:', budgetInput.value);
-        console.log('[updateBudgetWarning] Budget parsed:', budgetedAmount);
-        console.log('[updateBudgetWarning] Translated strings:', txtEstimatedExpenses, txtExceedBudget);
-
-        // Calculate total from all transaction rows
-        let totalEstimated = 0;
-        const rows = document.querySelectorAll('tr[data-item-id]');
-        rows.forEach(row => {
-            const amount = parseFloat(row.getAttribute('data-amount')) || 0;
-            totalEstimated += amount;
-        });
-
-        console.log('[updateBudgetWarning] Total estimated:', totalEstimated);
-
-        // Check if over budget
-        const isOverBudget = totalEstimated > budgetedAmount;
-
-        if (isOverBudget) {
-            // Show warning with formatted values
-            const formattedEstimated = formatCurrency(totalEstimated);
-            const formattedBudget = formatCurrency(budgetedAmount);
-
-            console.log('[updateBudgetWarning] Formatted values:', formattedEstimated, formattedBudget);
-
-            // Build text using translated strings
-            const warningMsg = txtEstimatedExpenses + ' (' + currencySymbol + ' ' + formattedEstimated + ') ' + txtExceedBudget + ' (' + currencySymbol + ' ' + formattedBudget + ').';
-            warningText.textContent = warningMsg;
-            warningContainer.classList.remove('hidden');
-        } else {
-            // Hide warning
-            warningContainer.classList.add('hidden');
-        }
-    }
-
-    // Function to delete flow group
-    async function deleteFlowGroup() {
-        const confirmed = await confirm('{% trans "WARNING: All transactions in this group for the current period will be permanently deleted. This action cannot be undone." %}\n\n{% trans "Are you sure you want to delete this Flow Group?" %}');
-        if (!confirmed) {
-            return;
-        }
-
-        const flowGroupId = document.getElementById('flow-group-form').getAttribute('data-flow-group-id');
-        
-        fetch("{% url 'delete_flow_group' flow_group.id|default:0 %}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrftoken,
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                // Show success message
-                const messageDiv = document.createElement('div');
-                messageDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-                messageDiv.textContent = '{% trans "Flow Group deleted successfully" %}';
-                document.body.appendChild(messageDiv);
-                
-                // Redirect after 3 seconds
-                setTimeout(() => {
-                    window.location.href = "{% url 'dashboard' %}{% if selected_period %}?period={{ selected_period }}{% endif %}";
-                }, 3000);
-            } else {
-                alert('{% trans "Error deleting Flow Group:" %} ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Fetch Error:', error);
-            alert('{% trans "A network error occurred." %}');
-        });
-    }
-
-    // CORREÇÃO: Função auxiliar para retry com backoff exponencial
-    function fetchWithRetry(url, options, maxRetries = 3, delay = 100) {
-        return fetch(url, options)
-            .then(response => response.json())
-            .then(data => {
-                // Se houver erro de "database is locked", tentar novamente
-                if (data.error && typeof data.error === 'string' && data.error.includes('database is locked')) {
-                    if (maxRetries > 0) {
-                        console.log(`[RETRY] Database locked, retrying in ${delay}ms... (${maxRetries} attempts left)`);
-                        return new Promise(resolve => {
-                            setTimeout(() => {
-                                resolve(fetchWithRetry(url, options, maxRetries - 1, delay * 2));
-                            }, delay);
-                        });
-                    }
-                }
-                return data;
-            });
-    }
-
-    // Function to toggle realized status directly (without entering edit mode)
-    function toggleRealized(rowId, currentStatus) {
-        const row = document.getElementById(rowId);
-        const transactionId = row.getAttribute('data-item-id');
-
-        if (transactionId === 'NEW') return;
-
-        const newStatus = !currentStatus;
-
-        // Get other field values from display mode
-        const description = row.querySelector('.cell-description-display').textContent;
-        // Get amount from edit input and convert from masked format
-        const amountInput = row.querySelector('.cell-budget-edit input[data-field="amount"]');
-        const amountText = getRawValue(amountInput.value);
-        // Get date from the hidden input (edit mode) which has the correct YYYY-MM-DD format
-        const dateText = row.querySelector('.cell-date-edit input[data-field="date"]').value;
-        const memberId = row.querySelector('.cell-member-display').getAttribute('data-member-id');
-        const isFixed = row.getAttribute('data-is-fixed') === 'true';
-
-        const data = {
-            'flow_group_id': document.getElementById('flow-group-form').getAttribute('data-flow-group-id'),
-            'transaction_id': transactionId,
-            'description': description,
-            'amount': amountText, // Send raw value in standard format
-            'date': dateText,
-            'member_id': memberId,
-            'realized': newStatus,
-            'is_fixed': isFixed,
-        };
-
-        // CORREÇÃO: Usar fetchWithRetry para lidar com database locks
-        fetchWithRetry("{% url 'save_flow_item_ajax' %}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrftoken,
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify(data)
-        })
-        .then(data => {
-            if (data.status === 'success') {
-                // Update toggle visual state
-                const toggleBtn = row.querySelector('.realized-toggle');
-
-                // CORREÇÃO: Atualizar os atributos 'data-realized' e 'data-amount'
-                row.setAttribute('data-realized', data.realized ? 'true' : 'false');
-                row.setAttribute('data-amount', data.amount); // Manter o data-amount em sincronia
-
-                if (data.realized) {
-                    // Update desktop toggle button
-                    if (toggleBtn) {
-                        const toggleCircle = toggleBtn.querySelector('span');
-                        toggleBtn.classList.remove('bg-gray-300', 'dark:bg-gray-600');
-                        toggleBtn.classList.add('bg-green-500');
-                        toggleCircle.classList.add('translate-x-4');
-                        toggleBtn.setAttribute('onclick', `toggleRealized('${rowId}', true)`);
-                    }
-                    // Update mobile row visual state
-                    row.classList.remove('row-not-realized');
-                    row.classList.add('row-realized');
-                } else {
-                    // Update desktop toggle button
-                    if (toggleBtn) {
-                        const toggleCircle = toggleBtn.querySelector('span');
-                        toggleBtn.classList.remove('bg-green-500');
-                        toggleBtn.classList.add('bg-gray-300', 'dark:bg-gray-600');
-                        toggleCircle.classList.remove('translate-x-4');
-                        toggleBtn.setAttribute('onclick', `toggleRealized('${rowId}', false)`);
-                    }
-                    // Update mobile row visual state
-                    row.classList.remove('row-realized');
-                    row.classList.add('row-not-realized');
-                }
-                
-                // Reset mobile swipe position
-                row.style.transform = 'translateX(0)';
-                row.classList.remove('actions-revealed', 'fixed-revealed'); // <-- Added for consistency
-
-            } else {
-                alert('{% trans "Error updating realized status:" %} ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Fetch Error:', error);
-            alert('{% trans "A network error occurred." %}');
-        });
-    }
-
-    // Function to toggle transaction fixed status (Parents/Admins only)
-    function toggleTransactionFixed(rowId) {
-        const row = document.getElementById(rowId);
-        const transactionId = row.getAttribute('data-item-id');
-
-        if (transactionId === 'NEW') {
-            alert('{% trans "Please save the transaction first before marking it as fixed." %}');
-            return;
-        }
-
-        fetch("{% url 'toggle_transaction_fixed_ajax' %}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrftoken,
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({
-                'transaction_id': transactionId
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                // Update data attribute
-                row.setAttribute('data-is-fixed', data.is_fixed ? 'true' : 'false');
-
-                // Update desktop toggle button
-                const desktopBtn = row.querySelector('.fixed-toggle-btn');
-                if (desktopBtn) {
-                    if (data.is_fixed) {
-                        desktopBtn.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-400', 'dark:text-gray-500', 'hover:bg-blue-200', 'dark:hover:bg-blue-900/30');
-                        desktopBtn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
-                    } else {
-                        desktopBtn.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700');
-                        desktopBtn.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-400', 'dark:text-gray-500', 'hover:bg-blue-200', 'dark:hover:bg-blue-900/30');
-                    }
-                }
-
-                // Update mobile button
-                const mobileBtn = row.querySelector('.mobile-fixed-btn');
-                if (mobileBtn) {
-                    if (data.is_fixed) {
-                        mobileBtn.classList.add('active');
-                    } else {
-                        mobileBtn.classList.remove('active');
-                    }
-                }
-
-                // Update row visual state (thick border for fixed items on mobile)
-                if (data.is_fixed) {
-                    row.classList.add('row-fixed');
-                } else {
-                    row.classList.remove('row-fixed');
-                }
-
-                // If FlowGroup recurring status was updated, update the recurring button
-                if (data.flow_group_updated) {
-                    const recurringBtn = document.getElementById('recurring-btn');
-                    if (recurringBtn) {
-                        const iconContainer = recurringBtn.querySelector('span:last-child');
-                        recurringBtn.classList.remove('bg-blue-600/30', 'text-blue-600', 'dark:text-blue-400', 'hover:bg-blue-600/50');
-                        recurringBtn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
-                        iconContainer.classList.remove('bg-blue-700/50');
-                        iconContainer.classList.add('bg-blue-800');
-                    }
-                }
-
-                // Reset mobile swipe position
-                row.style.transform = 'translateX(0)';
-                row.classList.remove('actions-revealed', 'fixed-revealed'); // <-- Added for this function
-
-                // Show success message
-                const messageDiv = document.createElement('div');
-                messageDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-                messageDiv.textContent = data.is_fixed
-                    ? '{% trans "Transaction marked as fixed - will be copied to new periods" %}'
-                    : '{% trans "Transaction is no longer fixed" %}';
-                document.body.appendChild(messageDiv);
-
-                setTimeout(() => {
-                    messageDiv.remove();
-                }, 3000);
-            } else {
-                alert('{% trans "Error updating fixed status:" %} ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Fetch Error:', error);
-            alert('{% trans "A network error occurred." %}');
-        });
-    }
-
-    // Function to toggle fixed status for new items (before they are saved)
-    function toggleNewItemFixed(rowId) {
-        const row = document.getElementById(rowId);
-        const toggleBtn = row.querySelector('.fixed-toggle-new');
-
-        if (!toggleBtn) return;
-
-        const currentState = toggleBtn.getAttribute('data-is-fixed') === 'true';
-        const newState = !currentState;
-
-        // Update data attribute
-        toggleBtn.setAttribute('data-is-fixed', newState ? 'true' : 'false');
-
-        // Update button appearance
-        if (newState) {
-            toggleBtn.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-400', 'dark:text-gray-500');
-            toggleBtn.classList.add('bg-blue-600', 'text-white');
-        } else {
-            toggleBtn.classList.remove('bg-blue-600', 'text-white');
-            toggleBtn.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-400', 'dark:text-gray-500');
-        }
-
-        console.log('[DEBUG] New item fixed status toggled:', newState);
-    }
-
-    // Function to add a new row using the template
-    function addNewRow() {
-        const templateRow = document.getElementById('new-item-template');
-        if (templateRow && templateRow.classList.contains('hidden')) {
-             // Ensure date field is initialized BEFORE showing the row
-             const dateInput = templateRow.querySelector('input[data-field="date"]');
-             if (dateInput) {
-                 const today = new Date().toISOString().split('T')[0];
-                 dateInput.value = today;
-                 const [year, month, day] = today.split('-');
-                 const displayValue = `${day}/${month}`;
-                 dateInput.setAttribute('data-display-value', displayValue);
-             }
-
-             templateRow.classList.remove('hidden');
-             templateRow.querySelector('input[data-field="description"]').focus();
-        } else if (templateRow) {
-             templateRow.querySelector('input[data-field="description"]').focus();
-        }
-    }
-    
-    // Function to handle saving/updating an item (New or Existing)
-    function saveItem(rowId) {
-        const row = document.getElementById(rowId);
-        const isNew = row.getAttribute('data-item-id') === 'NEW';
-        
-        // CORREÇÃO: Ler o 'realized' do atributo 'data-realized' para itens existentes
-        let realizedValue = false;
-        if (isNew) {
-            // Para novos itens, ler o estado do toggle (baseado em classe)
-            const toggleNew = row.querySelector('.realized-toggle-new');
-            realizedValue = toggleNew.classList.contains('bg-green-500');
-        } else {
-            // Para itens existentes, ler o atributo 'data-realized'
-            realizedValue = row.getAttribute('data-realized') === 'true';
-        }
-        
-        // Get amount value - convert from masked format to raw decimal
-        let amountValue = getRawValue(row.querySelector('input[data-field="amount"]').value);
-
-        // Get is_fixed value
-        let isFixedValue = false;
-        if (isNew) {
-            // Para novos itens, ler do botão toggle
-            const toggleFixedNew = row.querySelector('.fixed-toggle-new');
-            if (toggleFixedNew) {
-                isFixedValue = toggleFixedNew.getAttribute('data-is-fixed') === 'true';
-            }
-        } else {
-            // Para itens existentes, ler do atributo da row
-            isFixedValue = row.getAttribute('data-is-fixed') === 'true';
-        }
-
-        const data = {
-            'flow_group_id': document.getElementById('flow-group-form').getAttribute('data-flow-group-id'),
-            'transaction_id': isNew ? null : row.getAttribute('data-item-id'),
-            'description': row.querySelector('input[data-field="description"]').value,
-            'amount': amountValue,  // Send raw value, backend handles locale
-            'date': row.querySelector('input[data-field="date"]').value,
-            'member_id': row.querySelector('select[data-field="member_id"]').value,
-            'realized': realizedValue,
-            'is_fixed': isFixedValue,  // Include is_fixed field
-            'is_child_expense': memberRoleForPeriod === 'CHILD',  // Flag for child expense
-        };
-
-        if (!data.description || !data.amount || !data.date) {
-            alert("{% trans 'Description, Amount, and Date are required.' %}");
-            return;
-        }
-
-        fetch("{% url 'save_flow_item_ajax' %}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrftoken,
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify(data)
-        })
-        .then(response => {
-            console.log('[DEBUG] Response status:', response.status);
-            return response.json();
-        })
-        .then(data => {
-            console.log('[DEBUG] Response data:', data);
-            try {
-                if (data.status === 'success') {
-                    if (isNew) {
-                        // CORREÇÃO: Remover linha de "No transactions found" se existir
-                        const tbody = document.getElementById('expense-items-body');
-                        const emptyRow = tbody.querySelector('tr:not([data-item-id]):not([id])');
-                        if (emptyRow) {
-                            console.log('[DEBUG] Removing empty placeholder row');
-                            emptyRow.remove();
-                        }
-
-                        // Clone the template row instead of converting it
-                        const templateRow = row;
-                        const newRow = templateRow.cloneNode(true);
-
-                        // Insert the new row before the template
-                        templateRow.parentNode.insertBefore(newRow, templateRow);
-
-                        // Update row ID and attributes
-                        console.log('[DEBUG] Updating row attributes...');
-                        newRow.id = 'item-' + data.transaction_id;
-                        newRow.setAttribute('data-item-id', data.transaction_id);
-                        newRow.setAttribute('data-mode', 'display');
-                        newRow.setAttribute('data-realized', data.realized ? 'true' : 'false');
-                        newRow.setAttribute('data-is-fixed', data.is_fixed ? 'true' : 'false');
-                        newRow.setAttribute('data-amount', data.amount);
-                        newRow.setAttribute('data-date', data.date);
-                        // Remove mobile-initialized flag so new row gets touch listeners
-                        newRow.removeAttribute('data-mobile-initialized');
-
-                        // Update drag handle to show drag icon instead of check icon
-                        console.log('[DEBUG] Updating drag handle...');
-                        const dragHandle = newRow.querySelector('.drag-handle-cell');
-                        if (dragHandle) {
-                            // Build mobile fixed button HTML (if not CHILD role)
-                            let mobileFixedBtnHtml = '';
-                            if (memberRoleForPeriod !== 'CHILD') {
-                                const isFixed = data.is_fixed;
-                                const activeClass = isFixed ? 'active' : '';
-                                mobileFixedBtnHtml = '<div class="mobile-fixed-btn-container">' +
-                                    '<button type="button" data-action="toggle-fixed" data-item-id="item-' + data.transaction_id + '" ' +
-                                    'class="mobile-fixed-btn ' + activeClass + '" title="Mark as recurring expense">' +
-                                    '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
-                                    '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8m0-5v5h5" />' +
-                                    '</svg></button></div>';
-                            }
-
-                            dragHandle.innerHTML = mobileFixedBtnHtml +
-                                '<span class="material-symbols-outlined text-gray-400 dark:text-gray-500 drag-handle cursor-grab active:cursor-grabbing">drag_indicator</span>' +
-                                '<button type="button" data-action="save" data-item-id="item-' + data.transaction_id + '" class="edit-save-icon" style="display: none;">' +
-                                '<span class="material-symbols-outlined text-green-500 text-2xl">check_circle</span></button>';
-                        }
-
-                        // Update action buttons (Edit and Delete)
-                        console.log('[DEBUG] Updating action buttons...');
-                        const actionsDisplay = newRow.querySelector('.actions-display');
-                        if (actionsDisplay) {
-                            actionsDisplay.innerHTML =
-                                '<button type="button" data-action="edit" data-item-id="item-' + data.transaction_id + '" class="p-1 text-slate-500 hover:text-primary">' +
-                                '<span class="material-symbols-outlined text-lg">edit</span></button>' +
-                                '<button type="button" data-action="delete" data-item-id="item-' + data.transaction_id + '" class="p-1 text-slate-500 hover:text-red-500">' +
-                                '<span class="material-symbols-outlined text-lg">delete</span></button>';
-                            actionsDisplay.classList.remove('hidden');
-                        }
-
-                        // Hide action edit buttons (check and cancel)
-                        const actionsEdit = newRow.querySelector('.actions-edit');
-                        if (actionsEdit) {
-                            actionsEdit.classList.add('hidden');
-                        }
-
-                        // CORREÇÃO: Convert Realized toggle from new item to regular item
-                        console.log('[DEBUG] Converting Realized toggle...');
-                        const realizedToggleNew = newRow.querySelector('.realized-toggle-new');
-                        if (realizedToggleNew) {
-                            const realizedCell = realizedToggleNew.closest('td');
-                            console.log('[DEBUG] Realized cell found:', realizedCell);
-                            const isRealized = data.realized;
-                            const bgClass = isRealized ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600';
-                            const translateClass = isRealized ? 'translate-x-4' : '';
-                            realizedCell.innerHTML =
-                                '<div class="flex items-center justify-center">' +
-                                '<button type="button" ' +
-                                'class="realized-toggle relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full cursor-pointer ' + bgClass + '">' +
-                                '<span class="absolute left-1 top-1 inline-block w-4 h-4 transition-transform duration-200 ease-in-out transform bg-white rounded-full ' + translateClass + '"></span>' +
-                                '</button>' +
-                                '</div>';
-
-                            // CORREÇÃO: Adicionar event listener diretamente em vez de onclick inline
-                            const realizedBtn = realizedCell.querySelector('.realized-toggle');
-                            if (realizedBtn) {
-                                // Remover qualquer listener anterior (prevenção)
-                                const newBtn = realizedBtn.cloneNode(true);
-                                realizedBtn.parentNode.replaceChild(newBtn, realizedBtn);
-
-                                // Adicionar novo listener
-                                newBtn.addEventListener('click', function() {
-                                    const currentRealized = newRow.getAttribute('data-realized') === 'true';
-                                    toggleRealized('item-' + data.transaction_id, currentRealized);
-                                });
-                                console.log('[DEBUG] Realized button event listener attached');
-                            }
-                        } else {
-                            console.log('[DEBUG] Realized cell NOT updated - toggle not found');
-                        }
-
-                        // Convert Fixed toggle from new item to regular item
-                        console.log('[DEBUG] Converting Fixed toggle...');
-                        // Find the Fixed cell by looking for the fixed-toggle-new div
-                        const fixedToggleNew = newRow.querySelector('.fixed-toggle-new');
-                        if (fixedToggleNew && memberRoleForPeriod !== 'CHILD') {
-                            const fixedCell = fixedToggleNew.closest('td');
-                            console.log('[DEBUG] Fixed cell found:', fixedCell);
-                            const isFixed = data.is_fixed;
-                            const bgClass = isFixed ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 hover:bg-blue-200 dark:hover:bg-blue-900/30';
-                            fixedCell.innerHTML =
-                                '<div class="flex items-center justify-center">' +
-                                '<button type="button" data-action="toggle-fixed" data-item-id="item-' + data.transaction_id + '" ' +
-                                'class="fixed-toggle-btn inline-flex items-center justify-center w-8 h-8 rounded transition-all duration-200 ' + bgClass + '" ' +
-                                'title="Mark as recurring expense">' +
-                                '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
-                                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8m0-5v5h5" />' +
-                                '</svg></button>' +
-                                '</div>';
-                            console.log('[DEBUG] Fixed cell updated with button');
-                        } else {
-                            console.log('[DEBUG] Fixed cell NOT updated - toggle not found or user is CHILD');
-                        }
-
-                        // Create date display structure (date-full and date-short spans)
-                        console.log('[DEBUG] Creating date display structure...');
-                        const dateDisplayCell = newRow.querySelector('.cell-date-display');
-                        if (dateDisplayCell) {
-                            const dateObj = new Date(data.date + 'T00:00:00');
-                            const day = String(dateObj.getDate()).padStart(2, '0');
-                            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-                            dateDisplayCell.innerHTML =
-                                '<span class="date-full">' + data.date + '</span>' +
-                                '<span class="date-short">' + day + '/' + month + '</span>';
-                        }
-
-                        // Add mobile action buttons to amount cell
-                        console.log('[DEBUG] Adding mobile action buttons...');
-                        const budgetDisplayCell = newRow.querySelector('.cell-budget-display');
-                        if (budgetDisplayCell) {
-                            // Ensure cell has the correct class for mobile buttons
-                            budgetDisplayCell.classList.add('amount-cell-with-actions');
-
-                            // Add mobile action buttons (they should already exist from clone, but update IDs)
-                            let mobileActionsDiv = budgetDisplayCell.querySelector('.mobile-actions-btns');
-                            if (!mobileActionsDiv) {
-                                // If not present, create them
-                                mobileActionsDiv = document.createElement('div');
-                                mobileActionsDiv.className = 'mobile-actions-btns';
-                                budgetDisplayCell.appendChild(mobileActionsDiv);
-                            }
-
-                            mobileActionsDiv.innerHTML =
-                                '<button type="button" data-action="edit" data-item-id="item-' + data.transaction_id + '" class="mobile-action-btn edit-btn">' +
-                                '<span class="material-symbols-outlined">edit</span></button>' +
-                                '<button type="button" data-action="delete" data-item-id="item-' + data.transaction_id + '" class="mobile-action-btn delete-btn">' +
-                                '<span class="material-symbols-outlined">delete</span></button>';
-                        }
-
-                        // Switch to display mode FIRST (so display elements are visible)
-                        console.log('[DEBUG] Toggling edit mode...');
-                        toggleEditMode('item-' + data.transaction_id, false);
-
-                        // Then populate display values
-                        console.log('[DEBUG] Calling updateRowDisplay...');
-                        updateRowDisplay('item-' + data.transaction_id, data);
-
-                        // Update onclick handlers with new row ID
-                        console.log('[DEBUG] Updating onclick handlers...');
-                        newRow.querySelectorAll('button[onclick*="new-item-template"]').forEach(btn => {
-                            const onclick = btn.getAttribute('onclick');
-                            if (onclick) {
-                                btn.setAttribute('onclick', onclick.replace('new-item-template', 'item-' + data.transaction_id));
-                            }
-                        });
-
-                        // Reset and hide the template row for next use
-                        console.log('[DEBUG] Resetting template...');
-                        const descInput = templateRow.querySelector('input[data-field="description"]');
-                        if (descInput) descInput.value = '';
-
-                        const amountInput = templateRow.querySelector('input[data-field="amount"]');
-                        if (amountInput) amountInput.value = '0' + decimalSeparator + '00';
-
-                        const dateInput = templateRow.querySelector('input[data-field="date"]');
-                        if (dateInput) {
-                            const today = new Date().toISOString().split('T')[0];
-                            dateInput.value = today;
-                            const [year, month, day] = today.split('-');
-                            const displayValue = `${day}/${month}`;
-                            dateInput.setAttribute('data-display-value', displayValue);
-                            console.log('[DEBUG] Reset date input - value:', today, 'display-value:', displayValue);
-                        }
-
-                        // Reset realized toggle
-                        const realizedToggle = templateRow.querySelector('.realized-toggle-new');
-                        if (realizedToggle) {
-                            const toggleCircle = realizedToggle.querySelector('span');
-                            realizedToggle.classList.remove('bg-green-500');
-                            realizedToggle.classList.add('bg-gray-300', 'dark:bg-gray-600');
-                            if (toggleCircle) toggleCircle.classList.remove('translate-x-4');
-                        }
-
-                        // Reset fixed toggle
-                        const fixedToggle = templateRow.querySelector('.fixed-toggle-new');
-                        if (fixedToggle) {
-                            fixedToggle.setAttribute('data-is-fixed', 'false');
-                            fixedToggle.classList.remove('bg-blue-600', 'text-white');
-                            fixedToggle.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-400', 'dark:text-gray-500');
-                        }
-
-                        // Keep template hidden - user must click "Add" to show it
-                        templateRow.classList.add('hidden');
-
-                        console.log('[DEBUG] Template reset complete');
-
-                        // Update budget warning
-                        console.log('[DEBUG] Updating budget warning...');
-                        updateBudgetWarning();
-                        console.log('[DEBUG] Save completed successfully!');
-
-                        // CORREÇÃO: Reinicializar drag-and-drop para incluir a nova linha
-                        console.log('[DEBUG] Reinitializing drag-and-drop...');
-                        initializeDragAndDrop();
-
-                        // Re-initialize mobile features for the new row
-                        if (typeof initMobileFeatures === 'function') {
-                            initMobileFeatures();
-                        }
-                    } else {
-                        updateRowDisplay(rowId, data);
-                        toggleEditMode(rowId, false);
-                        updateBudgetWarning();
-                    }
-                } else {
-                    alert('{% trans "Error saving item:" %} ' + data.error);
-                }
-            } catch (innerError) {
-                console.error('[ERROR] Error processing response:', innerError);
-                console.error('[ERROR] Stack trace:', innerError.stack);
-                throw innerError; // Re-throw to be caught by outer catch
-            }
-        })
-        .catch(error => {
-            console.error('[ERROR] Fetch Error:', error);
-            console.error('[ERROR] Error stack:', error.stack);
-            alert('{% trans "A network error occurred." %}');
-        });
-    }
-    
-    // Function to update the row's display values after a successful save
-    function updateRowDisplay(rowId, data) {
-        const row = document.getElementById(rowId);
-
-        console.log('[DEBUG updateRowDisplay] Received data:', data);
-        console.log('[DEBUG updateRowDisplay] Amount from backend:', data.amount, 'Type:', typeof data.amount);
-
-        // CORREÇÃO: Atualizar também os atributos 'data-*'
-        row.setAttribute('data-item-id', data.transaction_id);
-        row.setAttribute('data-realized', data.realized ? 'true' : 'false');
-        row.setAttribute('data-is-fixed', data.is_fixed ? 'true' : 'false');
-        row.setAttribute('data-amount', data.amount);
-
-        // Update display cells
-        const descDisplay = row.querySelector('.cell-description-display');
-        if (descDisplay) {
-            descDisplay.textContent = data.description;
-        }
-
-        // Usar o currencySymbol global e formatar
-        const formattedAmount = formatCurrency(data.amount);
-        console.log('[DEBUG updateRowDisplay] Formatted amount:', formattedAmount);
-        const budgetDisplay = row.querySelector('.cell-budget-display');
-        if (budgetDisplay) {
-            // Preserve mobile action buttons if they exist
-            const mobileActionsDiv = budgetDisplay.querySelector('.mobile-actions-btns');
-
-            // Update only the text content, not the entire innerHTML
-            // First, clear only text nodes (not element nodes)
-            const childNodes = Array.from(budgetDisplay.childNodes);
-            childNodes.forEach(node => {
-                if (node.nodeType === Node.TEXT_NODE) {
-                    node.remove();
-                }
-            });
-
-            // Add the formatted amount as first text node
-            budgetDisplay.insertAdjacentText('afterbegin', `${currencySymbol} ${formattedAmount}`);
-
-            // Mobile buttons div stays at the end (if it exists)
-        }
-
-        // Update date: Update both the full and short format spans
-        const dateCell = row.querySelector('.cell-date-display');
-        if (dateCell) {
-            const dateObj = new Date(data.date + 'T00:00:00'); // Add time to avoid timezone issues
-            const dateFullSpan = dateCell.querySelector('.date-full');
-            const dateShortSpan = dateCell.querySelector('.date-short');
-            if (dateFullSpan) dateFullSpan.textContent = data.date;
-            if (dateShortSpan) {
-                const day = String(dateObj.getDate()).padStart(2, '0');
-                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-                dateShortSpan.textContent = `${day}/${month}`;
-            }
-        }
-
-        // Update edit input as well
-        const dateEditInput = row.querySelector('.cell-date-edit input[data-field="date"]');
-        if (dateEditInput) {
-            dateEditInput.value = data.date;
-
-            // Update data-display-value for mobile button-style input
-            if (window.matchMedia('(max-width: 768px)').matches) {
-                const [year, month, day] = data.date.split('-');
-                const displayValue = `${day}/${month}`;
-                dateEditInput.setAttribute('data-display-value', displayValue);
-            }
-        }
-
-        // Update member - preserve mobile action buttons
-        const memberCell = row.querySelector('.cell-member-display');
-        if (memberCell) {
-            const mobileActionsDiv = memberCell.querySelector('.mobile-actions-btns');
-
-            // Clear text content while preserving mobile actions
-            const textNodes = Array.from(memberCell.childNodes).filter(node => node.nodeType === Node.TEXT_NODE);
-            textNodes.forEach(node => node.remove());
-
-            // Add new member name as text node before mobile actions
-            if (mobileActionsDiv) {
-                memberCell.insertBefore(document.createTextNode(data.member_name), mobileActionsDiv);
-            } else {
-                memberCell.textContent = data.member_name;
-            }
-            memberCell.setAttribute('data-member-id', data.member_id);
-        }
-
-        // Update realized toggle
-        const toggleBtn = row.querySelector('.realized-toggle');
-        if (toggleBtn) {
-            const toggleCircle = toggleBtn.querySelector('span');
-
-            if (data.realized) {
-                toggleBtn.classList.remove('bg-gray-300', 'dark:bg-gray-600');
-                toggleBtn.classList.add('bg-green-500');
-                if (toggleCircle) toggleCircle.classList.add('translate-x-4');
-                // CORREÇÃO: Só atualizar onclick se já existir (não sobrescrever event listener)
-                if (toggleBtn.hasAttribute('onclick')) {
-                    toggleBtn.setAttribute('onclick', `toggleRealized('${rowId}', true)`);
-                }
-            } else {
-                toggleBtn.classList.remove('bg-green-500');
-                toggleBtn.classList.add('bg-gray-300', 'dark:bg-gray-600');
-                if (toggleCircle) toggleCircle.classList.remove('translate-x-4');
-                // CORREÇÃO: Só atualizar onclick se já existir (não sobrescrever event listener)
-                if (toggleBtn.hasAttribute('onclick')) {
-                    toggleBtn.setAttribute('onclick', `toggleRealized('${rowId}', false)`);
-                }
-            }
-        }
-        
-        // Update edit inputs
-        const descInput = row.querySelector('input[data-field="description"]');
-        if (descInput) descInput.value = data.description;
-
-        const amountInput = row.querySelector('input[data-field="amount"]');
-        if (amountInput) amountInput.value = formatAmountForInput(data.amount);
-
-        const dateInput = row.querySelector('input[data-field="date"]');
-        if (dateInput) dateInput.value = data.date;
-
-        const memberSelect = row.querySelector('select[data-field="member_id"]');
-        if (memberSelect) memberSelect.value = data.member_id;
-    }
-    
-    // Function to delete an item
-    async function deleteItem(rowId) {
-        console.log('[deleteItem] Called with rowId:', rowId);
-        const confirmed = await confirm('{% trans "Are you sure you want to delete this item?" %}');
-        console.log('[deleteItem] Confirmed:', confirmed);
-        if (!confirmed) return;
-
-        const row = document.getElementById(rowId);
-        const transactionId = row.getAttribute('data-item-id');
-        
-        if (transactionId === 'NEW') {
-            cancelNewRow(rowId);
-            return;
-        }
-
-        fetch("{% url 'delete_flow_item_ajax' %}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrftoken,
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({'transaction_id': transactionId})
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                row.remove();
-                updateBudgetWarning();
-            } else {
-                alert('{% trans "Error deleting item:" %} ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Fetch Error:', error);
-            alert('{% trans "A network error occurred." %}');
-        });
-    }
-
-    // Function to toggle between display and edit mode
-    function toggleEditMode(rowId, startEdit) {
-        const row = document.getElementById(rowId);
-        if (!row) return;
-
-        const displayElements = row.querySelectorAll('.actions-display, .cell-description-display, .cell-budget-display, .cell-date-display, .cell-member-display');
-        const editElements = row.querySelectorAll('.actions-edit, .cell-description-edit, .cell-budget-edit, .cell-date-edit, .cell-member-edit');
-
-        displayElements.forEach(el => el.classList.toggle('hidden', startEdit));
-        editElements.forEach(el => el.classList.toggle('hidden', !startEdit));
-
-        row.setAttribute('data-mode', startEdit ? 'edit' : 'display');
-
-        // Mobile: Reset row position when entering/exiting edit mode
-        if (window.matchMedia('(max-width: 768px)').matches) {
-            row.style.transform = 'translateX(0)';
-            row.classList.remove('actions-revealed', 'fixed-revealed');
-
-            // Toggle drag handle visibility based on edit mode
-            const dragHandle = row.querySelector('.drag-handle-cell');
-            const dragIcon = dragHandle.querySelector('.drag-handle');
-            const checkIcon = dragHandle.querySelector('.edit-save-icon');
-
-            if (startEdit) {
-                // Show check icon, hide drag icon
-                if (dragIcon) dragIcon.style.display = 'none';
-                if (checkIcon) checkIcon.style.display = 'inline-block';
-
-                // Update date input display value for mobile button-style input
-                const dateInput = row.querySelector('.date-input-field');
-                if (dateInput) {
-                    const dateValue = dateInput.value; // YYYY-MM-DD format
-                    if (dateValue) {
-                        const [year, month, day] = dateValue.split('-');
-                        const displayValue = `${day}/${month}`;
-                        dateInput.setAttribute('data-display-value', displayValue);
-                    }
-                }
-            } else {
-                // Show drag icon, hide check icon
-                if (dragIcon) dragIcon.style.display = 'inline-block';
-                if (checkIcon) checkIcon.style.display = 'none';
-            }
-        }
-
-        if(startEdit) {
-             row.querySelector('.cell-description-edit input').focus();
-        }
-    }
-    
-    // Function to remove the new row template
-    function cancelNewRow(rowId) {
-        console.log('[cancelNewRow] Canceling row:', rowId);
-        const row = document.getElementById(rowId);
-        if (!row) {
-            console.error('[cancelNewRow] Row not found:', rowId);
-            return;
-        }
-
-        // Reset all fields
-        const descInput = row.querySelector('input[data-field="description"]');
-        if (descInput) descInput.value = '';
-
-        const amountInput = row.querySelector('input[data-field="amount"]');
-        if (amountInput) amountInput.value = '0' + decimalSeparator + '00';
-
-        const dateInput = row.querySelector('input[data-field="date"]');
-        if (dateInput) {
-            const today = new Date().toISOString().split('T')[0];
-            dateInput.value = today;
-            const [year, month, day] = today.split('-');
-            const displayValue = `${day}/${month}`;
-            dateInput.setAttribute('data-display-value', displayValue);
-        }
-
-        // Reset realized toggle
-        const toggleNew = row.querySelector('.realized-toggle-new');
-        if (toggleNew) {
-            const toggleCircle = toggleNew.querySelector('span');
-            toggleNew.classList.remove('bg-green-500');
-            toggleNew.classList.add('bg-gray-300', 'dark:bg-gray-600');
-            if (toggleCircle) toggleCircle.classList.remove('translate-x-4');
-        }
-
-        // Reset fixed toggle
-        const fixedToggle = row.querySelector('.fixed-toggle-new');
-        if (fixedToggle) {
-            fixedToggle.setAttribute('data-is-fixed', 'false');
-            fixedToggle.classList.remove('bg-blue-600', 'text-white');
-            fixedToggle.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-400', 'dark:text-gray-500');
-        }
-
-        // Reset row position (in case it was swiped)
-        row.style.transform = 'translateX(0)';
-        row.classList.remove('actions-revealed', 'fixed-revealed');
-
-        // Hide the template
-        row.classList.add('hidden');
-        console.log('[cancelNewRow] Template hidden successfully');
-    }
-
-    // === DRAG AND DROP REORDERING FOR EXPENSE ITEMS ===
-
-    let draggedRow = null;
-    let draggedOverRow = null;
-
-    function initializeDragAndDrop() {
-        const tbody = document.getElementById('expense-items-body');
-        if (!tbody) return;
-
-        const rows = tbody.querySelectorAll('tr.draggable-row');
-
-        rows.forEach(row => {
-            // CORREÇÃO: Evitar duplicação de event listeners
-            // Verificar se já foi inicializado
-            if (row.hasAttribute('data-drag-initialized')) {
-                return;
-            }
-            row.setAttribute('data-drag-initialized', 'true');
-
-            row.addEventListener('dragstart', handleDragStart);
-            row.addEventListener('dragover', handleDragOver);
-            row.addEventListener('dragenter', handleDragEnter);
-            row.addEventListener('dragleave', handleDragLeave);
-            row.addEventListener('drop', handleDrop);
-            row.addEventListener('dragend', handleDragEnd);
-
-            // Prevent drag on non-drag-handle clicks
-            row.addEventListener('mousedown', function(e) {
-                if (!e.target.closest('.drag-handle-cell') && !e.target.closest('.drag-handle')) {
-                    this.setAttribute('draggable', 'false');
-                } else {
-                    this.setAttribute('draggable', 'true');
-                }
-            });
-        });
-
-        // Enable dragging only from handle
-        const dragHandles = tbody.querySelectorAll('.drag-handle');
-        dragHandles.forEach(handle => {
-            // CORREÇÃO: Evitar duplicação de event listeners
-            if (handle.hasAttribute('data-drag-handle-initialized')) {
-                return;
-            }
-            handle.setAttribute('data-drag-handle-initialized', 'true');
-
-            handle.addEventListener('mousedown', function(e) {
-                const row = this.closest('tr');
-                if (row) {
-                    row.setAttribute('draggable', 'true');
-                }
-            });
-
-            // CORREÇÃO: Adicionar suporte touch para mobile drag
-            handle.addEventListener('touchstart', function(e) {
-                const row = this.closest('tr');
-                if (row && row.dataset.mode !== 'edit') {
-                    row.setAttribute('draggable', 'true');
-                    handleTouchDragStart(e, row);
-                }
-            }, { passive: false });
-        });
-
-        // CORREÇÃO: NÃO adicionar touchmove/touchend nas rows aqui
-        // Eles serão adicionados no HANDLE, não na row
-        dragHandles.forEach(handle => {
-            handle.addEventListener('touchmove', function(e) {
-                const row = this.closest('tr');
-                if (row) {
-                    handleTouchDragMove.call(row, e);
-                }
-            }, { passive: false });
-
-            handle.addEventListener('touchend', function(e) {
-                const row = this.closest('tr');
-                if (row) {
-                    handleTouchDragEnd.call(row, e);
-                }
-            }, { passive: false });
-        });
-    }
-
-    // CORREÇÃO: Variáveis para mobile drag
-    let touchDraggedRow = null;
-    let touchStartY = 0;
-    let touchCurrentY = 0;
-    let touchDragPlaceholder = null;
-
-    function handleTouchDragStart(e, row) {
-        if (row.dataset.mode === 'edit') return;
-        if (!e.target.closest('.drag-handle')) return;
-
-        e.preventDefault();
-        touchDraggedRow = row;
-        touchStartY = e.touches[0].clientY;
-        touchCurrentY = touchStartY;
-
-        row.style.opacity = '0.4';
-        row.classList.add('dragging');
-
-        document.querySelectorAll('tr.draggable-row').forEach(r => {
-            if (r !== row) {
-                r.style.pointerEvents = 'none';
-            }
-        });
-    }
-
-    function handleTouchDragMove(e) {
-        if (!touchDraggedRow) return;
-        if (this !== touchDraggedRow) return;
-
-        e.preventDefault();
-        touchCurrentY = e.touches[0].clientY;
-
-        const deltaY = touchCurrentY - touchStartY;
-
-        const elementBelow = document.elementFromPoint(
-            e.touches[0].clientX,
-            e.touches[0].clientY
-        );
-
-        const rowBelow = elementBelow ? elementBelow.closest('tr.draggable-row') : null;
-
-        document.querySelectorAll('tr.draggable-row').forEach(r => {
-            r.classList.remove('border-t-2', 'border-primary', 'border-b-2');
-        });
-
-        if (rowBelow && rowBelow !== touchDraggedRow && rowBelow.id !== 'new-item-template') {
-            if (deltaY > 0) {
-                rowBelow.classList.add('border-b-2', 'border-primary');
-            } else {
-                rowBelow.classList.add('border-t-2', 'border-primary');
-            }
-        }
-
-        touchDraggedRow.style.transform = `translateY(${deltaY}px)`;
-    }
-
-    function handleTouchDragEnd(e) {
-        if (!touchDraggedRow) return;
-        if (this !== touchDraggedRow) return;
-
-        e.preventDefault();
-
-        const deltaY = touchCurrentY - touchStartY;
-
-        const rect = touchDraggedRow.getBoundingClientRect();
-        const centerX = rect.left + (rect.width / 2);
-
-        touchDraggedRow.style.visibility = 'hidden';
-        const elementBelow = document.elementFromPoint(centerX, touchCurrentY);
-        touchDraggedRow.style.visibility = '';
-
-        let targetRow = elementBelow ? elementBelow.closest('tr.draggable-row') : null;
-
-        if (!targetRow) {
-            const tbody = document.getElementById('expense-items-body');
-            const allRows = Array.from(tbody.querySelectorAll('tr.draggable-row:not(#new-item-template)'));
-
-            let closestRow = null;
-            let closestDistance = Infinity;
-
-            allRows.forEach(function(row) {
-                if (row === touchDraggedRow) return;
-
-                const rowRect = row.getBoundingClientRect();
-                const rowCenterY = rowRect.top + (rowRect.height / 2);
-                const distance = Math.abs(touchCurrentY - rowCenterY);
-
-                if (distance < closestDistance) {
-                    closestDistance = distance;
-                    closestRow = row;
-                }
-            });
-
-            if (closestRow) {
-                targetRow = closestRow;
-            }
-        }
-
-        if (targetRow && targetRow !== touchDraggedRow && targetRow.id !== 'new-item-template') {
-            const tbody = document.getElementById('expense-items-body');
-            const allRows = Array.from(tbody.querySelectorAll('tr.draggable-row'));
-
-            const draggedIndex = allRows.indexOf(touchDraggedRow);
-            const targetIndex = allRows.indexOf(targetRow);
-
-            if (deltaY > 0) {
-                targetRow.parentNode.insertBefore(touchDraggedRow, targetRow.nextSibling);
-            } else {
-                targetRow.parentNode.insertBefore(touchDraggedRow, targetRow);
-            }
-
-            saveItemsOrder();
-        }
-
-        touchDraggedRow.style.opacity = '1';
-        touchDraggedRow.style.transform = '';
-        touchDraggedRow.classList.remove('dragging');
-
-        document.querySelectorAll('tr.draggable-row').forEach(r => {
-            r.style.pointerEvents = '';
-        });
-
-        document.querySelectorAll('tr.draggable-row').forEach(r => {
-            r.classList.remove('border-t-2', 'border-primary', 'border-b-2');
-        });
-
-        touchDraggedRow = null;
-        touchStartY = 0;
-        touchCurrentY = 0;
-    }
-
-    function handleDragStart(e) {
-        draggedRow = this;
-        this.style.opacity = '0.4';
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/html', this.innerHTML);
-    }
-
-    function handleDragOver(e) {
-        if (e.preventDefault) {
-            e.preventDefault();
-        }
-        e.dataTransfer.dropEffect = 'move';
-        return false;
-    }
-
-    function handleDragEnter(e) {
-        if (this !== draggedRow && this.id !== 'new-item-template') {
-            this.classList.add('border-t-2', 'border-primary');
-            draggedOverRow = this;
-        }
-    }
-
-    function handleDragLeave(e) {
-        this.classList.remove('border-t-2', 'border-primary');
-    }
-
-    function handleDrop(e) {
-        if (e.stopPropagation) {
-            e.stopPropagation();
-        }
-
-        if (draggedRow !== this && this.id !== 'new-item-template') {
-            // Get the tbody
-            const tbody = document.getElementById('expense-items-body');
-            const allRows = Array.from(tbody.querySelectorAll('tr.draggable-row'));
-
-            const draggedIndex = allRows.indexOf(draggedRow);
-            const targetIndex = allRows.indexOf(this);
-
-            // Move the dragged row
-            if (draggedIndex < targetIndex) {
-                this.parentNode.insertBefore(draggedRow, this.nextSibling);
-            } else {
-                this.parentNode.insertBefore(draggedRow, this);
-            }
-
-            // Save new order to backend
-            saveItemsOrder();
-        }
-
-        return false;
-    }
-
-    function handleDragEnd(e) {
-        this.style.opacity = '1';
-
-        // Remove all drag-related classes
-        const rows = document.querySelectorAll('tr.draggable-row');
-        rows.forEach(row => {
-            row.classList.remove('border-t-2', 'border-primary');
-        });
-
-        draggedRow = null;
-        draggedOverRow = null;
-    }
-
-    function saveItemsOrder() {
-        const tbody = document.getElementById('expense-items-body');
-        if (!tbody) return;
-
-        const rows = tbody.querySelectorAll('tr.draggable-row');
-
-        const orderData = [];
-        rows.forEach((row, index) => {
-            const itemId = row.getAttribute('data-item-id');
-            if (itemId && itemId !== 'NEW') {
-                orderData.push({
-                    id: itemId,
-                    order: index + 1
-                });
-            }
-        });
-
-        if (orderData.length === 0) return;
-
-        fetch("{% url 'reorder_flow_items_ajax' %}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrftoken,
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify({ items: orderData })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                console.log('Order saved successfully');
-            } else {
-                console.error('Error saving order:', data.error);
-                alert('{% trans "Error saving order:" %} ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Fetch Error:', error);
-            alert('{% trans "A network error occurred while saving order." %}');
-        });
-    }
-
-    // Add click handler for new item toggle
-    function initializeNewItemToggle() {
-        const toggleNew = document.querySelector('.realized-toggle-new');
-        if (toggleNew) {
-            toggleNew.addEventListener('click', function() {
-                const toggleCircle = this.querySelector('span');
-                if (this.classList.contains('bg-green-500')) {
-                    this.classList.remove('bg-green-500');
-                    this.classList.add('bg-gray-300', 'dark:bg-gray-600');
-                    toggleCircle.classList.remove('translate-x-4');
-                } else {
-                    this.classList.remove('bg-gray-300', 'dark:bg-gray-600');
-                    this.classList.add('bg-green-500');
-                    toggleCircle.classList.add('translate-x-4');
-                }
-            });
-        }
-    }
-
-    // ========== MOBILE-SPECIFIC FUNCTIONALITY ========== 
-    // Initialize mobile swipe and tap functionality
-    function initMobileFeatures() {
-        'use strict';
-
-        const isMobile = window.matchMedia('(max-width: 768px)').matches;
-
-        if (!isMobile) {
-            console.log('[MOBILE] Not mobile viewport, skipping mobile features');
-            return; // Only run on mobile devices
-        }
-
-        console.log('[MOBILE] Initializing mobile features for FlowGroup items');
-        const swipeableRows = document.querySelectorAll('.swipeable-row');
-        console.log('[MOBILE] Found', swipeableRows.length, 'swipeable rows');
-
-        swipeableRows.forEach(row => {
-            // Skip if already initialized
-            if (row.hasAttribute('data-mobile-initialized')) {
-                return;
-            }
-            row.setAttribute('data-mobile-initialized', 'true');
-
-            let startX = 0;
-            let currentX = 0;
-            let isDragging = false;
-            let startTime = 0;
-            const swipeThreshold = 60; // Minimum pixels to trigger swipe
-            const tapTimeThreshold = 200; // Max ms for tap detection
-
-            // CORREÇÃO: Variáveis para detectar drag vertical vs swipe horizontal
-            let startY = 0;
-            let currentY = 0;
-            let isDragMode = false; // true = vertical drag (reorder), false = horizontal swipe (actions)
-            let isDecided = false; // se já decidimos o modo
-
-            // Prevent default drag behavior on mobile
-            row.setAttribute('draggable', 'false');
-
-            // Touch start
-            row.addEventListener('touchstart', (e) => {
-                // CORREÇÃO: Se começou no drag handle, NÃO processar swipe - deixar o drag handle cuidar
-                const isDragHandle = e.target.closest('.drag-handle');
-                if (isDragHandle) {
-                    // Drag handle vai cuidar, não processar swipe aqui
-                    return;
-                }
-
-                // Ignore if touching action buttons, fixed button, or check icon
-                if (e.target.closest('.mobile-action-btn')) return;
-                if (e.target.closest('.mobile-fixed-btn')) return;
-                if (e.target.closest('.edit-save-icon')) return;
-
-                // Check if a drag operation is in progress (from drag-and-drop)
-                if (touchDraggedRow && touchDraggedRow === row) {
-                    return; // Drag-and-drop is active, don't handle swipe
-                }
-
-                startX = e.touches[0].clientX;
-                currentX = startX;
-                startY = e.touches[0].clientY;
-                currentY = startY;
-                startTime = Date.now();
-                isDragging = false;
-                isDecided = false;
-                isDragMode = false;
-            }, { passive: true });
-
-            // Touch move
-            row.addEventListener('touchmove', (e) => {
-                // Se já decidiu que é drag, ignora swipe
-                if (isDragMode) return;
-
-                // Check if a drag operation is in progress (from drag-and-drop)
-                if (touchDraggedRow && touchDraggedRow === row) {
-                    return; // Drag-and-drop is active, don't handle swipe
-                }
-
-                if (e.target.closest('.mobile-action-btn')) return;
-                if (e.target.closest('.mobile-fixed-btn')) return;
-                if (e.target.closest('.edit-save-icon')) return;
-
-                currentX = e.touches[0].clientX;
-                currentY = e.touches[0].clientY;
-                const deltaX = currentX - startX;
-                const deltaY = currentY - startY;
-
-                if (!isDecided) {
-                    const absDeltaX = Math.abs(deltaX);
-                    const absDeltaY = Math.abs(deltaY);
-
-                    if (absDeltaX > 10 || absDeltaY > 10) {
-                        isDecided = true;
-                        isDragMode = absDeltaY > absDeltaX;
-                        if (isDragMode) return;
-                    }
-                }
-
-                if (row.dataset.mode === 'edit') {
-                    if (deltaX > 0) {
-                        isDragging = true;
-                        const translateX = Math.min(deltaX, 120);
-                        row.style.transform = `translateX(${translateX}px)`;
-                        row.style.transition = 'none';
-                    }
-                } else {
-                    if (deltaX < 0) {
-                        isDragging = true;
-                        const translateX = Math.max(deltaX, -120);
-                        row.style.transform = `translateX(${translateX}px)`;
-                        row.style.transition = 'none';
-                    } else if (deltaX > 0) {
-                        // Swipe right - reveal fixed button
-                        isDragging = true;
-                        const translateX = Math.min(deltaX, 60); // Max 60px right
-                        row.style.transform = `translateX(${translateX}px)`;
-                        row.style.transition = 'none';
-                    }
-                }
-            }, { passive: true });
-
-            // Touch end
-            row.addEventListener('touchend', (e) => {
-                // Se foi drag, não processar swipe
-                if (isDragMode) return;
-
-                // Check if a drag operation is in progress (from drag-and-drop)
-                if (touchDraggedRow && touchDraggedRow === row) {
-                    return; // Drag-and-drop is active, don't handle swipe
-                }
-
-                if (e.target.closest('.mobile-action-btn')) return;
-                if (e.target.closest('.mobile-fixed-btn')) return;
-                if (e.target.closest('.edit-save-icon')) return;
-
-                const deltaX = currentX - startX;
-                const deltaTime = Date.now() - startTime;
-
-                row.style.transition = 'transform 0.3s ease-out';
-
-                // In edit mode: swipe right to cancel
-                if (row.dataset.mode === 'edit') {
-                    if (deltaX > swipeThreshold) {
-                        console.log('[MOBILE SWIPE] Canceling edit mode for:', row.id);
-                        // Check if it's the new item template
-                        if (row.id === 'new-item-template') {
-                            cancelNewRow(row.id);
-                        } else {
-                            toggleEditMode(row.id, false);
-                        }
-                    } else {
-                        // Reset position
-                        row.style.transform = 'translateX(0)';
-                    }
-                } else {
-                    // In display mode
-                    // Check if it's a tap (quick touch with minimal movement)
-                    if (!isDragging && Math.abs(deltaX) < 10 && deltaTime < tapTimeThreshold) {
-                        // Tap detected - toggle realized status
-                        const rowId = row.id;
-                        const currentRealized = row.dataset.realized === 'true';
-                        console.log('[MOBILE TAP] Toggling realized:', rowId, 'Current:', currentRealized);
-                        toggleRealized(rowId, currentRealized);
-                    }
-                    // Check if swipe left exceeded threshold
-                    else if (deltaX < -swipeThreshold) {
-                        // Show actions (swipe left)
-                        row.style.transform = 'translateX(-120px)';
-                        row.classList.remove('fixed-revealed');
-                        row.classList.add('actions-revealed');
-                    }
-                    // Check if swipe right exceeded threshold
-                    else if (deltaX > swipeThreshold) {
-                        // Show fixed button (swipe right)
-                        row.style.transform = 'translateX(60px)';
-                        row.classList.remove('actions-revealed');
-                        row.classList.add('fixed-revealed');
-                    } else {
-                        // Reset to original position
-                        row.style.transform = 'translateX(0)';
-                        row.classList.remove('actions-revealed', 'fixed-revealed');
-                    }
-                }
-
-                isDragging = false;
-                isDecided = false;
-                isDragMode = false;
-            }, { passive: true });
-
-            // Close actions/fixed button when tapping outside
-            document.addEventListener('touchstart', (e) => {
-                if (!row.contains(e.target)) {
-                    if (row.classList.contains('actions-revealed') || row.classList.contains('fixed-revealed')) {
-                        row.style.transform = 'translateX(0)';
-                        row.classList.remove('actions-revealed', 'fixed-revealed');
-                    }
-                }
-            }, { passive: true });
-        });
-
-        // Add change event listener to all date inputs to update display value
-        const dateInputs = document.querySelectorAll('.date-input-field');
-        dateInputs.forEach(input => {
-            input.addEventListener('change', function() {
-                const dateValue = this.value; // YYYY-MM-DD format
-                if (dateValue) {
-                    const [year, month, day] = dateValue.split('-');
-                    const displayValue = `${day}/${month}`;
-                    this.setAttribute('data-display-value', displayValue);
-                    console.log('[MOBILE DATE] Updated display value:', displayValue);
-                }
-            });
-        });
-
-        // Re-initialize after adding new items
-        const originalAddNewItem = window.addNewItem;
-        window.addNewItem = function() {
-            if (originalAddNewItem) originalAddNewItem();
-            setTimeout(initMobileFeatures, 100);
-        };
-    }
-
-    // Call initMobileFeatures on page load
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initMobileFeatures);
-    } else {
-        initMobileFeatures();
-    }
-
-    // Note: normalizeDecimalInput function removed - backend now handles all locale parsing
-
-    // Mobile keyboard handling - scroll input into view when keyboard opens
-    function initMobileKeyboardHandling() {
-        // Só executa em mobile
-        if (window.innerWidth > 768) return;
-
-        const inputs = document.querySelectorAll('input, select, textarea');
-
-        inputs.forEach(input => {
-            input.addEventListener('focus', function() {
-                // Timeout para aguardar teclado aparecer
-                setTimeout(() => {
-                    if (window.visualViewport) {
-                        const keyboardHeight = window.innerHeight - window.visualViewport.height;
-
-                        if (keyboardHeight > 50) { // Teclado está visível
-                            this.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'center',
-                                inline: 'nearest'
-                            });
-                        }
-                    } else {
-                        // Fallback para browsers sem visualViewport API
-                        this.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'center',
-                            inline: 'nearest'
-                        });
-                    }
-                }, 300); // Aguarda 300ms para teclado aparecer
-            });
-        });
-    }
-
-    // Inicializar quando DOM carregar
-    document.addEventListener('DOMContentLoaded', function() {
-        initMobileKeyboardHandling();
-    });
-
-    // FIX: Process budgeted_amount before form submit
-    // The money mask is applied to budgeted_amount field, but Django expects a decimal value
-    // We need to convert the masked value (e.g., "1.234,56") to a raw decimal (e.g., "1234.56")
-    document.getElementById('flow-group-form').addEventListener('submit', async function(event) {
-        const budgetInput = document.querySelector('input[name="budgeted_amount"]');
-        if (budgetInput && budgetInput.hasAttribute('data-field')) {
-            // Get the masked value
-            const maskedValue = budgetInput.value;
-            // Convert to raw decimal value
-            const rawValue = getRawValue(maskedValue);
-            // Set the raw value for submission
-            budgetInput.value = rawValue;
-            console.log('[FORM SUBMIT] Converting budgeted_amount from', maskedValue, 'to', rawValue);
-        }
-
-        // Validate for duplicate name
-        const nameInput = document.querySelector('input[name="name"]');
-        if (nameInput) {
-            const flowGroupId = this.getAttribute('data-flow-group-id');
-            const flowGroupName = nameInput.value.trim();
-            const periodInput = document.querySelector('input[name="period"]');
-            const period = periodInput ? periodInput.value : null;
-
-            // Skip validation for new FlowGroups (will be validated server-side)
-            if (flowGroupId && flowGroupId !== 'NEW') {
-                event.preventDefault();
-
-                // Check for duplicate via fetch
-                const formData = new FormData(this);
-                const url = this.action;
-
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    });
-
-                    // Check if response is JSON
-                    const contentType = response.headers.get('content-type');
-                    if (contentType && contentType.includes('application/json')) {
-                        const data = await response.json();
-                        if (data.error && data.error_type === 'duplicate_name') {
-                            // Show modal with error
-                            GenericModal.alert(data.error, '{% trans "Duplicate Name" %}');
-                            return;
-                        }
-                    }
-
-                    if (response.ok) {
-                        // Success - redirect
-                        window.location.href = response.url || url;
-                    } else {
-                        // Submit the form normally to show server errors
-                        this.removeEventListener('submit', arguments.callee);
-                        this.submit();
-                    }
-                } catch (error) {
-                    console.error('[FORM SUBMIT] Error:', error);
-                    // Submit the form normally
-                    this.removeEventListener('submit', arguments.callee);
-                    this.submit();
-                }
-            }
-        }
-    });
-
-</script>
 
 <!-- Mobile-specific CSS -->
 <style>
@@ -2957,11 +767,7 @@
             align-items: center;
             justify-content: center;
             z-index: 10;
-            pointer-events: none;
-        }
-
-        .swipeable-row.fixed-revealed .mobile-fixed-btn-container {
-            pointer-events: auto;
+            pointer-events: auto;  /* CRITICAL FIX: Always allow pointer events */
         }
 
         .mobile-fixed-btn {
@@ -2993,13 +799,6 @@
             background-color: rgba(34, 197, 94, 0.15) !important;
         }
 
-        /* Fixed status visual feedback (thick border on mobile) */
-        @media (max-width: 768px) {
-            .row-fixed {
-                border-left: 4px solid #3b82f6 !important;
-            }
-        }
-
         .dark .row-realized {
             background-color: rgba(34, 197, 94, 0.1) !important;
         }
@@ -3012,10 +811,18 @@
             background-color: rgba(148, 163, 184, 0.05) !important;
         }
 
-        /* Fixed/Recurring expenses border on mobile */
+        /* IMPORTANT: Inputs inside rows should NOT inherit row background color */
+        .row-realized input,
+        .row-realized select,
+        .row-not-realized input,
+        .row-not-realized select {
+            background-color: transparent !important;
+        }
+
+        /* Fixed status visual feedback (thick border on mobile) */
         @media (max-width: 768px) {
             .row-fixed {
-                border-left: 4px solid #3b82f6;
+                border-left: 6px solid #3b82f6 !important;
                 box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.2);
             }
 
@@ -3101,443 +908,124 @@
             display: none !important;
         }
     }
+
+    /* Totals row responsive layout */
+    /* Mobile (max-width: 768px) - Labels in MEMBER column, Values in AMOUNT column */
+    @media (max-width: 768px) {
+        /* Header alignment adjustments for mobile */
+        .date-header-mobile {
+            text-align: center !important;
+        }
+
+        .member-header-mobile {
+            text-align: center !important;
+        }
+
+        /* Data alignment adjustments for mobile */
+        .cell-date-display,
+        .cell-date-edit {
+            text-align: center !important;
+        }
+
+        .cell-member-display,
+        .cell-member-edit {
+            text-align: center !important;
+        }
+
+        /* Totals row - Labels in MEMBER column, Values in AMOUNT column */
+        .totals-member-col {
+            display: table-cell !important;
+        }
+        .totals-member-col > div {
+            display: flex !important;
+        }
+        .totals-fixed-col {
+            display: none !important;
+        }
+        .totals-amount-col {
+            display: table-cell !important;
+        }
+        .totals-amount-desktop {
+            display: none !important;
+        }
+        .totals-amount-mobile {
+            display: flex !important;
+        }
+        .totals-actions-col {
+            display: none !important;
+        }
+    }
+
+    /* Desktop (min-width: 769px) - Labels in FIXED column, Values in AMOUNT column */
+    @media (min-width: 769px) {
+        .totals-member-col {
+            display: table-cell !important;
+        }
+        .totals-member-col > div {
+            display: none !important;
+        }
+        .totals-fixed-col {
+            display: table-cell !important;
+        }
+        .totals-amount-col {
+            display: table-cell !important;
+        }
+        .totals-amount-desktop {
+            display: flex !important;
+        }
+        .totals-amount-mobile {
+            display: none !important;
+        }
+        .totals-actions-col {
+            display: table-cell !important;
+        }
+    }
+
+    /* Totals row styles - Light mode */
+    .totals-add-btn {
+        color: #13a4ec;
+    }
+
+    .totals-add-btn:hover {
+        color: #0e7ab8;
+    }
+
+    .totals-label {
+        color: #6b7280;
+    }
+
+    .totals-value {
+        color: #111827;
+    }
+
+    .totals-realized {
+        color: #16a34a;
+    }
+
+    /* Totals row styles - Dark mode */
+    .dark .totals-add-btn {
+        color: #60a5fa !important;
+    }
+
+    .dark .totals-add-btn:hover {
+        color: #93c5fd !important;
+    }
+
+    .dark .totals-label {
+        color: #9ca3af !important;
+    }
+
+    .dark .totals-value {
+        color: #ffffff !important;
+    }
+
+    .dark .totals-realized {
+        color: #4ade80 !important;
+    }
 </style>
 
-<script>
-/**
- * Real-time Updates for FlowGroup Page (Concurrent Editors)
- * Handles WebSocket broadcasts to update the page when other users make changes
- */
-(function() {
-    'use strict';
-
-    // FlowGroup Real-time Updates Namespace
-    window.FlowGroupRealtime = {
-        /**
-         * Add new transaction to the list
-         */
-        addTransaction: function(transactionData) {
-            console.log('[FlowGroup RT] Adding new transaction:', transactionData);
-
-            // Check if transaction belongs to this FlowGroup
-            const currentFlowGroupId = document.getElementById('flow-group-form')?.getAttribute('data-flow-group-id');
-            if (!currentFlowGroupId || transactionData.flow_group.id != currentFlowGroupId) {
-                console.log('[FlowGroup RT] Transaction not for this FlowGroup, skipping');
-                return;
-            }
-
-            const tbody = document.getElementById('expense-items-body');
-            if (!tbody) {
-                console.warn('[FlowGroup RT] Items tbody not found');
-                return;
-            }
-
-            // Check if transaction already exists (avoid duplicates)
-            const existingRow = document.getElementById(`item-${transactionData.id}`);
-            if (existingRow) {
-                console.log('[FlowGroup RT] Transaction already exists, updating instead');
-                this.updateTransaction(transactionData);
-                return;
-            }
-
-            // Reload the page to show new transaction (simpler approach)
-            // In a more complex implementation, we would create the row dynamically
-            console.log('[FlowGroup RT] New transaction added by another user, reloading...');
-            location.reload();
-        },
-
-        /**
-         * Update existing transaction
-         */
-        updateTransaction: function(transactionData) {
-            console.log('[FlowGroup RT] Updating transaction:', transactionData);
-
-            // Check if transaction belongs to this FlowGroup
-            const currentFlowGroupId = document.getElementById('flow-group-form')?.getAttribute('data-flow-group-id');
-            if (!currentFlowGroupId || transactionData.flow_group.id != currentFlowGroupId) {
-                return;
-            }
-
-            const row = document.getElementById(`item-${transactionData.id}`);
-            if (!row) {
-                console.warn('[FlowGroup RT] Transaction row not found:', `item-${transactionData.id}`);
-                return;
-            }
-
-            console.log('[FlowGroup RT] Updating row elements...');
-            try {
-                // Update description display
-                const descDisplay = row.querySelector('.cell-description-display');
-                if (descDisplay) {
-                    descDisplay.textContent = transactionData.description;
-                }
-
-                // Update amount display
-                const amountDisplay = row.querySelector('.cell-budget-display');
-                if (amountDisplay && transactionData.currency_symbol) {
-                    const formattedAmount = window.RealtimeUI.utils.formatCurrency(transactionData.amount);
-                    amountDisplay.textContent = formattedAmount;
-                }
-
-                // Update date display
-                if (transactionData.date) {
-                    const dateFull = row.querySelector('.date-full');
-                    const dateShort = row.querySelector('.date-short');
-                    if (dateFull && dateShort) {
-                        const dateObj = new Date(transactionData.date);
-                        const year = dateObj.getFullYear();
-                        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-                        const day = String(dateObj.getDate()).padStart(2, '0');
-                        dateFull.textContent = `${year}-${month}-${day}`;
-                        dateShort.textContent = `${day}/${month}`;
-                    }
-                }
-
-                // Update member display
-                if (transactionData.member !== undefined) {
-                    const memberDisplay = row.querySelector('.cell-member-display');
-                    if (memberDisplay) {
-                        memberDisplay.textContent = transactionData.member || '-';
-                        if (transactionData.member_id) {
-                            memberDisplay.setAttribute('data-member-id', transactionData.member_id);
-                        }
-                    }
-                }
-
-                // Update data attributes
-                row.setAttribute('data-amount', transactionData.amount);
-                row.setAttribute('data-realized', transactionData.realized ? 'true' : 'false');
-                row.setAttribute('data-is-fixed', transactionData.is_fixed ? 'true' : 'false');
-
-                // Update realized toggle
-                const toggleBtn = row.querySelector('.realized-toggle');
-                if (toggleBtn) {
-                    const toggleCircle = toggleBtn.querySelector('span');
-                    if (transactionData.realized) {
-                        toggleBtn.classList.remove('bg-gray-300', 'dark:bg-gray-600');
-                        toggleBtn.classList.add('bg-green-500');
-                        if (toggleCircle) toggleCircle.classList.add('translate-x-4');
-                    } else {
-                        toggleBtn.classList.remove('bg-green-500');
-                        toggleBtn.classList.add('bg-gray-300', 'dark:bg-gray-600');
-                        if (toggleCircle) toggleCircle.classList.remove('translate-x-4');
-                    }
-                }
-
-                // Update fixed toggle button
-                const fixedToggleBtn = row.querySelector('.fixed-toggle-btn');
-                if (fixedToggleBtn) {
-                    if (transactionData.is_fixed) {
-                        fixedToggleBtn.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-400', 'dark:text-gray-500', 'hover:bg-blue-200', 'dark:hover:bg-blue-900/30');
-                        fixedToggleBtn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
-                    } else {
-                        fixedToggleBtn.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700');
-                        fixedToggleBtn.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-400', 'dark:text-gray-500', 'hover:bg-blue-200', 'dark:hover:bg-blue-900/30');
-                    }
-                }
-
-                // Update row classes for realized status
-                if (transactionData.realized) {
-                    row.classList.remove('row-not-realized');
-                    row.classList.add('row-realized');
-                } else {
-                    row.classList.remove('row-realized');
-                    row.classList.add('row-not-realized');
-                }
-
-                // Highlight the updated row
-                if (window.RealtimeUI && window.RealtimeUI.utils && window.RealtimeUI.utils.highlightElement) {
-                    window.RealtimeUI.utils.highlightElement(row, 2000);
-                }
-
-                console.log('[FlowGroup RT] Transaction updated successfully:', transactionData.id);
-            } catch (error) {
-                console.error('[FlowGroup RT] Error updating transaction:', error);
-            }
-        },
-
-        /**
-         * Remove transaction from the list
-         */
-        removeTransaction: function(transactionId) {
-            console.log('[FlowGroup RT] Removing transaction:', transactionId);
-
-            const row = document.getElementById(`item-${transactionId}`);
-            if (!row) {
-                console.warn('[FlowGroup RT] Transaction row not found');
-                return;
-            }
-
-            // Fade out animation
-            row.style.transition = 'opacity 0.3s ease';
-            row.style.opacity = '0';
-
-            setTimeout(() => {
-                if (row.parentNode) {
-                    row.parentNode.removeChild(row);
-                    console.log('[FlowGroup RT] Transaction removed successfully');
-                }
-            }, 300);
-        },
-
-        /**
-         * Update FlowGroup details (name, budget, checkboxes, etc.)
-         */
-        updateFlowGroup: function(flowgroupData) {
-            console.log('[FlowGroup RT] Updating FlowGroup:', flowgroupData);
-
-            // Check if this is the current FlowGroup
-            const currentFlowGroupId = document.getElementById('flow-group-form')?.getAttribute('data-flow-group-id');
-            if (!currentFlowGroupId || flowgroupData.id != currentFlowGroupId) {
-                return;
-            }
-
-            try {
-                // Update name in title
-                const titleElement = document.querySelector('h1.text-2xl');
-                if (titleElement && flowgroupData.name) {
-                    const backArrow = titleElement.querySelector('a');
-                    if (backArrow) {
-                        const textNode = titleElement.childNodes[titleElement.childNodes.length - 1];
-                        if (textNode) {
-                            textNode.textContent = ' ' + flowgroupData.name;
-                        }
-                    }
-                }
-
-                // Update name input
-                const nameInput = document.getElementById('id_name');
-                if (nameInput && flowgroupData.name) {
-                    nameInput.value = flowgroupData.name;
-                }
-
-                // Update budgeted_amount input
-                const budgetInput = document.getElementById('id_budgeted_amount');
-                if (budgetInput && flowgroupData.budgeted_amount) {
-                    budgetInput.value = flowgroupData.budgeted_amount;
-                }
-
-                // Update checkboxes
-                const isSharedCheckbox = document.getElementById('id_is_shared');
-                if (isSharedCheckbox) {
-                    isSharedCheckbox.checked = flowgroupData.is_shared;
-                }
-
-                const isKidsGroupCheckbox = document.getElementById('id_is_kids_group');
-                if (isKidsGroupCheckbox) {
-                    isKidsGroupCheckbox.checked = flowgroupData.is_kids_group;
-                }
-
-                const isInvestmentCheckbox = document.getElementById('id_is_investment');
-                if (isInvestmentCheckbox) {
-                    isInvestmentCheckbox.checked = flowgroupData.is_investment;
-                }
-
-                const isCreditCardCheckbox = document.getElementById('id_is_credit_card');
-                if (isCreditCardCheckbox) {
-                    isCreditCardCheckbox.checked = flowgroupData.is_credit_card;
-
-                    // Show/hide credit card closed button based on checkbox
-                    const closedBtnContainer = document.querySelector('[onclick*="toggleCreditCardClosed"]')?.closest('.flex, .inline-flex');
-                    if (closedBtnContainer) {
-                        if (flowgroupData.is_credit_card) {
-                            closedBtnContainer.style.display = '';
-                        } else {
-                            closedBtnContainer.style.display = 'none';
-                        }
-                    }
-                }
-
-                // Update assigned members multi-select
-                if (flowgroupData.assigned_members) {
-                    const membersSelect = document.getElementById('id_assigned_members');
-                    if (membersSelect) {
-                        Array.from(membersSelect.options).forEach(option => {
-                            option.selected = flowgroupData.assigned_members.includes(parseInt(option.value));
-                        });
-                    }
-                }
-
-                // Update assigned children multi-select
-                if (flowgroupData.assigned_children) {
-                    const childrenSelect = document.getElementById('id_assigned_children');
-                    if (childrenSelect) {
-                        Array.from(childrenSelect.options).forEach(option => {
-                            option.selected = flowgroupData.assigned_children.includes(parseInt(option.value));
-                        });
-                    }
-                }
-
-                // Update recurring toggle button (desktop)
-                const recurringBtn = document.querySelector('.recurring-toggle-btn');
-                if (recurringBtn) {
-                    const icon = recurringBtn.querySelector('span.material-symbols-outlined');
-                    const text = recurringBtn.querySelector('span:not(.material-symbols-outlined)');
-                    if (flowgroupData.is_recurring) {
-                        recurringBtn.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
-                        recurringBtn.classList.add('bg-blue-500', 'text-white');
-                        if (icon) icon.textContent = 'check_circle';
-                        if (text) text.textContent = '{% trans "Recurring" %}';
-                    } else {
-                        recurringBtn.classList.remove('bg-blue-500', 'text-white');
-                        recurringBtn.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
-                        if (icon) icon.textContent = 'cancel';
-                        if (text) text.textContent = '{% trans "Not Recurring" %}';
-                    }
-                }
-
-                // Update kids realized toggle button
-                if (flowgroupData.is_kids_group) {
-                    const kidsRealizedBtn = document.querySelector('[onclick*="toggleKidsGroupRealized"]');
-                    if (kidsRealizedBtn) {
-                        const icon = kidsRealizedBtn.querySelector('span.material-symbols-outlined');
-                        const text = kidsRealizedBtn.querySelector('span:not(.material-symbols-outlined)');
-                        if (flowgroupData.realized) {
-                            kidsRealizedBtn.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
-                            kidsRealizedBtn.classList.add('bg-green-500', 'text-white');
-                            kidsRealizedBtn.setAttribute('onclick', 'toggleKidsGroupRealized(true)');
-                            if (icon) icon.textContent = 'check_circle';
-                            if (text) text.textContent = '{% trans "Realized" %}';
-                        } else {
-                            kidsRealizedBtn.classList.remove('bg-green-500', 'text-white');
-                            kidsRealizedBtn.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
-                            kidsRealizedBtn.setAttribute('onclick', 'toggleKidsGroupRealized(false)');
-                            if (icon) icon.textContent = 'cancel';
-                            if (text) text.textContent = '{% trans "Not Realized" %}';
-                        }
-                    }
-                }
-
-                // Update credit card closed toggle button
-                if (flowgroupData.is_credit_card) {
-                    const closedBtn = document.querySelector('[onclick*="toggleCreditCardClosed"]');
-                    if (closedBtn) {
-                        const icon = closedBtn.querySelector('span.material-symbols-outlined');
-                        const text = closedBtn.querySelector('span:not(.material-symbols-outlined)');
-                        if (flowgroupData.closed) {
-                            closedBtn.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
-                            closedBtn.classList.add('bg-green-500', 'text-white');
-                            closedBtn.setAttribute('onclick', 'toggleCreditCardClosed(true)');
-                            if (icon) icon.textContent = 'check_circle';
-                            if (text) text.textContent = '{% trans "Bill Closed" %}';
-                        } else {
-                            closedBtn.classList.remove('bg-green-500', 'text-white');
-                            closedBtn.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
-                            closedBtn.setAttribute('onclick', 'toggleCreditCardClosed(false)');
-                            if (icon) icon.textContent = 'cancel';
-                            if (text) text.textContent = '{% trans "Bill Open" %}';
-                        }
-                    }
-                }
-
-                // Update totals display
-                const estimatedDisplay = document.getElementById('total-estimated');
-                if (estimatedDisplay && flowgroupData.total_estimated) {
-                    const formattedEstimated = window.RealtimeUI.utils.formatCurrency(flowgroupData.total_estimated);
-                    estimatedDisplay.textContent = formattedEstimated;
-                }
-
-                const realizedDisplay = document.getElementById('total-realized');
-                if (realizedDisplay && flowgroupData.total_realized) {
-                    const formattedRealized = window.RealtimeUI.utils.formatCurrency(flowgroupData.total_realized);
-                    realizedDisplay.textContent = formattedRealized;
-                }
-
-                console.log('[FlowGroup RT] FlowGroup updated successfully');
-            } catch (error) {
-                console.error('[FlowGroup RT] Error updating FlowGroup:', error);
-            }
-        },
-
-        /**
-         * Handle FlowGroup deletion
-         */
-        handleFlowGroupDeleted: function(data) {
-            console.log('[FlowGroup RT] FlowGroup deleted:', data);
-
-            // Extract FlowGroup data from WebSocket message structure
-            // Message format: { type, timestamp, data: {id, name}, actor: {id, username} }
-            const flowgroupData = data.data || data;  // Fallback for different message formats
-            const flowgroupId = flowgroupData.id;
-            const flowgroupName = flowgroupData.name || '';
-
-            // Check if this is the current FlowGroup
-            const currentFlowGroupId = document.getElementById('flow-group-form')?.getAttribute('data-flow-group-id');
-            if (!currentFlowGroupId || flowgroupId != currentFlowGroupId) {
-                return;
-            }
-
-            // Check if current user deleted it
-            const currentUserId = document.body.dataset.userId ? parseInt(document.body.dataset.userId) : null;
-            const isOwnAction = data.actor && data.actor.id === currentUserId;
-
-            // Prepare message based on who deleted
-            let title, message, iconColor, iconBgColor;
-
-            if (isOwnAction) {
-                // Own action - success message
-                title = "{% trans 'FlowGroup Deleted Successfully' %}";
-                message = "{% trans 'The FlowGroup was successfully deleted.' %}";
-                iconColor = "text-green-600 dark:text-green-400";
-                iconBgColor = "bg-green-100 dark:bg-green-900/30";
-            } else {
-                // Another user's action - informational message
-                title = "{% trans 'FlowGroup Deleted' %}";
-                const actorName = data.actor ? data.actor.username : "{% trans 'another user' %}";
-                message = `{% trans 'This FlowGroup was deleted by' %} <strong>${actorName}</strong>.`;
-                iconColor = "text-red-600 dark:text-red-400";
-                iconBgColor = "bg-red-100 dark:bg-red-900/30";
-            }
-
-            // Show modal informing user
-            const modalHtml = `
-                <div id="flowgroup-deleted-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-                    <div class="relative mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
-                        <div class="mt-3 text-center">
-                            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full ${iconBgColor}">
-                                <span class="material-symbols-outlined ${iconColor}">${isOwnAction ? 'check_circle' : 'delete'}</span>
-                            </div>
-                            <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white mt-5">
-                                ${title}
-                            </h3>
-                            <div class="mt-2 px-7 py-3">
-                                <p class="text-sm text-gray-500 dark:text-gray-400">
-                                    ${message}
-                                </p>
-                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 mt-2">${flowgroupName}</p>
-                            </div>
-                            <div class="items-center px-4 py-3">
-                                <button id="flowgroup-deleted-ok-btn"
-                                        class="px-4 py-2 bg-primary text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-primary/80 focus:outline-none focus:ring-2 focus:ring-primary">
-                                    {% trans "OK" %}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            document.body.insertAdjacentHTML('beforeend', modalHtml);
-
-            // Add click handler to OK button
-            document.getElementById('flowgroup-deleted-ok-btn').addEventListener('click', function() {
-                // Redirect to dashboard
-                window.location.href = "{% url 'dashboard' %}";
-            });
-        }
-    };
-
-    // Listen for FlowGroup deletion events
-    document.addEventListener('realtime:flowgroup:deleted', function(event) {
-        if (window.FlowGroupRealtime && window.FlowGroupRealtime.handleFlowGroupDeleted) {
-            window.FlowGroupRealtime.handleFlowGroupDeleted(event.detail.data);
-        }
-    });
-
-    console.log('[FlowGroup RT] Real-time updates initialized');
-    console.log('[FlowGroup RT] window.FlowGroupRealtime =', window.FlowGroupRealtime);
-    console.log('[FlowGroup RT] window.FlowGroupRealtime.updateTransaction =', window.FlowGroupRealtime.updateTransaction);
-})();
-</script>
+<!-- PHASE 3 CSP Compliance: All inline scripts moved to external files -->
+<script src="{% static 'finances/js/FlowGroup.js' %}?v=20260102-009" defer></script>
+<script src="{% static 'finances/js/FlowGroup_realtime.js' %}?v=20260101-003" defer></script>
 
 {% endblock content %}

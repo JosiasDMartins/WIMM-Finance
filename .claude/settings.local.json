@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python manage.py makemessages:*)",
+      "Bash(python manage.py compilemessages:*)",
+      "Bash(msgfmt:*)",
+      "Bash(python -m py_compile:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(curl:*)",
+      "Bash(dir:*)",
+      "Bash(find:*)",
+      "Bash(python manage.py shell:*)",
+      "Bash(sqlite3:*)",
+      "Bash(python -c \"import sqlite3; conn = sqlite3.connect\\(''db/db.sqlite3''\\); cursor = conn.cursor\\(\\); cursor.execute\\(''SELECT id, username, email, is_superuser, is_staff, is_active FROM finances_customuser WHERE is_superuser = 1 OR is_staff = 1''\\); results = cursor.fetchall\\(\\); print\\(''Superusers/Staff:''\\); [print\\(f''  ID: {r[0]}, Username: {r[1]}, Email: {r[2]}, Superuser: {r[3]}, Staff: {r[4]}, Active: {r[5]}''\\) for r in results]; cursor.execute\\(''SELECT COUNT\\(*\\) FROM finances_customuser''\\); total = cursor.fetchone\\(\\)[0]; print\\(f''\\\\nTotal users: {total}''\\); conn.close\\(\\)\")"
+    ]
+  }
+}

@@ -137,7 +137,7 @@ class WebSocketBroadcaster:
         )
 
     @staticmethod
-    def broadcast_transaction_deleted(transaction_id, family_id, is_investment=False, actor_user=None):
+    def broadcast_transaction_deleted(transaction_id, family_id, is_investment=False, is_income=False, actor_user=None):
         """Broadcast transaction deletion"""
         WebSocketBroadcaster.broadcast_to_family(
             family_id=family_id,
@@ -145,6 +145,7 @@ class WebSocketBroadcaster:
             data={
                 'id': transaction_id,
                 'is_investment': is_investment,
+                'is_income': is_income,
             },
             actor_user=actor_user
         )

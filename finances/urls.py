@@ -61,6 +61,9 @@ urlpatterns = [
     # Get balance summary for dashboard
     path('api/balance-summary/', views.get_balance_summary_ajax, name='get_balance_summary_ajax'),
 
+    # Get YTD metrics for dashboard
+    path('api/ytd-metrics/', views.get_ytd_metrics_ajax, name='get_ytd_metrics_ajax'),
+
     # Get available periods for dropdown
     path('api/periods/', views.get_periods_ajax, name='get_periods_ajax'),
     

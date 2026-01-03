@@ -4,20 +4,8 @@
 <html lang="en" class="h-full">
 <head>
     <meta charset="utf-8"/>
-    <script>
-        // Set initial dark mode state to prevent FOUC
-        (function () {
-            const htmlElement = document.documentElement;
-            htmlElement.classList.remove('light');
-            const saved = localStorage.getItem('theme');
-            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-            const initial = saved ? saved : (prefersDark ? 'dark' : 'light');
-            if (initial === 'dark') {
-                htmlElement.classList.add('dark');
-            }
-        })();
-    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes"/>
+    <meta name="service-worker-url" content="{% url 'service_worker' %}"  />
     <title>{% block title %}{% trans "SweetMoney | Family Financial Flow" %}{% endblock title %}</title>
 
     <!-- PWA Meta Tags - Custom implementation with dynamic versioning -->
@@ -78,43 +66,47 @@
 
     <!-- Alpine.js REMOVED in Phase 4 - Replaced with vanilla JavaScript UIComponents class -->
 
-    <!-- Auto-scale adjustment for high DPI displays -->
-    <script>
-        (function() {
-            'use strict';
-
-            // Detect and adjust for Windows DPI scaling
-            function adjustForDPIScaling() {
-                const dpr = window.devicePixelRatio || 1;
-                const screenWidth = window.screen.width * dpr;
-
-                // If DPI scaling is detected (devicePixelRatio > 1) on a FullHD or smaller screen
-                // Apply a slight zoom reduction to prevent UI elements from being cut off
-                if (dpr >= 1.5 && screenWidth <= 1920) {
-                    // Calculate optimal zoom level
-                    const optimalZoom = Math.max(0.85, 1 / (dpr * 0.85));
-                    document.documentElement.style.zoom = optimalZoom;
-
-                    console.log('[DPI Adjust] Detected DPI scaling:', dpr, '| Applying zoom:', optimalZoom);
-                }
-            }
-
-            // Run on page load
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', adjustForDPIScaling);
-            } else {
-                adjustForDPIScaling();
-            }
-
-            // Re-adjust on window resize
-            window.addEventListener('resize', function() {
-                adjustForDPIScaling();
-            });
-        })();
-    </script>
+    <!-- PHASE 3 CSP Compliance: All inline scripts moved to base.js (loaded at end of body) -->
 </head>
 <body class="h-full bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200">
 
+    <!-- Base Configuration for JavaScript -->
+    <div id="base-config" style="display: none;"
+         data-server-version="{{ db_version }}"
+         data-db-version="{{ db_version }}"
+         data-user-id="{{ user.id|default:'' }}"
+         data-is-authenticated="{% if user.is_authenticated %}true{% else %}false{% endif %}"
+         data-decimal-separator="{{ decimal_separator }}"
+         data-thousand-separator="{{ thousand_separator }}"
+         data-currency-symbol="{{ currency_symbol }}"
+         data-i18n-error-loading-period-details="{% trans 'Error loading period details:' %}"
+         data-i18n-error-loading-period="{% trans 'An error occurred while loading period details' %}"
+         data-i18n-pwa-new-version-title="{% trans 'New SweetMoney version available!' %}"
+         data-i18n-pwa-installed="{% trans 'Installed:' %}"
+         data-i18n-pwa-available="{% trans 'Available:' %}"
+         data-i18n-pwa-update-instructions="{% trans 'To update, please reinstall the app.' %}"
+         data-i18n-pwa-click-to-dismiss="{% trans 'Click OK to dismiss this message.' %}"
+         data-i18n-pwa-ios-instructions="{% trans 'To install this app on your iPhone/iPad:' %}"
+         data-i18n-pwa-ios-step1="{% trans 'Tap the Share button (square with arrow)' %}"
+         data-i18n-pwa-ios-step2="{% trans 'Scroll down and tap \"Add to Home Screen\"' %}"
+         data-i18n-pwa-ios-step3="{% trans 'Tap \"Add\" to install' %}"
+         data-i18n-modal-notification="{% trans 'Notification' %}"
+         data-i18n-modal-warning="{% trans 'Warning' %}"
+         data-i18n-modal-error="{% trans 'Error' %}"
+         data-i18n-modal-success="{% trans 'Success' %}"
+         data-i18n-modal-confirm="{% trans 'Confirm Action' %}"
+         data-i18n-modal-ok="{% trans 'OK' %}"
+         data-i18n-modal-cancel="{% trans 'Cancel' %}"
+         data-i18n-modal-continue="{% trans 'Continue' %}"
+         data-i18n-modal-yes="{% trans 'Yes' %}"
+         data-i18n-modal-no="{% trans 'No' %}"
+         data-i18n-modal-close="{% trans 'Close' %}"
+         data-i18n-period-creating="{% trans 'Creating...' %}"
+         data-i18n-period-error-creating="{% trans 'An error occurred while creating the period' %}"
+         data-i18n-period-confirm-delete="{% trans 'Are you sure you want to delete this period?' %}"
+         data-i18n-period-deleting="{% trans 'Deleting...' %}"
+         data-i18n-period-error-deleting="{% trans 'An error occurred while deleting the period' %}"
+    ></div>
 
     <div class="flex h-full">
         <aside id="mobile-sidebar"
@@ -322,23 +314,6 @@
         </div>
     </div>
 
-    <!-- Translation strings for base.html JavaScript -->
-    <script>
-    window.BASE_I18N = {
-        errorLoadingPeriodDetails: "{% trans 'Error loading period details:' %}",
-        errorLoadingPeriod: "{% trans 'An error occurred while loading period details' %}",
-        pwaNewVersionTitle: "{% trans 'New SweetMoney version available!' %}",
-        pwaInstalled: "{% trans 'Installed:' %}",
-        pwaAvailable: "{% trans 'Available:' %}",
-        pwaUpdateInstructions: "{% trans 'To update, please reinstall the app.' %}",
-        pwaClickToDismiss: "{% trans 'Click OK to dismiss this message.' %}",
-        pwaIosInstructions: "{% trans 'To install this app on your iPhone/iPad:' %}",
-        pwaIosStep1: "{% trans 'Tap the Share button (square with arrow)' %}",
-        pwaIosStep2: "{% trans 'Scroll down and tap \"Add to Home Screen\"' %}",
-        pwaIosStep3: "{% trans 'Tap \"Add\" to install' %}"
-    };
-    </script>
-
     <!-- Admin Warning Modal -->
     {% if is_admin and not admin_warning_seen %}
     <div id="admin-warning-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" style="z-index: 9999;">
@@ -357,36 +332,6 @@
             </div>
         </div>
     </div>
-    <script>
-    (function() {
-        const modal = document.getElementById('admin-warning-modal');
-        const btn = document.getElementById('btn-dismiss-admin-warning');
-
-        if (btn && modal) {
-            btn.addEventListener('click', function() {
-                fetch('/mark-admin-warning-seen/', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': '{{ csrf_token }}'
-                    }
-                }).then(function(response) {
-                    if (response.ok) {
-                        modal.remove();
-                        if (typeof UpdateManager !== 'undefined' && !window.updateManager) {
-                            window.updateManager = new UpdateManager();
-                        }
-                    }
-                }).catch(function(err) {
-                    console.error('Error dismissing admin warning:', err);
-                    modal.remove();
-                    if (typeof UpdateManager !== 'undefined' && !window.updateManager) {
-                        window.updateManager = new UpdateManager();
-                    }
-                });
-            });
-        }
-    })();
-    </script>
     {% endif %}
 
     {% include 'finances/update_modal.html' %}
@@ -526,7 +471,7 @@
                             <div class="flex items-center mb-4">
                                 <input id="deleteConsentCheckbox"
                                        type="checkbox"
-                                       onchange="toggleDeleteButton()"
+                                       data-action="toggle-delete-consent"
                                        class="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500 cursor-pointer">
                                 <label for="deleteConsentCheckbox" class="ml-2 block text-sm text-gray-900 dark:text-gray-300 cursor-pointer">
                                     {% trans "I understand the consequences and want to proceed." %}
@@ -551,317 +496,9 @@
         </div>
     </div>
 
-    <script src="{% static 'finances/js/notifications.js' %}"></script>
+    <script src="{% static 'finances/js/notifications.js' %}?v=20251231-002" defer></script>
 
-    <script>
-        // Create Period Modal Functions
-        function openCreatePeriodModal() {
-            document.getElementById('createPeriodModal').classList.remove('hidden');
-            // Reset form
-            document.getElementById('createPeriodForm').reset();
-            document.getElementById('overlapWarning').classList.add('hidden');
-            document.getElementById('createPeriodBtn').disabled = false;
-        }
 
-        function closeCreatePeriodModal() {
-            document.getElementById('createPeriodModal').classList.add('hidden');
-        }
-
-        // Validate overlap when dates change
-        function validatePeriodOverlap() {
-            const startDate = document.getElementById('period_start_date').value;
-            const endDate = document.getElementById('period_end_date').value;
-            const warningDiv = document.getElementById('overlapWarning');
-            const createBtn = document.getElementById('createPeriodBtn');
-
-            if (!startDate || !endDate) {
-                warningDiv.classList.add('hidden');
-                createBtn.disabled = false;
-                return;
-            }
-
-            fetch('/api/period/validate-overlap/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: JSON.stringify({
-                    start_date: startDate,
-                    end_date: endDate
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.has_overlap) {
-                    warningDiv.classList.remove('hidden');
-                    document.getElementById('overlapMessage').textContent = data.message;
-                    createBtn.disabled = true;
-                    createBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
-                    createBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
-                } else {
-                    warningDiv.classList.add('hidden');
-                    createBtn.disabled = false;
-                    createBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
-                    createBtn.classList.add('bg-green-600', 'hover:bg-green-700');
-                }
-            })
-            .catch(error => {
-                console.error('Error validating period:', error);
-            });
-        }
-
-        // Attach validation to date inputs
-        document.addEventListener('DOMContentLoaded', function() {
-            const startDateInput = document.getElementById('period_start_date');
-            const endDateInput = document.getElementById('period_end_date');
-
-            if (startDateInput && endDateInput) {
-                startDateInput.addEventListener('change', validatePeriodOverlap);
-                endDateInput.addEventListener('change', validatePeriodOverlap);
-            }
-        });
-
-        // Handle form submission
-        document.getElementById('createPeriodForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const startDate = document.getElementById('period_start_date').value;
-            const endDate = document.getElementById('period_end_date').value;
-            const createBtn = document.getElementById('createPeriodBtn');
-
-            // Disable button during submission
-            createBtn.disabled = true;
-            createBtn.textContent = "{% trans 'Creating...' %}";
-
-            fetch('/api/period/create/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: JSON.stringify({
-                    start_date: startDate,
-                    end_date: endDate
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    // Reload page to show new period
-                    window.location.href = `?period=${data.period.start_date}`;
-                } else {
-                    alert("{% trans 'Error:' %} " + data.error);
-                    createBtn.disabled = false;
-                    createBtn.textContent = "{% trans 'Create' %}";
-                }
-            })
-            .catch(error => {
-                console.error('Error creating period:', error);
-                alert("{% trans 'An error occurred while creating the period' %}");
-                createBtn.disabled = false;
-                createBtn.textContent = "{% trans 'Create' %}";
-            });
-        });
-
-        // Helper function to get CSRF token
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
-            }
-            return cookieValue;
-        }
-
-        // Delete Period Modal Functions
-        let currentPeriodToDelete = null;
-
-        // NOVA FUNÇÃO: Controla estado do botão baseado no checkbox
-        function toggleDeleteButton() {
-            const checkbox = document.getElementById('deleteConsentCheckbox');
-            const btn = document.getElementById('confirmDeleteBtn');
-
-            if (checkbox && checkbox.checked) {
-                btn.disabled = false;
-                btn.style.backgroundColor = '#dc2626'; // Vermelho
-                btn.style.color = 'white';
-                btn.style.cursor = 'pointer';
-            } else if (btn) {
-                btn.disabled = true;
-                btn.style.backgroundColor = '#d1d5db'; // Cinza
-                btn.style.color = '#6b7280';
-                btn.style.cursor = 'not-allowed';
-            }
-        }
-
-        function openDeletePeriodModal() {
-            const modal = document.getElementById('deletePeriodModal');
-            modal.classList.remove('hidden');
-
-            // RESET: Desmarcar checkbox e travar botão
-            const checkbox = document.getElementById('deleteConsentCheckbox');
-            if (checkbox) {
-                checkbox.checked = false;
-                toggleDeleteButton(); // Aplica o estado visual de travado
-            }
-
-            // Show loading, hide content
-            document.getElementById('deletePeriodLoading').classList.remove('hidden');
-            document.getElementById('deletePeriodDetails').classList.add('hidden');
-
-            // Get current period from URL or use default
-            const urlParams = new URLSearchParams(window.location.search);
-            const periodParam = urlParams.get('period');
-
-            // Fetch period details
-            const periodUrl = periodParam
-                ? `/api/period/details/?period_start=${periodParam}`
-                : `/api/period/details/?period_start={{ start_date|date:"Y-m-d" }}`;
-
-            fetch(periodUrl)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        currentPeriodToDelete = data.period.start_date;
-
-                        // Populate modal with period data
-                        document.getElementById('deletePeriodLabel').textContent = data.period.label;
-                        document.getElementById('deleteFlowGroupCount').textContent = data.summary.flow_group_count;
-                        document.getElementById('deleteTransactionCount').textContent = data.summary.transaction_count;
-
-                        // Set currency symbols
-                        const currencySymbol = data.summary.currency_symbol;
-                        document.getElementById('deleteCurrencySymbol1').textContent = currencySymbol;
-                        document.getElementById('deleteCurrencySymbol2').textContent = currencySymbol;
-                        document.getElementById('deleteCurrencySymbol3').textContent = currencySymbol;
-                        document.getElementById('deleteCurrencySymbol4').textContent = currencySymbol;
-
-                        // Set metrics
-                        document.getElementById('deleteIncomeEstimated').textContent = parseFloat(data.summary.total_income_estimated).toFixed(2);
-                        document.getElementById('deleteIncomeRealized').textContent = parseFloat(data.summary.total_income_realized).toFixed(2);
-                        document.getElementById('deleteExpenseEstimated').textContent = parseFloat(data.summary.total_expense_estimated).toFixed(2);
-                        document.getElementById('deleteExpenseRealized').textContent = parseFloat(data.summary.total_expense_realized).toFixed(2);
-
-                        // Translated strings
-                        const txtCurrentPeriodWarning = "{% trans 'This is the CURRENT period. All flow groups and transactions will be CLEARED, but the period entry will be kept.' %}";
-                        const txtPermanentDeleteWarning = "{% trans 'This period will be PERMANENTLY DELETED along with all its flow groups and transactions.' %}";
-                        const txtClearPeriod = "{% trans 'Clear Period' %}";
-                        const txtDeletePeriod = "{% trans 'Delete Period' %}";
-
-                        // Update warning message based on whether it's current period
-                        if (data.period.is_current) {
-                            document.getElementById('deleteActionDescription').textContent = txtCurrentPeriodWarning;
-                            document.getElementById('deleteButtonText').textContent = txtClearPeriod;
-                        } else {
-                            document.getElementById('deleteActionDescription').textContent = txtPermanentDeleteWarning;
-                            document.getElementById('deleteButtonText').textContent = txtDeletePeriod;
-                        }
-
-                        // Hide loading, show content
-                        document.getElementById('deletePeriodLoading').classList.add('hidden');
-                        document.getElementById('deletePeriodDetails').classList.remove('hidden');
-                    } else {
-                        alert((window.BASE_I18N?.errorLoadingPeriodDetails || 'Error loading period details:') + ' ' + data.error);
-                        closeDeletePeriodModal();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching period details:', error);
-                    alert(window.BASE_I18N?.errorLoadingPeriod || 'An error occurred while loading period details');
-                    closeDeletePeriodModal();
-                });
-        }
-
-        function closeDeletePeriodModal() {
-            document.getElementById('deletePeriodModal').classList.add('hidden');
-            currentPeriodToDelete = null;
-        }
-
-        function confirmDeletePeriod() {
-            if (!currentPeriodToDelete) return;
-
-            const confirmBtn = document.getElementById('confirmDeleteBtn');
-            const originalText = confirmBtn.querySelector('#deleteButtonText').textContent;
-
-            // Disable button
-            confirmBtn.disabled = true;
-            confirmBtn.querySelector('#deleteButtonText').textContent = "{% trans 'Processing...' %}";
-            confirmBtn.style.cursor = 'wait';
-
-            fetch('/api/period/delete/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: JSON.stringify({
-                    period_start: currentPeriodToDelete
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    // Show success message
-                    alert(data.message);
-                    // Redirect
-                    window.location.href = data.redirect;
-                } else {
-                    alert("{% trans 'Error:' %} " + data.error);
-                    confirmBtn.disabled = false;
-                    confirmBtn.querySelector('#deleteButtonText').textContent = originalText;
-                    // Restaura estilo vermelho pois o erro ocorreu
-                    confirmBtn.style.cursor = 'pointer';
-                }
-            })
-            .catch(error => {
-                console.error('Error deleting period:', error);
-                alert("{% trans 'An error occurred while deleting the period' %}");
-                confirmBtn.disabled = false;
-                confirmBtn.querySelector('#deleteButtonText').textContent = originalText;
-                confirmBtn.style.cursor = 'pointer';
-            });
-        }
-    </script>
-
-    <script>
-        // Dark mode toggle functionality
-        (function () {
-            const themeToggle = document.getElementById('theme-toggle');
-            const htmlElement = document.documentElement;
-            const iconDark = document.getElementById('icon-dark');
-            const iconLight = document.getElementById('icon-light');
-
-            function setIcons() {
-                if (!iconDark || !iconLight) return;
-                if (htmlElement.classList.contains('dark')) {
-                    iconDark.style.display = 'none';
-                    iconLight.style.display = 'inline-block';
-                } else {
-                    iconDark.style.display = 'inline-block';
-                    iconLight.style.display = 'none';
-                }
-            }
-
-            // apply immediately
-            setIcons();
-
-            if (themeToggle) {
-                themeToggle.addEventListener('click', () => {
-                    htmlElement.classList.toggle('dark');
-                    const newTheme = htmlElement.classList.contains('dark') ? 'dark' : 'light';
-                    localStorage.setItem('theme', newTheme);
-                    setIcons();
-                });
-            }
-        })();
-    </script>
 
     {% block extra_js %}
     {% endblock %}
@@ -904,369 +541,7 @@
     </div>
 
     <!-- Generic Modal JavaScript -->
-    <script>
-        // Translation strings for modal
-        window.MODAL_I18N = {
-            notification: "{% trans 'Notification' %}",
-            warning: "{% trans 'Warning' %}",
-            error: "{% trans 'Error' %}",
-            success: "{% trans 'Success' %}",
-            confirm: "{% trans 'Confirm Action' %}",
-            ok: "{% trans 'OK' %}",
-            cancel: "{% trans 'Cancel' %}",
-            continue: "{% trans 'Continue' %}",
-            yes: "{% trans 'Yes' %}",
-            no: "{% trans 'No' %}",
-            close: "{% trans 'Close' %}"
-        };
 
-        // Generic Modal Manager
-        window.GenericModal = {
-            // Show alert modal (only OK button)
-            alert: function(message, title, onClose) {
-                return this.show({
-                    type: 'info',
-                    title: title || window.MODAL_I18N.notification,
-                    message: message,
-                    buttons: [
-                        {
-                            text: window.MODAL_I18N.ok,
-                            className: 'primary',
-                            callback: onClose
-                        }
-                    ]
-                });
-            },
-
-            // Show confirm modal (Yes/No or OK/Cancel)
-            // Can be used in two ways:
-            // 1. With callbacks: GenericModal.confirm(msg, title, onConfirm, onCancel)
-            // 2. As Promise: const result = await GenericModal.confirm(msg, title)
-            confirm: function(message, title, onConfirm, onCancel) {
-                // If no callbacks provided, return Promise
-                if (typeof onConfirm !== 'function' && typeof onCancel !== 'function') {
-                    return new Promise((resolve) => {
-                        const modal = document.getElementById('generic-modal');
-
-                        this.show({
-                            type: 'warning',
-                            title: title || window.MODAL_I18N.confirm,
-                            message: message,
-                            buttons: [
-                                {
-                                    text: window.MODAL_I18N.cancel,
-                                    className: 'secondary',
-                                    callback: () => {
-                                        resolve(false);
-                                    }
-                                },
-                                {
-                                    text: window.MODAL_I18N.continue,
-                                    className: 'danger',
-                                    callback: () => {
-                                        resolve(true);
-                                    }
-                                }
-                            ]
-                        });
-                    });
-                }
-
-                // Legacy callback mode
-                return this.show({
-                    type: 'warning',
-                    title: title || window.MODAL_I18N.confirm,
-                    message: message,
-                    buttons: [
-                        {
-                            text: window.MODAL_I18N.cancel,
-                            className: 'secondary',
-                            callback: onCancel
-                        },
-                        {
-                            text: window.MODAL_I18N.continue,
-                            className: 'danger',
-                            callback: onConfirm
-                        }
-                    ]
-                });
-            },
-
-            // Generic show method with full customization
-            show: function(options) {
-                const modal = document.getElementById('generic-modal');
-                const iconContainer = document.getElementById('modal-icon-container');
-                const icon = document.getElementById('modal-icon');
-                const titleEl = document.getElementById('modal-title');
-                const messageEl = document.getElementById('modal-message');
-                const buttonsContainer = document.getElementById('modal-buttons');
-
-                // Set type styling
-                const types = {
-                    info: {
-                        iconBg: 'bg-blue-100 dark:bg-blue-900/30',
-                        iconColor: 'text-blue-600 dark:text-blue-400',
-                        iconPath: 'M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z'
-                    },
-                    warning: {
-                        iconBg: 'bg-yellow-100 dark:bg-yellow-900/30',
-                        iconColor: 'text-yellow-600 dark:text-yellow-400',
-                        iconPath: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z'
-                    },
-                    error: {
-                        iconBg: 'bg-red-100 dark:bg-red-900/30',
-                        iconColor: 'text-red-600 dark:text-red-400',
-                        iconPath: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z'
-                    },
-                    success: {
-                        iconBg: 'bg-green-100 dark:bg-green-900/30',
-                        iconColor: 'text-green-600 dark:text-green-400',
-                        iconPath: 'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
-                    }
-                };
-
-                const typeStyle = types[options.type || 'info'];
-
-                // Set icon styling
-                iconContainer.className = `mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full sm:mx-0 sm:h-10 sm:w-10 ${typeStyle.iconBg}`;
-                icon.className = `h-6 w-6 ${typeStyle.iconColor}`;
-
-                // Update or create path element
-                let pathElement = icon.querySelector('path');
-                if (!pathElement) {
-                    pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    pathElement.setAttribute('stroke-linecap', 'round');
-                    pathElement.setAttribute('stroke-linejoin', 'round');
-                    icon.appendChild(pathElement);
-                }
-                pathElement.setAttribute('d', typeStyle.iconPath);
-
-                // Set title and message
-                titleEl.textContent = options.title || window.MODAL_I18N.notification;
-                messageEl.innerHTML = options.message || '';
-
-                // Build buttons
-                buttonsContainer.innerHTML = '';
-                (options.buttons || []).forEach(btn => {
-                    const button = document.createElement('button');
-                    button.type = 'button';
-                    button.textContent = btn.text;
-
-                    // Button styling based on className
-                    const buttonStyles = {
-                        primary: 'inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:w-auto',
-                        secondary: 'mt-3 inline-flex w-full justify-center rounded-md bg-white dark:bg-gray-700 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-gray-200 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 sm:mt-0 sm:w-auto',
-                        danger: 'inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:w-auto',
-                        success: 'inline-flex w-full justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:w-auto'
-                    };
-
-                    button.className = buttonStyles[btn.className] || buttonStyles.primary;
-
-                    button.addEventListener('click', () => {
-                        this.hide();
-                        if (btn.callback && typeof btn.callback === 'function') {
-                            btn.callback();
-                        }
-                    });
-
-                    buttonsContainer.appendChild(button);
-                });
-
-                // Show modal
-                modal.classList.remove('hidden');
-
-                // Return promise for async/await usage
-                return new Promise((resolve) => {
-                    // Store resolve for later use if needed
-                    modal._resolve = resolve;
-                });
-            },
-
-            // Hide modal
-            hide: function() {
-                const modal = document.getElementById('generic-modal');
-                modal.classList.add('hidden');
-                if (modal._resolve) {
-                    modal._resolve();
-                    delete modal._resolve;
-                }
-            }
-        };
-
-        // Store original functions for fallback
-        window._originalAlert = window.alert;
-        window._originalConfirm = window.confirm;
-
-        // Override native alert
-        window.alert = function(message, title) {
-            console.log('[GenericModal] Alert called:', message);
-            GenericModal.alert(message, title);
-        };
-
-        // Override native confirm (returns Promise)
-        // IMPORTANT: Old synchronous code like `if (confirm(...))` won't work
-        // Must use: `confirm(...).then(result => { if (result) {...} })`
-        // Or convert function to async: `const result = await confirm(...); if (result) {...}`
-        window.confirm = function(message, title) {
-            console.log('[GenericModal] Confirm called:', message);
-            return new Promise((resolve) => {
-                GenericModal.confirm(
-                    message,
-                    title || window.MODAL_I18N.confirm,
-                    () => {
-                        console.log('[GenericModal] Confirmed: true');
-                        resolve(true);
-                    },
-                    () => {
-                        console.log('[GenericModal] Confirmed: false');
-                        resolve(false);
-                    }
-                );
-            });
-        };
-
-        // Helper function for inline confirm usage (for onclick attributes)
-        window.confirmAction = async function(message, title, callback) {
-            const result = await window.confirm(message, title);
-            if (result && callback) {
-                callback();
-            }
-            return result;
-        };
-
-        // Log that GenericModal is loaded
-        console.log('[GenericModal] System loaded successfully');
-        console.log('[GenericModal] Available methods:', Object.keys(GenericModal));
-    </script>
-
-    <!-- PWA Service Worker Registration & Version Management -->
-    <script>
-        const SERVER_VERSION = '{{ db_version }}';
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                // Check if running as installed PWA
-                const isInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-
-                // Register service worker
-                navigator.serviceWorker.register('{% url "service_worker" %}')
-                    .then((registration) => {
-                        console.log('[PWA] Service Worker registered successfully:', registration.scope);
-                        console.log('[PWA] Server version: ' + SERVER_VERSION);
-
-                        // Check for manifest version updates (for installed apps)
-                        if (isInstalled) {
-                            checkManifestVersion();
-                        }
-
-                        // Check for updates periodically
-                        setInterval(() => {
-                            registration.update();
-                            if (isInstalled) {
-                                checkManifestVersion();
-                            }
-                        }, 60000); // Check every minute
-                    })
-                    .catch((error) => {
-                        console.error('[PWA] Service Worker registration failed:', error);
-                    });
-
-                // Listen for service worker updates
-                navigator.serviceWorker.addEventListener('controllerchange', () => {
-                    console.log('[PWA] New service worker activated - reloading page');
-                    window.location.reload();
-                });
-            });
-        }
-
-        // Check manifest version and prompt for reinstall if needed
-        async function checkManifestVersion() {
-            try {
-                // Get cached installed version
-                const installedVersion = localStorage.getItem('pwa_installed_version');
-
-                if (!installedVersion) {
-                    // First time running, save current version
-                    localStorage.setItem('pwa_installed_version', SERVER_VERSION);
-                    console.log('[PWA] Saved installed version: ' + SERVER_VERSION);
-                    return;
-                }
-
-                // Compare versions
-                if (installedVersion !== SERVER_VERSION) {
-                    console.log('[PWA] Version mismatch! Installed: ' + installedVersion + ', Server: ' + SERVER_VERSION);
-
-                    // Show update notification
-                    showUpdateNotification(installedVersion, SERVER_VERSION);
-                }
-            } catch (error) {
-                console.error('[PWA] Error checking manifest version:', error);
-            }
-        }
-
-        function showUpdateNotification(oldVersion, newVersion) {
-            // Only show once per version
-            const notificationShown = sessionStorage.getItem('update_notification_' + newVersion);
-            if (notificationShown) {
-                return;
-            }
-
-            // Mark as shown
-            sessionStorage.setItem('update_notification_' + newVersion, 'true');
-
-            // Use existing modal system if available
-            if (typeof window.showModal === 'function') {
-                const title = '🎉 New Version Available!';
-                const content = `
-                    <div class="space-y-4">
-                        <p class="text-gray-700 dark:text-gray-300">
-                            SweetMoney has been updated from <strong>v${oldVersion}</strong> to <strong>v${newVersion}</strong>!
-                        </p>
-                        <p class="text-gray-700 dark:text-gray-300">
-                            To see the latest features and improvements, please reinstall the app:
-                        </p>
-                        <ol class="list-decimal list-inside space-y-2 text-gray-700 dark:text-gray-300 text-sm">
-                            <li>Uninstall the current app from your device</li>
-                            <li>Visit SweetMoney in your browser</li>
-                            <li>Click "Install App" to reinstall with the new version</li>
-                        </ol>
-                        <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                            <p class="text-xs text-blue-700 dark:text-blue-400">
-                                💡 <strong>Tip:</strong> Your data is safe on the server. Reinstalling won't affect your financial records.
-                            </p>
-                        </div>
-                        <button data-action="update-version" data-version="${newVersion}"
-                                class="w-full mt-4 bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg">
-                            I'll Do It Later
-                        </button>
-                    </div>
-                `;
-                window.showModal(title, content);
-            } else {
-                // Fallback: console + alert
-                const title = window.BASE_I18N?.pwaNewVersionTitle || 'New SweetMoney version available!';
-                const installed = window.BASE_I18N?.pwaInstalled || 'Installed:';
-                const available = window.BASE_I18N?.pwaAvailable || 'Available:';
-                const instructions = window.BASE_I18N?.pwaUpdateInstructions || 'To update, please reinstall the app.';
-                const dismiss = window.BASE_I18N?.pwaClickToDismiss || 'Click OK to dismiss this message.';
-
-                if (confirm(`${title}\n\n${installed} v${oldVersion}\n${available} v${newVersion}\n\n${instructions}\n\n${dismiss}`)) {
-                    localStorage.setItem('pwa_installed_version', newVersion);
-                }
-            }
-        }
-
-        // Allow user to dismiss update notification
-        function updateInstalledVersion(version) {
-            localStorage.setItem('pwa_installed_version', version);
-            console.log('[PWA] User dismissed update notification for version ' + version);
-
-            // Close modal if closeModal function exists
-            if (typeof window.closeModal === 'function') {
-                window.closeModal();
-            }
-        }
-    </script>
 
     <!-- PWA Install Manager -->
     <script src="{% static 'finances/js/pwa-install.js' %}"></script>
@@ -1274,204 +549,21 @@
     <!-- WebSocket Real-time Updates -->
     {% if user.is_authenticated %}
     <script src="{% static 'finances/js/websocket_manager.js' %}"></script>
-
-    <!-- Real-time UI Updates Handler -->
-    <script>
-        // Expose locale settings for realtime_ui.js
-        window.decimalSeparator = "{{ decimal_separator }}";
-        window.thousandSeparator = "{{ thousand_separator }}";
-        window.currencySymbol = "{{ currency_symbol }}";
-    </script>
-    <script src="{% static 'finances/js/realtime_ui.js' %}?v=20251215-003"></script>
-
-    <script>
-        // Initialize WebSocket connection on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            // CRITICAL: Do NOT initialize WebSocket on configuration pages
-            // Database restore operations need exclusive access to the DB file
-            // WebSocket connections create locks that prevent file operations on Windows
-            const currentPath = window.location.pathname;
-            const isConfigPage = currentPath.includes('/configurations') || currentPath.includes('/settings');
-
-            if (isConfigPage) {
-                console.log('[WebSocket] Skipping initialization on configuration page to avoid DB locks');
-                return;
-            }
-
-            // Store current user ID for comparison in RealtimeUI
-            document.body.dataset.userId = "{{ user.id }}";
-
-            // Create WebSocket manager instance
-            const wsManager = new WebSocketManager();
-            wsManager.connect();
-
-            // Show connection status indicator (optional)
-            wsManager.onConnectionStatus(function(status) {
-                const indicator = document.getElementById('ws-status-indicator');
-                if (indicator) {
-                    indicator.className = 'ws-' + status;
-                    indicator.title = 'WebSocket: ' + status;
-                }
-            });
-
-            // Register message handlers for real-time updates
-            wsManager.registerHandler('transaction_created', function(data) {
-                window.RealtimeUI.handleTransactionCreated(data);
-            });
-
-            wsManager.registerHandler('transaction_updated', function(data) {
-                window.RealtimeUI.handleTransactionUpdated(data);
-            });
-
-            wsManager.registerHandler('transaction_deleted', function(data) {
-                window.RealtimeUI.handleTransactionDeleted(data);
-            });
-
-            wsManager.registerHandler('flowgroup_created', function(data) {
-                window.RealtimeUI.handleFlowGroupCreated(data);
-            });
-
-            wsManager.registerHandler('flowgroup_updated', function(data) {
-                window.RealtimeUI.handleFlowGroupUpdated(data);
-            });
-
-            wsManager.registerHandler('flowgroup_deleted', function(data) {
-                window.RealtimeUI.handleFlowGroupDeleted(data);
-            });
-
-            wsManager.registerHandler('flowgroup_reordered', function(data) {
-                window.RealtimeUI.handleFlowGroupReordered(data);
-            });
-
-            wsManager.registerHandler('bank_balance_updated', function(data) {
-                window.RealtimeUI.handleBankBalanceUpdated(data);
-            });
-
-            wsManager.registerHandler('bank_balance_deleted', function(data) {
-                window.RealtimeUI.handleBankBalanceDeleted(data);
-            });
-
-            wsManager.registerHandler('reconciliation_mode_changed', function(data) {
-                window.RealtimeUI.handleReconciliationModeChanged(data);
-            });
-
-            wsManager.registerHandler('configuration_updated', function(data) {
-                window.RealtimeUI.handleConfigurationUpdated(data);
-            });
-
-            wsManager.registerHandler('member_added', function(data) {
-                window.RealtimeUI.handleMemberAdded(data);
-            });
-
-            wsManager.registerHandler('member_updated', function(data) {
-                window.RealtimeUI.handleMemberUpdated(data);
-            });
-
-            wsManager.registerHandler('member_removed', function(data) {
-                window.RealtimeUI.handleMemberRemoved(data);
-            });
-
-            wsManager.registerHandler('notification', function(data) {
-                window.RealtimeUI.handleNotification(data);
-            });
-
-            // Handle notification_created events (new notifications)
-            wsManager.registerHandler('notification_created', function(data) {
-                // Trigger custom event for notifications.js to handle
-                document.dispatchEvent(new CustomEvent('realtime:notification', {
-                    detail: { data: data }
-                }));
-            });
-        });
-    </script>
+    <script src="{% static 'finances/js/realtime_ui.js' %}?v=20260101-001"></script>
     {% endif %}
 
+    <!-- Common Utilities - Must load before other scripts -->
+    <script src="{% static 'finances/js/utils.js' %}?v=20251231-002" defer></script>
+
+    <!-- PHASE 3: Generic Modal System (Promise-based API) -->
+    <script src="{% static 'finances/js/generic_modal.js' %}?v=20260101-002" defer></script>
+
     <!-- PHASE 3: Event Delegation Manager -->
-    <script src="{% static 'finances/js/event_delegation.js' %}"></script>
+    <script src="{% static 'finances/js/event_delegation.js' %}?v=20251230-010" defer></script>
 
-    <!-- PHASE 4: UI Components (replaces Alpine.js) -->
-    <script>
-    (function() {
-        'use strict';
-
-        /**
-         * UI Components Manager - Replaces Alpine.js
-         * Handles sidebar toggle and period dropdown
-         */
-        class UIComponents {
-            constructor() {
-                this.sidebarOpen = false;
-                this.periodDropdownOpen = false;
-                this.init();
-            }
-
-            init() {
-                // Sidebar toggle buttons
-                document.querySelector('[data-action="open-sidebar"]')?.addEventListener('click', () => {
-                    this.openSidebar();
-                });
-
-                document.querySelector('[data-action="close-sidebar"]')?.addEventListener('click', () => {
-                    this.closeSidebar();
-                });
-
-                // Period dropdown
-                const dropdownBtn = document.querySelector('[data-action="toggle-period-dropdown"]');
-                if (dropdownBtn) {
-                    dropdownBtn.addEventListener('click', () => this.togglePeriodDropdown());
-
-                    // Click outside to close
-                    document.addEventListener('click', (e) => {
-                        const container = e.target.closest('[data-dropdown-container="period"]');
-                        if (!container && this.periodDropdownOpen) {
-                            this.closePeriodDropdown();
-                        }
-                    });
-                }
-
-                console.log('[UIComponents] Initialized (Phase 4)');
-            }
-
-            openSidebar() {
-                this.sidebarOpen = true;
-                const sidebar = document.getElementById('mobile-sidebar');
-                if (sidebar) {
-                    sidebar.classList.remove('-translate-x-full');
-                    sidebar.classList.add('translate-x-0');
-                }
-            }
-
-            closeSidebar() {
-                this.sidebarOpen = false;
-                const sidebar = document.getElementById('mobile-sidebar');
-                if (sidebar) {
-                    sidebar.classList.remove('translate-x-0');
-                    sidebar.classList.add('-translate-x-full');
-                }
-            }
-
-            togglePeriodDropdown() {
-                this.periodDropdownOpen = !this.periodDropdownOpen;
-                const dropdown = document.getElementById('period-dropdown-menu');
-                if (dropdown) {
-                    dropdown.classList.toggle('hidden', !this.periodDropdownOpen);
-                }
-            }
-
-            closePeriodDropdown() {
-                this.periodDropdownOpen = false;
-                const dropdown = document.getElementById('period-dropdown-menu');
-                if (dropdown) {
-                    dropdown.classList.add('hidden');
-                }
-            }
-        }
-
-        // Initialize on DOM ready
-        document.addEventListener('DOMContentLoaded', () => {
-            window.uiComponents = new UIComponents();
-        });
-    })();
-    </script>
+    <!-- PHASE 3 CSP Compliance: All inline scripts moved to external base.js -->
+    <!-- This file handles: Dark mode, DPI scaling, Periods, Admin warning, PWA, WebSocket, UI Components -->
+    <!-- NOTE: NO defer - dark mode init must run immediately to prevent FOUC -->
+    <script src="{% static 'finances/js/base.js' %}?v=20260101-002"></script>
 </body>
 </html>

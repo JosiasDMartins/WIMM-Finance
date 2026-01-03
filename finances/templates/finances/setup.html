@@ -7,49 +7,6 @@
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <title>{% trans "SweetMoney - Initial Setup" %}</title>
 
-    <!-- CRITICAL: Unregister any existing service workers during setup -->
-    <script>
-        // Flag to track if service workers are fully unregistered
-        window.serviceWorkersUnregistered = false;
-
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                if (registrations.length === 0) {
-                    console.log('[SETUP] No service workers to unregister');
-                    window.serviceWorkersUnregistered = true;
-                    return;
-                }
-
-                let unregisteredCount = 0;
-                const totalRegistrations = registrations.length;
-
-                registrations.forEach(function(registration) {
-                    registration.unregister().then(function(success) {
-                        if (success) {
-                            console.log('[SETUP] Unregistered service worker successfully');
-                        } else {
-                            console.error('[SETUP] Failed to unregister service worker');
-                        }
-                        unregisteredCount++;
-
-                        // All service workers unregistered
-                        if (unregisteredCount === totalRegistrations) {
-                            console.log('[SETUP] All service workers unregistered');
-                            window.serviceWorkersUnregistered = true;
-                        }
-                    });
-                });
-            }).catch(function(error) {
-                console.error('[SETUP] Error getting service worker registrations:', error);
-                // Even if there's an error, allow the page to function
-                window.serviceWorkersUnregistered = true;
-            });
-        } else {
-            // Service workers not supported or not available
-            window.serviceWorkersUnregistered = true;
-        }
-    </script>
-
     <!-- Local fonts and styles -->
     <link rel="stylesheet" href="{% static 'finances/css/fonts.css' %}">
     <link rel="stylesheet" href="{% static 'finances/css/tailwind.css' %}">
@@ -515,212 +472,37 @@
         </div>
     </div>
 
-    <script>
-        // Show/hide fields based on period type selection
-        document.addEventListener('DOMContentLoaded', function() {
-            const periodTypeRadios = document.querySelectorAll('input[name="period_type"]');
-            const startingDayField = document.getElementById('starting-day-field');
-            const baseDateField = document.getElementById('base-date-field');
-            
-            function updateFieldsVisibility() {
-                const selectedType = document.querySelector('input[name="period_type"]:checked');
-                if (!selectedType) return;
-                
-                const value = selectedType.value;
-                
-                if (value === 'M') {
-                    // Monthly - show starting_day, hide base_date
-                    if (startingDayField) startingDayField.style.display = 'block';
-                    if (baseDateField) baseDateField.style.display = 'none';
-                    
-                    // Remove required from base_date when hidden
-                    const baseDateInput = document.getElementById('{{ form.base_date.id_for_label }}');
-                    if (baseDateInput) baseDateInput.removeAttribute('required');
-                } else {
-                    // Bi-weekly or Weekly - hide starting_day, show base_date
-                    if (startingDayField) startingDayField.style.display = 'none';
-                    if (baseDateField) baseDateField.style.display = 'block';
-                    
-                    // Add required to base_date when visible
-                    const baseDateInput = document.getElementById('{{ form.base_date.id_for_label }}');
-                    if (baseDateInput) baseDateInput.setAttribute('required', 'required');
-                }
-            }
-            
-            // Initial setup
-            updateFieldsVisibility();
-            
-            // Listen for changes
-            periodTypeRadios.forEach(radio => {
-                radio.addEventListener('change', updateFieldsVisibility);
-            });
-        });
+    <!-- Configuration for setup.js -->
+    <div id="setup-config" class="hidden"
+         data-i18n-no-file-selected="{% trans 'No file selected' %}"
+         data-i18n-checking-service-workers="{% trans 'Checking service workers...' %}"
+         data-i18n-service-workers-error="{% trans 'Service workers could not be unregistered. Please refresh the page and try again.' %}"
+         data-i18n-upload-backup="{% trans 'Upload Backup' %}"
+         data-i18n-restoring="{% trans 'Restoring...' %}"
+         data-i18n-server-error="{% trans 'Server returned non-JSON response. Please check server logs.' %}"
+         data-i18n-db-restored-successfully="{% trans 'Database restored successfully!' %}"
+         data-i18n-migration-warning="{% trans 'Note: Some migrations encountered warnings. Check console for details.' %}"
+         data-i18n-migration-success="{% trans 'Database structure updated to latest version.' %}"
+         data-i18n-click-ok-to-login="{% trans 'Click OK to go to login page.' %}"
+         data-i18n-restore-failed="{% trans 'Restore failed:' %}"
+         data-i18n-unknown-error="{% trans 'Unknown error' %}"
+         data-i18n-error-restoring-database="{% trans 'Error restoring database:' %}"
+         data-i18n-restore-backup="{% trans 'Restore Backup' %}"
+         data-i18n-restore-successful="{% trans 'Restore Successful' %}"
+         data-i18n-restore-error="{% trans 'Restore Error' %}">
+    </div>
 
-        document.addEventListener('DOMContentLoaded', function() {
-        const btnShowRestore = document.getElementById('btn-show-restore');
-        const btnShowSetup = document.getElementById('btn-show-setup');
-        const restoreSection = document.getElementById('restore-section');
-        const setupSection = document.getElementById('setup-section');
-        const backupFileInput = document.getElementById('backup-file-input');
-        const fileNameDisplay = document.getElementById('file-name');
-        const btnUploadBackup = document.getElementById('btn-upload-backup');
-        const btnCancelRestore = document.getElementById('btn-cancel-restore');
-        const restoreInfo = document.getElementById('restore-info');
-        
-        // Toggle between restore and setup
-        btnShowRestore?.addEventListener('click', function() {
-            restoreSection.classList.remove('hidden');
-            setupSection.classList.add('hidden');
-            btnShowRestore.classList.add('bg-teal-50');
-            btnShowSetup.classList.remove('bg-teal-500', 'text-white');
-            btnShowSetup.classList.add('border-2', 'border-teal-500', 'text-teal-600');
-        });
+    <!-- PHASE 3 CSP Compliance: Load external scripts -->
+    <!-- Material Symbols (needs to load early for icons) -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
 
-        btnShowSetup?.addEventListener('click', function() {
-            setupSection.classList.remove('hidden');
-            restoreSection.classList.add('hidden');
-            btnShowSetup.classList.remove('border-2', 'border-teal-500', 'text-teal-600');
-            btnShowSetup.classList.add('bg-teal-500', 'text-white');
-            btnShowRestore.classList.remove('bg-teal-50');
-        });
-        
-        btnCancelRestore?.addEventListener('click', function() {
-            btnShowSetup.click();
-        });
-        
-        // Handle file selection
-        backupFileInput?.addEventListener('change', function(e) {
-            if (e.target.files.length > 0) {
-                const file = e.target.files[0];
-                fileNameDisplay.textContent = file.name;
-                btnUploadBackup.disabled = false;
-            } else {
-                fileNameDisplay.textContent = "{% trans 'No file selected' %}";
-                btnUploadBackup.disabled = true;
-                restoreInfo.classList.add('hidden');
-            }
-        });
-        
-        // Handle backup upload
-        btnUploadBackup?.addEventListener('click', async function() {
-            const file = backupFileInput.files[0];
-            if (!file) return;
+    <!-- Utils.js (provides getCookie and other utilities) -->
+    <script src="{% static 'finances/js/utils.js' %}?v=20251231-002" defer></script>
 
-            // CRITICAL: Wait for service workers to be unregistered before proceeding
-            // Service workers can hold database connections that prevent file operations
-            btnUploadBackup.disabled = true;
-            btnUploadBackup.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> {% trans "Checking service workers..." %}';
+    <!-- Base.js (provides GenericModal and dark mode) -->
+    <script src="{% static 'finances/js/base.js' %}?v=20251231-002" defer></script>
 
-            console.log('[RESTORE] Waiting for service workers to be unregistered...');
-            const maxWaitTime = 5000; // 5 seconds
-            const startTime = Date.now();
-
-            // Wait for service workers to be unregistered
-            while (!window.serviceWorkersUnregistered && (Date.now() - startTime) < maxWaitTime) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-
-            if (!window.serviceWorkersUnregistered) {
-                console.error('[RESTORE] Service workers still not unregistered after 5 seconds');
-                alert("{% trans 'Service workers could not be unregistered. Please refresh the page and try again.' %}");
-                btnUploadBackup.disabled = false;
-                btnUploadBackup.innerHTML = '<span class="material-symbols-outlined">upload</span> {% trans "Upload Backup" %}';
-                return;
-            }
-
-            console.log('[RESTORE] Service workers unregistered, proceeding with restore');
-
-            // Close any existing WebSocket connections before restore
-            // This prevents database lock issues during restore
-            if (window.updateSocket && window.updateSocket.readyState === WebSocket.OPEN) {
-                console.log('[RESTORE] Closing WebSocket before database restore');
-                window.updateSocket.close();
-            }
-
-            const formData = new FormData();
-            formData.append('backup_file', file);
-
-            btnUploadBackup.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> {% trans "Restoring..." %}';
-
-            try {
-                const response = await fetch('/restore-backup/', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': getCookie('csrftoken')
-                    },
-                    body: formData
-                });
-
-                // Check if response is JSON
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    const text = await response.text();
-                    console.error('Non-JSON response:', text);
-                    throw new Error("{% trans 'Server returned non-JSON response. Please check server logs.' %}");
-                }
-
-                const data = await response.json();
-
-                if (data.success) {
-                    // Show backup info
-                    restoreInfo.classList.remove('hidden');
-                    document.getElementById('family-name').textContent = data.family.name;
-
-                    const usersList = document.getElementById('users-list');
-                    usersList.innerHTML = '';
-                    data.users.forEach(user => {
-                        const li = document.createElement('li');
-                        li.textContent = `${user.username} (${user.role})${user.email ? ' - ' + user.email : ''}`;
-                        usersList.appendChild(li);
-                    });
-
-                    // Log migration results if available
-                    if (data.migration_log) {
-                        console.log('Migration log:', data.migration_log);
-                    }
-
-                    // Show success and redirect option
-                    let message = "{% trans 'Database restored successfully!' %}";
-                    if (data.migration_log && data.migration_log.includes('Warning')) {
-                        message += "\n\n{% trans 'Note: Some migrations encountered warnings. Check console for details.' %}";
-                    } else if (data.migration_log) {
-                        message += "\n\n{% trans 'Database structure updated to latest version.' %}";
-                    }
-
-                    setTimeout(() => {
-                        if (confirm(message + "\n\n{% trans 'Click OK to go to login page.' %}")) {
-                            window.location.href = '/login/';
-                        }
-                    }, 1000);
-
-                } else {
-                    alert("{% trans 'Restore failed:' %} " + (data.error || "{% trans 'Unknown error' %}"));
-                    btnUploadBackup.disabled = false;
-                    btnUploadBackup.innerHTML = "{% trans 'Restore Backup' %}";
-                }
-            } catch (error) {
-                console.error('Restore error:', error);
-                alert("{% trans 'Error restoring database:' %} " + error.message);
-                btnUploadBackup.disabled = false;
-                btnUploadBackup.innerHTML = "{% trans 'Restore Backup' %}";
-            }
-        });
-        
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
-            }
-            return cookieValue;
-        }
-    });
-    </script>
+    <!-- Setup.js (handles all setup page functionality) -->
+    <script src="{% static 'finances/js/setup.js' %}?v=20251231-001" defer></script>
 </body>
 </html>

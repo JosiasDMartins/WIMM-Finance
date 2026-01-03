@@ -60,78 +60,221 @@ class EventDelegationManager {
         event.preventDefault();
 
         const action = button.dataset.action;
-        const itemId = button.dataset.itemId;
+        const itemId = button.dataset.itemId; // For backwards compatibility
         const type = button.dataset.type;
-        const rowId = button.dataset.rowId;
+        const rowId = button.dataset.rowId || itemId; // Prefer rowId, fallback to itemId
 
         // Action mapping
         const actions = {
             // Income/Expense actions
-            'edit': () => toggleEditMode(itemId, true),
-            'save': () => saveItem(itemId),
-            'delete': () => deleteItem(itemId),
-            'cancel': () => toggleEditMode(itemId, false),
+            'edit': () => {
+                if (typeof window.toggleEditMode === 'function') {
+                    window.toggleEditMode(rowId, true);
+                } else {
+                    console.error('[EventDelegation] window.toggleEditMode is not defined');
+                }
+            },
+            'save': () => {
+                if (typeof window.saveItem === 'function') {
+                    window.saveItem(rowId);
+                } else {
+                    console.error('[EventDelegation] window.saveItem is not defined');
+                }
+            },
+            'delete': () => {
+                if (typeof window.deleteItem === 'function') {
+                    window.deleteItem(rowId);
+                } else {
+                    console.error('[EventDelegation] window.deleteItem is not defined');
+                }
+            },
+            'cancel': () => {
+                if (typeof window.toggleEditMode === 'function') {
+                    window.toggleEditMode(rowId, false);
+                } else {
+                    console.error('[EventDelegation] window.toggleEditMode is not defined');
+                }
+            },
 
             // Balance actions (bank_reconciliation.html)
-            'edit-balance': () => toggleEditBalance(rowId, true),
-            'save-balance': () => saveBalance(rowId),
-            'delete-balance': () => deleteBalance(itemId),
-            'cancel-balance': () => toggleEditBalance(rowId, false),
-            'add-balance': () => addNewBalance(),
-            'cancel-new-balance': () => cancelNewBalance(),
+            'edit-balance': () => {
+                if (typeof window.toggleEditBalance === 'function') {
+                    window.toggleEditBalance(rowId, true);
+                } else {
+                    console.error('[EventDelegation] window.toggleEditBalance is not defined');
+                }
+            },
+            'save-balance': () => {
+                if (typeof window.saveBalance === 'function') {
+                    window.saveBalance(rowId);
+                } else {
+                    console.error('[EventDelegation] window.saveBalance is not defined');
+                }
+            },
+            'delete-balance': () => {
+                if (typeof window.deleteBalance === 'function') {
+                    window.deleteBalance(itemId);
+                } else {
+                    console.error('[EventDelegation] window.deleteBalance is not defined');
+                }
+            },
+            'cancel-balance': () => {
+                if (typeof window.toggleEditBalance === 'function') {
+                    window.toggleEditBalance(rowId, false);
+                } else {
+                    console.error('[EventDelegation] window.toggleEditBalance is not defined');
+                }
+            },
+            'add-balance': () => {
+                if (typeof window.addNewBalance === 'function') {
+                    window.addNewBalance();
+                } else {
+                    console.error('[EventDelegation] window.addNewBalance is not defined');
+                }
+            },
+            'cancel-new-balance': () => {
+                if (typeof window.cancelNewBalance === 'function') {
+                    window.cancelNewBalance();
+                } else {
+                    console.error('[EventDelegation] window.cancelNewBalance is not defined');
+                }
+            },
 
             // Add new row
             'add-new-row': () => this.addNewRow(type),
 
             // Save new item
-            'save-new-income': () => saveIncomeItem('new-income-template'),
-            'cancel-new-income': () => cancelNewIncomeRow('new-income-template'),
-            'save-new-expense': () => saveExpenseItem('new-expense-template'),
-            'cancel-new-expense': () => cancelNewExpenseRow('new-expense-template'),
+            'save-new-income': () => {
+                if (typeof window.saveIncomeItem === 'function') {
+                    window.saveIncomeItem('new-income-template');
+                } else {
+                    console.error('[EventDelegation] window.saveIncomeItem is not defined');
+                }
+            },
+            'cancel-new-income': () => {
+                if (typeof window.cancelNewIncomeRow === 'function') {
+                    window.cancelNewIncomeRow('new-income-template');
+                } else {
+                    console.error('[EventDelegation] window.cancelNewIncomeRow is not defined');
+                }
+            },
+            'save-new-expense': () => {
+                if (typeof window.saveItem === 'function') {
+                    window.saveItem('new-item-template');
+                } else {
+                    console.error('[EventDelegation] window.saveItem is not defined');
+                }
+            },
+            'cancel-new-expense': () => {
+                if (typeof window.cancelNewRow === 'function') {
+                    window.cancelNewRow('new-item-template');
+                } else {
+                    console.error('[EventDelegation] window.cancelNewRow is not defined');
+                }
+            },
 
             // Alert for kids (read-only)
             'show-alert': () => alert(button.dataset.message),
 
             // Period actions
-            'confirm-delete-period': () => confirmDeletePeriod(),
+            'confirm-delete-period': () => {
+                if (typeof window.confirmDeletePeriod === 'function') {
+                    window.confirmDeletePeriod();
+                } else {
+                    console.error('[EventDelegation] window.confirmDeletePeriod is not defined');
+                }
+            },
 
             // Update version
-            'update-version': () => updateInstalledVersion(button.dataset.version),
-
-            // Bank balance actions (bank_reconciliation.html)
-            'edit-balance': () => toggleEditBalance(button.dataset.rowId, true),
-            'save-balance': () => saveBalance(button.dataset.rowId),
-            'cancel-balance': () => toggleEditBalance(button.dataset.rowId, false),
-            'delete-balance': () => deleteBalance(button.dataset.itemId),
-            'add-new-balance': () => addNewBalance(),
-            'cancel-new-balance': () => cancelNewBalance(),
+            'update-version': () => {
+                if (typeof window.updateInstalledVersion === 'function') {
+                    window.updateInstalledVersion(button.dataset.version);
+                } else {
+                    console.error('[EventDelegation] window.updateInstalledVersion is not defined');
+                }
+            },
 
             // Password visibility toggle (password_reset_confirm.html)
             'toggle-password': () => {
                 const targetId = button.dataset.target;
-                togglePasswordVisibility(targetId, button);
+                if (typeof window.togglePasswordVisibility === 'function') {
+                    window.togglePasswordVisibility(targetId, button);
+                } else {
+                    console.error('[EventDelegation] window.togglePasswordVisibility is not defined');
+                }
             },
 
             // Offline/Setup page actions
-            'retry-connection': () => retryConnection(),
+            'retry-connection': () => {
+                if (typeof window.retryConnection === 'function') {
+                    window.retryConnection();
+                } else {
+                    console.error('[EventDelegation] window.retryConnection is not defined');
+                }
+            },
             'reload-page': () => window.location.reload(),
 
             // FlowGroup actions
-            'delete-flowgroup': () => deleteFlowGroup(),
+            'delete-flowgroup': () => {
+                if (typeof window.deleteFlowGroup === 'function') {
+                    window.deleteFlowGroup();
+                } else {
+                    console.error('[EventDelegation] window.deleteFlowGroup is not defined');
+                }
+            },
             'history-back': () => history.back(),
-            'toggle-flowgroup-recurring': () => toggleFlowGroupRecurring(),
+            'toggle-flowgroup-recurring': () => {
+                if (typeof window.toggleFlowGroupRecurring === 'function') {
+                    window.toggleFlowGroupRecurring();
+                } else {
+                    console.error('[EventDelegation] window.toggleFlowGroupRecurring is not defined');
+                }
+            },
             'toggle-kids-realized': () => {
                 const currentState = button.dataset.currentState === 'true';
-                toggleKidsGroupRealized(currentState);
+                if (typeof window.toggleKidsGroupRealized === 'function') {
+                    window.toggleKidsGroupRealized(currentState);
+                } else {
+                    console.error('[EventDelegation] window.toggleKidsGroupRealized is not defined');
+                }
             },
             'toggle-creditcard-closed': () => {
                 const currentState = button.dataset.currentState === 'true';
-                toggleCreditCardClosed(currentState);
+                if (typeof window.toggleCreditCardClosed === 'function') {
+                    window.toggleCreditCardClosed(currentState);
+                } else {
+                    console.error('[EventDelegation] window.toggleCreditCardClosed is not defined');
+                }
             },
-            'toggle-fixed': () => toggleTransactionFixed(button.dataset.itemId),
-            'toggle-new-item-fixed': () => toggleNewItemFixed(button.dataset.itemId),
-            'cancel-new-row': () => cancelNewRow(button.dataset.itemId),
-            'add-new-row': () => addNewRow(),
+            'toggle-fixed': () => {
+                if (typeof window.toggleTransactionFixed === 'function') {
+                    window.toggleTransactionFixed(button.dataset.itemId);
+                } else {
+                    console.error('[EventDelegation] window.toggleTransactionFixed is not defined');
+                }
+            },
+            'toggle-transaction-fixed': () => {
+                const rowId = button.dataset.rowId || button.closest('tr')?.id;
+                if (typeof window.toggleTransactionFixed === 'function') {
+                    window.toggleTransactionFixed(rowId);
+                } else {
+                    console.error('[EventDelegation] window.toggleTransactionFixed is not defined');
+                }
+            },
+            'toggle-new-item-fixed': () => {
+                if (typeof window.toggleNewItemFixed === 'function') {
+                    window.toggleNewItemFixed(button.dataset.itemId);
+                } else {
+                    console.error('[EventDelegation] window.toggleNewItemFixed is not defined');
+                }
+            },
+            'cancel-new-row': () => {
+                if (typeof window.cancelNewRow === 'function') {
+                    window.cancelNewRow(button.dataset.itemId);
+                } else {
+                    console.error('[EventDelegation] window.cancelNewRow is not defined');
+                }
+            },
         };
 
         const handler = actions[action];
@@ -178,10 +321,30 @@ class EventDelegationManager {
 
         const toggleType = button.dataset.toggle;
         const itemId = button.dataset.itemId;
+        const currentState = button.dataset.currentState === 'true';
 
         const toggles = {
-            'income-realized': () => toggleIncomeRealized(itemId),
-            'expense-realized': () => toggleExpenseRealized(itemId),
+            'income-realized': () => {
+                if (typeof window.toggleIncomeRealized === 'function') {
+                    window.toggleIncomeRealized(itemId);
+                } else {
+                    console.error('[EventDelegation] window.toggleIncomeRealized is not defined');
+                }
+            },
+            'expense-realized': () => {
+                if (typeof window.toggleExpenseRealized === 'function') {
+                    window.toggleExpenseRealized(itemId);
+                } else {
+                    console.error('[EventDelegation] window.toggleExpenseRealized is not defined');
+                }
+            },
+            'realized': () => {
+                if (typeof window.toggleRealized === 'function') {
+                    window.toggleRealized(itemId, currentState);
+                } else {
+                    console.error('[EventDelegation] window.toggleRealized is not defined');
+                }
+            },
         };
 
         const handler = toggles[toggleType];
@@ -206,6 +369,11 @@ class EventDelegationManager {
             'filter-period': () => filterByPeriod(value),
             'filter-member': () => filterByMember(value),
             'filter-flowgroup': () => filterByFlowGroup(value),
+            'toggle-delete-consent': () => this.toggleDeleteButton(element),
+            'toggle-reconciliation-mode': () => this.toggleReconciliationMode(element.checked),
+            'handle-shared-change': () => this.handleSharedChange(),
+            'handle-kids-change': () => this.handleKidsChange(),
+            'handle-creditcard-change': () => this.handleCreditCardChange(),
         };
 
         const handler = actions[action];
@@ -242,11 +410,111 @@ class EventDelegationManager {
      */
     addNewRow(type) {
         if (type === 'income') {
-            addNewIncomeRow();
+            if (typeof window.addNewIncomeRow === 'function') {
+                window.addNewIncomeRow();
+            } else {
+                console.error('[EventDelegation] window.addNewIncomeRow is not defined');
+            }
         } else if (type === 'expense') {
-            addNewExpenseRow();
+            if (typeof window.addNewRow === 'function') {
+                window.addNewRow();
+            } else {
+                console.error('[EventDelegation] window.addNewRow is not defined');
+            }
         } else {
             console.warn(`[EventDelegation] Unknown row type: ${type}`);
+        }
+    }
+
+    /**
+     * Toggle delete button enable/disable (base.html delete period modal)
+     */
+    toggleDeleteButton(checkbox) {
+        const deleteBtn = document.getElementById('confirmDeleteBtn');
+        if (!deleteBtn) return;
+
+        if (checkbox.checked) {
+            deleteBtn.disabled = false;
+            deleteBtn.style.backgroundColor = '#ef4444';
+            deleteBtn.style.color = '#ffffff';
+            deleteBtn.style.cursor = 'pointer';
+        } else {
+            deleteBtn.disabled = true;
+            deleteBtn.style.backgroundColor = '#d1d5db';
+            deleteBtn.style.color = '#6b7280';
+            deleteBtn.style.cursor = 'not-allowed';
+        }
+    }
+
+    /**
+     * Toggle bank reconciliation mode (general vs detailed)
+     */
+    toggleReconciliationMode(isChecked) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const period = urlParams.get('period') || '';
+        const mode = isChecked ? 'detailed' : 'general';
+        window.location.href = `/bank-reconciliation/?period=${period}&mode=${mode}`;
+    }
+
+    /**
+     * Handle shared group checkbox change (FlowGroup.html)
+     */
+    handleSharedChange() {
+        const sharedCheckbox = document.getElementById('id_is_shared');
+        const kidsCheckbox = document.getElementById('id_is_kids_group');
+        const membersContainer = document.getElementById('members-selection-container');
+
+        if (!sharedCheckbox || !membersContainer) return;
+
+        if (sharedCheckbox.checked) {
+            if (kidsCheckbox && kidsCheckbox.checked) {
+                membersContainer.style.display = 'none';
+            } else {
+                membersContainer.style.display = 'flex';
+            }
+        } else {
+            membersContainer.style.display = 'none';
+        }
+    }
+
+    /**
+     * Handle kids group checkbox change (FlowGroup.html)
+     */
+    handleKidsChange() {
+        const kidsCheckbox = document.getElementById('id_is_kids_group');
+        const sharedCheckbox = document.getElementById('id_is_shared');
+        const childrenContainer = document.getElementById('children-selection-container');
+        const membersContainer = document.getElementById('members-selection-container');
+
+        if (!kidsCheckbox || !childrenContainer) return;
+
+        if (kidsCheckbox.checked) {
+            childrenContainer.style.display = 'flex';
+            if (sharedCheckbox) {
+                sharedCheckbox.checked = true;
+                membersContainer.style.display = 'none';
+            }
+        } else {
+            childrenContainer.style.display = 'none';
+            if (sharedCheckbox && sharedCheckbox.checked) {
+                membersContainer.style.display = 'flex';
+            }
+        }
+    }
+
+    /**
+     * Handle credit card checkbox change (FlowGroup.html)
+     */
+    handleCreditCardChange() {
+        const creditCardCheckbox = document.getElementById('id_is_credit_card');
+        const closedDateContainer = document.getElementById('credit-card-closed-date-container');
+
+        if (!creditCardCheckbox || !closedDateContainer) return;
+
+        if (creditCardCheckbox.checked) {
+            closedDateContainer.style.display = 'block';
+        } else {
+            closedDateContainer.style.display = 'none';
         }
     }
 }

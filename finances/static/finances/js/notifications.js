@@ -1,4 +1,5 @@
 // finances/static/finances/js/notifications.js
+// Version: 20251231-001 - Using utils.js for common functions
 
 (function() {
     'use strict';
@@ -28,22 +29,9 @@
     });
 
     // Utility: Get CSRF token from cookies
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
+    // getCookie - using utils.js (window.getCookie)
 
-    const csrftoken = getCookie('csrftoken');
+    const csrftoken = window.getCookie('csrftoken');
     console.log('[NOTIF JS] CSRF token:', csrftoken ? 'Found' : 'NOT FOUND');
 
     // Toggle dropdown

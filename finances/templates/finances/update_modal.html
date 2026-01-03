@@ -1,64 +1,43 @@
 {% load static %}
 {% load i18n %}
 
-<script>
-// Translation strings for update_manager.js
-window.UPDATE_I18N = {
-    // Local update messages
-    localUpdatePendingNonAdmin: "{% trans 'A local update is pending and must be applied before the system can be used. Only administrators can apply updates. Please contact an administrator to complete this update.' %}",
-    localUpdatesAvailable: "{% trans 'Local updates are available and must be applied before continuing.' %}",
-    systemFilesUpdated: "{% trans 'System files have been updated. Database migrations will be applied.' %}",
-
-    // GitHub update messages
-    githubVersionAvailable: "{% trans 'A new version is available on GitHub!' %}",
-    githubUpdateNonAdmin: "{% trans 'A new version is available on GitHub. Only administrators can install updates. Please contact an administrator to apply this update.' %}",
-
-    // Button texts
-    buttonOK: "{% trans 'OK' %}",
-    buttonSkipUpdate: "{% trans 'Skip Update' %}",
-
-    // Progress messages
-    applyingUpdates: "{% trans 'Applying Updates...' %}",
-    preparingUpdate: "{% trans 'Preparing update...' %}",
-    applyingUpdatesProgress: "{% trans 'Applying updates...' %}",
-    updateComplete: "{% trans 'Update complete!' %}",
-    installingGithubUpdate: "{% trans 'Installing GitHub Update...' %}",
-    downloadingRelease: "{% trans 'Downloading release...' %}",
-    extractingFiles: "{% trans 'Extracting files...' %}",
-
-    // Success/Error messages
-    updatesAppliedSuccess: "{% trans 'Updates applied successfully! Waiting for server to restart...' %}",
-    githubUpdateSuccess: "{% trans 'GitHub update installed successfully! Waiting for server to restart...' %}",
-    updateFailed: "{% trans 'Update failed. Check logs for details.' %}",
-    failedToApplyUpdates: "{% trans 'Failed to apply updates' %}",
-    failedToInstallUpdate: "{% trans 'Failed to install update' %}",
-    failedToCheckUpdates: "{% trans 'Failed to check for updates. Please try again.' %}",
-    failedToSkipUpdate: "{% trans 'Failed to skip update. Please try again.' %}",
-    pleaseConfirmBackup: "{% trans 'Please confirm that you have created a backup before proceeding.' %}",
-
-    // Server restart messages
-    serverRestartTakingLonger: "{% trans 'Server is taking longer than expected to restart.' %}",
-    waitAndClickToReload: "{% trans 'Please wait a moment and then' %}",
-    clickHereToReload: "{% trans 'click here to reload' %}",
-
-    // Logs
-    noLogsAvailable: "{% trans 'No logs available yet. Please apply an update first.' %}",
-
-    // Backup messages
-    backupCreatedSuccessfully: "{% trans 'Backup created successfully! File will be downloaded.' %}",
-    failedToCreateBackup: "{% trans 'Failed to create backup:' %}",
-
-    // Skip update messages
-    localUpdatesCannotBeSkipped: "{% trans 'Local updates cannot be skipped. They are required for the system to function correctly.' %}",
-    confirmSkipUpdate: "{% trans 'Are you sure you want to skip this update? You won\\'t be notified about this version again until a newer version is released.' %}",
-    failedToSkipUpdate2: "{% trans 'Failed to skip update:' %}",
-
-    // Error messages
-    unknownError: "{% trans 'Unknown error' %}",
-    logsModalNotFound: "{% trans 'Logs modal element not found in the page.' %}",
-    logsContentNotFound: "{% trans 'Logs content element not found in the page.' %}"
-};
-</script>
+<!-- PHASE 3 CSP Compliance: Translation strings moved to data attributes -->
+<div id="update-i18n-config" class="hidden"
+     data-i18n-local-update-pending-non-admin="{% trans 'A local update is pending and must be applied before the system can be used. Only administrators can apply updates. Please contact an administrator to complete this update.' %}"
+     data-i18n-local-updates-available="{% trans 'Local updates are available and must be applied before continuing.' %}"
+     data-i18n-system-files-updated="{% trans 'System files have been updated. Database migrations will be applied.' %}"
+     data-i18n-github-version-available="{% trans 'A new version is available on GitHub!' %}"
+     data-i18n-github-update-non-admin="{% trans 'A new version is available on GitHub. Only administrators can install updates. Please contact an administrator to apply this update.' %}"
+     data-i18n-button-ok="{% trans 'OK' %}"
+     data-i18n-button-skip-update="{% trans 'Skip Update' %}"
+     data-i18n-applying-updates="{% trans 'Applying Updates...' %}"
+     data-i18n-preparing-update="{% trans 'Preparing update...' %}"
+     data-i18n-applying-updates-progress="{% trans 'Applying updates...' %}"
+     data-i18n-update-complete="{% trans 'Update complete!' %}"
+     data-i18n-installing-github-update="{% trans 'Installing GitHub Update...' %}"
+     data-i18n-downloading-release="{% trans 'Downloading release...' %}"
+     data-i18n-extracting-files="{% trans 'Extracting files...' %}"
+     data-i18n-updates-applied-success="{% trans 'Updates applied successfully! Waiting for server to restart...' %}"
+     data-i18n-github-update-success="{% trans 'GitHub update installed successfully! Waiting for server to restart...' %}"
+     data-i18n-update-failed="{% trans 'Update failed. Check logs for details.' %}"
+     data-i18n-failed-to-apply-updates="{% trans 'Failed to apply updates' %}"
+     data-i18n-failed-to-install-update="{% trans 'Failed to install update' %}"
+     data-i18n-failed-to-check-updates="{% trans 'Failed to check for updates. Please try again.' %}"
+     data-i18n-failed-to-skip-update="{% trans 'Failed to skip update. Please try again.' %}"
+     data-i18n-please-confirm-backup="{% trans 'Please confirm that you have created a backup before proceeding.' %}"
+     data-i18n-server-restart-taking-longer="{% trans 'Server is taking longer than expected to restart.' %}"
+     data-i18n-wait-and-click-to-reload="{% trans 'Please wait a moment and then' %}"
+     data-i18n-click-here-to-reload="{% trans 'click here to reload' %}"
+     data-i18n-no-logs-available="{% trans 'No logs available yet. Please apply an update first.' %}"
+     data-i18n-backup-created-successfully="{% trans 'Backup created successfully! File will be downloaded.' %}"
+     data-i18n-failed-to-create-backup="{% trans 'Failed to create backup:' %}"
+     data-i18n-local-updates-cannot-be-skipped="{% trans 'Local updates cannot be skipped. They are required for the system to function correctly.' %}"
+     data-i18n-confirm-skip-update="{% trans "Are you sure you want to skip this update? You won't be notified about this version again until a newer version is released." %}"
+     data-i18n-failed-to-skip-update2="{% trans 'Failed to skip update:' %}"
+     data-i18n-unknown-error="{% trans 'Unknown error' %}"
+     data-i18n-logs-modal-not-found="{% trans 'Logs modal element not found in the page.' %}"
+     data-i18n-logs-content-not-found="{% trans 'Logs content element not found in the page.' %}">
+</div>
 
 <div id="update-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-3xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
@@ -291,4 +270,5 @@ window.UPDATE_I18N = {
     </div>
 </div>
 
-<script src="{% static 'finances/js/update_manager.js' %}"></script>
+<!-- PHASE 3 CSP Compliance: Update manager script loaded with defer -->
+<script src="{% static 'finances/js/update_manager.js' %}?v=20251231-001" defer></script>

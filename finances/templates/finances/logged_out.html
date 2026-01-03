@@ -42,19 +42,8 @@
         </div>
     </div>
 
-    <script>
-        let countdown = 3;
-        const countdownElement = document.getElementById('countdown');
-        
-        const timer = setInterval(() => {
-            countdown--;
-            countdownElement.textContent = countdown;
-            
-            if (countdown <= 0) {
-                clearInterval(timer);
-                window.location.href = "/login/";
-            }
-        }, 1000);
-    </script>
+    <!-- PHASE 3 CSP Compliance: Countdown logic moved to external logged_out.js -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
+    <script src="{% static 'finances/js/logged_out.js' %}?v=20251231-001" defer></script>
 </body>
 </html>

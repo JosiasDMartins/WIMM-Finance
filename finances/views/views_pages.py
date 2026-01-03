@@ -968,9 +968,15 @@ def edit_flow_group_view(request, group_id):
         total=Sum('amount')
     )['total'] or Decimal('0.00')
 
+    # Calculate total realized (only realized transactions)
+    total_real = transactions.filter(realized=True).aggregate(
+        total=Sum('amount')
+    )['total'] or Decimal('0.00')
+
     total_estimated = Decimal(str(total_est.amount)) if hasattr(total_est, 'amount') else total_est
+    total_realized = Decimal(str(total_real.amount)) if hasattr(total_real, 'amount') else total_real
     budg_amt_val = Decimal(str(group.budgeted_amount.amount)) if hasattr(group.budgeted_amount, 'amount') else Decimal(str(group.budgeted_amount))
-    
+
     budget_warning = total_estimated > budg_amt_val if budg_amt_val else False
 
     default_date = get_default_date_for_period(start_date, end_date)
@@ -986,6 +992,7 @@ def edit_flow_group_view(request, group_id):
         'current_member': current_member,
         'today_date': default_date.strftime('%Y-%m-%d'),
         'total_estimated': total_estimated,
+        'total_realized': total_realized,
         'budget_warning': budget_warning,
         'start_date': start_date,
         'end_date': end_date,

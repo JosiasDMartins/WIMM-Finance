@@ -39,92 +39,9 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-// Investments Real-time Updates
-window.InvestmentsRealtime = {
-    /**
-     * Update investment balance display
-     */
-    updateBalance: function() {
-        console.log('[InvestmentsRT] Updating investment balance...');
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const period = urlParams.get('period') || '';
-        const url = "{% url 'get_investment_balance_ajax' %}" + (period ? `?period=${period}` : '');
-
-        fetch(url, {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                const balanceElement = document.querySelector('.text-4xl.font-bold');
-                if (balanceElement) {
-                    // Format the balance with currency symbol and separators
-                    const formattedBalance = window.RealtimeUI.utils.formatCurrency(data.available_balance);
-                    balanceElement.textContent = formattedBalance;
-                    console.log('[InvestmentsRT] Balance updated to:', formattedBalance);
-                }
-            } else {
-                console.error('[InvestmentsRT] Error updating balance:', data.error);
-            }
-        })
-        .catch(error => {
-            console.error('[InvestmentsRT] Fetch error:', error);
-        });
-    },
-
-    /**
-     * Handle transaction events - check if it's an investment transaction
-     */
-    handleTransactionEvent: function(transactionData) {
-        // Check if the transaction belongs to an investment FlowGroup
-        if (transactionData.is_investment) {
-            console.log('[InvestmentsRT] Investment transaction event detected:', transactionData);
-            this.updateBalance();
-        }
-    },
-
-    /**
-     * Handle FlowGroup update - check if is_investment flag changed
-     */
-    handleFlowGroupUpdate: function(flowgroupData) {
-        // If a FlowGroup's is_investment flag changed, update balance
-        if (flowgroupData.hasOwnProperty('is_investment')) {
-            console.log('[InvestmentsRT] FlowGroup investment status changed:', flowgroupData);
-            this.updateBalance();
-        }
-    }
-};
-
-// Listen for transaction events
-document.addEventListener('realtime:transaction:created', function(event) {
-    if (window.InvestmentsRealtime && window.InvestmentsRealtime.handleTransactionEvent) {
-        window.InvestmentsRealtime.handleTransactionEvent(event.detail.data);
-    }
-});
-
-document.addEventListener('realtime:transaction:updated', function(event) {
-    if (window.InvestmentsRealtime && window.InvestmentsRealtime.handleTransactionEvent) {
-        window.InvestmentsRealtime.handleTransactionEvent(event.detail.data);
-    }
-});
-
-document.addEventListener('realtime:transaction:deleted', function(event) {
-    if (window.InvestmentsRealtime && window.InvestmentsRealtime.handleTransactionEvent) {
-        window.InvestmentsRealtime.handleTransactionEvent(event.detail.data);
-    }
-});
-
-// Listen for FlowGroup events (when is_investment changes)
-document.addEventListener('realtime:flowgroup:updated', function(event) {
-    if (window.InvestmentsRealtime && window.InvestmentsRealtime.handleFlowGroupUpdate) {
-        window.InvestmentsRealtime.handleFlowGroupUpdate(event.detail.data);
-    }
-});
-
-console.log('[InvestmentsRealtime] Loaded successfully');
-</script>
+<!-- PHASE 3 CSP Compliance: Investments logic moved to external investments.js -->
+<div id="investments-config" class="hidden"
+     data-ajax-url="{% url 'get_investment_balance_ajax' %}">
+</div>
+<script src="{% static 'finances/js/investments.js' %}?v=20251231-001" defer></script>
 {% endblock %}

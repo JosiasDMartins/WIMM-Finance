@@ -55,54 +55,10 @@
         </div>
     </div>
 
-    <script>
-        let retryCount = 0;
-        const maxRetries = 60; // Try for 10 minutes (60 retries x 10 seconds)
-
-        // Retry connection function
-        function retryConnection() {
-            retryCount = 0; // Reset counter on manual retry
-            checkConnection();
-        }
-
-        // Check connection
-        function checkConnection() {
-            fetch('/', { method: 'HEAD', cache: 'no-cache' })
-                .then(response => {
-                    if (response.ok) {
-                        console.log('[Offline] Server is back online, redirecting...');
-                        window.location.href = '/';
-                    }
-                })
-                .catch(error => {
-                    console.log('[Offline] Still offline, retry', retryCount, '/', maxRetries);
-                });
-        }
-
-        // Auto-retry every 10 seconds
-        const autoRetryInterval = setInterval(() => {
-            retryCount++;
-
-            if (retryCount >= maxRetries) {
-                clearInterval(autoRetryInterval);
-                const status = document.getElementById('connection-status');
-                if (status) {
-                    status.innerHTML = `
-                        <div class="inline-flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                            <span class="inline-block w-2 h-2 bg-red-500 rounded-full"></span>
-                            <span class="text-sm text-red-700 dark:text-red-400 font-medium">
-                                😢 Still can't connect. Try the button!
-                            </span>
-                        </div>
-                    `;
-                }
-                return;
-            }
-
-            checkConnection();
-        }, 10000); // Every 10 seconds
-
-        console.log('[Offline] Offline page loaded, will auto-retry every 10 seconds');
-    </script>
+    <!-- PHASE 3 CSP Compliance: Auto-retry logic moved to external offline.js -->
+    <div id="offline-config" class="hidden"
+         data-i18n-still-cant-connect="😢 {% trans "Still can't connect. Try the button!" %}">
+    </div>
+    <script src="{% static 'finances/js/offline.js' %}?v=20251231-001" defer></script>
 </body>
 </html>

@@ -317,6 +317,17 @@
     };
 
     // ==============================================
+    // BALANCE HANDLERS
+    // ==============================================
+
+    window.RealtimeUI.handleBalanceUpdated = function(data) {
+        console.log('[RealtimeUI] Balance updated (generic):', data);
+
+        // Trigger custom event for dashboard and other pages to listen
+        triggerCustomEvent('realtime:balance:updated', data);
+    };
+
+    // ==============================================
     // BANK BALANCE HANDLERS
     // ==============================================
 

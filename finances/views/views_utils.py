@@ -438,8 +438,8 @@ def get_year_to_date_metrics(family, current_period_end, current_member=None):
         total_investments += kids_investment_realized
         total_investments_float = float(total_investments.amount) if hasattr(total_investments, 'amount') else float(total_investments)
 
-    # Total Savings = Income - Expenses - Investments
-    total_savings = total_income_float - total_expenses_float - total_investments_float
+    # Total Savings = Income - Expenses (investments are considered savings, not expenses)
+    total_savings = total_income_float - total_expenses_float
 
     return {
         'ytd_savings': total_savings,
@@ -554,6 +554,8 @@ def get_balance_summary(family, current_member, family_members, start_date, end_
         realized_exp_q = Transaction.objects.filter(
             flow_group__in=accessible_expense_groups, date__range=(start_date, end_date),
             realized=True, is_child_expense=True
+        ).exclude(
+            flow_group__is_investment=True
         ).filter(
             Q(flow_group__is_credit_card=False) | Q(flow_group__is_credit_card=True, flow_group__closed=True)
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
@@ -604,6 +606,8 @@ def get_balance_summary(family, current_member, family_members, start_date, end_
         realized_exp_calc = Transaction.objects.filter(
             flow_group__in=all_expense_groups, date__range=(start_date, end_date),
             realized=True, is_child_expense=False
+        ).exclude(
+            flow_group__is_investment=True
         ).filter(
             Q(flow_group__is_credit_card=False) | Q(flow_group__is_credit_card=True, flow_group__closed=True)
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')

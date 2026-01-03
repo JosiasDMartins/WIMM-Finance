@@ -100,6 +100,7 @@ def ensure_recurring_data_for_period(family, period_start_date):
             is_shared=source_group.is_shared,
             is_kids_group=source_group.is_kids_group,
             is_investment=source_group.is_investment,
+            is_credit_card=source_group.is_credit_card,
             is_recurring=True,
             owner=source_group.owner,
             order=source_group.order
@@ -231,6 +232,7 @@ def replicate_recurring_flowgroups(family, new_period_start_date):
             is_shared=source_group.is_shared,
             is_kids_group=source_group.is_kids_group,
             is_investment=source_group.is_investment,
+            is_credit_card=source_group.is_credit_card,
             is_recurring=True,  # Maintain recurring status
             owner=source_group.owner,
             order=source_group.order
